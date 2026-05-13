@@ -700,25 +700,25 @@ ol {
   transform: rotate(12deg);
 }
 
-.site-header.has-marketplace-header .nav-actions .btn {
+.site-header.has-header-search .nav-actions .btn {
   min-height: 34px;
   padding: 0.48rem 0.75rem;
   border-radius: 4px;
   font-size: 0.86rem;
 }
 
-.site-header.has-marketplace-header .nav-actions .btn-ghost {
+.site-header.has-header-search .nav-actions .btn-ghost {
   color: #404145;
 }
 
-.site-header.has-marketplace-header .nav-join-button {
+.site-header.has-header-search .nav-join-button {
   border-color: #222325;
   background: #ffffff;
   color: #222325;
   box-shadow: none;
 }
 
-.site-header.has-marketplace-header .nav-join-button:hover {
+.site-header.has-header-search .nav-join-button:hover {
   background: #222325;
   color: #ffffff;
 }
@@ -1288,7 +1288,7 @@ body.auth-modal-open {
     transition: flex-basis var(--transition), max-width var(--transition), margin var(--transition), opacity var(--transition), transform var(--transition);
   }
 
-  .site-header.has-marketplace-header .marketplace-header-search {
+  .site-header.has-header-search .marketplace-header-search {
     flex: 1 1 438px;
     max-width: 438px;
     margin-left: 0.75rem;

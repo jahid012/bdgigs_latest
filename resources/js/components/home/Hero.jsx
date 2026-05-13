@@ -1,7 +1,15 @@
 import { popularTags, trustedBrands } from "../../data/homeData.js";
 import { Icon } from "../common/Icons.jsx";
 
-function Hero() {
+function Hero({ onNavigate }) {
+  const handleSearch = (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const query = String(formData.get("query") || "").trim();
+    const queryString = query ? `?query=${encodeURIComponent(query)}&source=hero` : "?source=hero";
+    onNavigate("/search/gigs", queryString);
+  };
+
   return (
     <section className="hero">
       <video className="hero-bg-video" autoPlay muted loop playsInline preload="metadata" aria-hidden="true">
@@ -16,10 +24,10 @@ function Hero() {
             will take it from here
           </h1>
 
-          <form className="hero-search" role="search" aria-label="Search freelance services" onSubmit={(event) => event.preventDefault()}>
+          <form className="hero-search" role="search" aria-label="Search freelance services" onSubmit={handleSearch}>
             <label className="hero-search-field">
               <span className="sr-only">Search service</span>
-              <input type="search" placeholder="Search for any service..." autoComplete="off" />
+              <input name="query" type="search" placeholder="Search for any service..." autoComplete="off" />
             </label>
             <button className="hero-search-button" type="submit" aria-label="Search">
               <Icon name="search" />

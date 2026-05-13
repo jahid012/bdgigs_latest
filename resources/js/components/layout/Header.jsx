@@ -7,13 +7,15 @@ import { BrandMark, Icon } from "../common/Icons.jsx";
 const authBenefits = ["Over 700 categories", "Quality work done faster", "Access to talent and businesses across the globe"];
 const authVisualImage = "https://images.pexels.com/photos/3769021/pexels-photo-3769021.jpeg?auto=compress&cs=tinysrgb&w=900";
 
-function Header({ onNavigate }) {
+function Header({ enableMarketplaceHeader = true, forceSearch = false, onNavigate, searchQuery = "" }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isExploreOpen, setIsExploreOpen] = useState(false);
   const [authMode, setAuthMode] = useState(null);
   const exploreRef = useRef(null);
   const isScrolled = useScrolledPast(24);
-  const showMarketplaceHeader = useScrolledPast(520);
+  const isPastHomeHero = useScrolledPast(520);
+  const showMarketplaceHeader = enableMarketplaceHeader && isPastHomeHero;
+  const showHeaderSearch = forceSearch || showMarketplaceHeader;
   const closeExploreMenu = useCallback(() => setIsExploreOpen(false), []);
 
   useDismissOnInteractOutside(exploreRef, isExploreOpen, closeExploreMenu);
@@ -68,12 +70,23 @@ function Header({ onNavigate }) {
     event.preventDefault();
     setIsMenuOpen(false);
     setIsExploreOpen(false);
-    onNavigate("home", "#services");
+    const formData = new FormData(event.currentTarget);
+    const query = String(formData.get("query") || "").trim();
+    const queryString = query ? `?query=${encodeURIComponent(query)}&source=topbar` : "?source=topbar";
+    onNavigate("/search/gigs", queryString);
+  };
+
+  const navigateToPath = (event, path) => {
+    event.preventDefault();
+    setIsMenuOpen(false);
+    setIsExploreOpen(false);
+    onNavigate(path);
   };
 
   const headerClass = [
     "site-header",
     isScrolled ? "is-scrolled" : "",
+    showHeaderSearch ? "has-header-search" : "",
     showMarketplaceHeader ? "has-marketplace-header" : "",
     isMenuOpen ? "has-open-menu" : "",
   ]
@@ -94,7 +107,13 @@ function Header({ onNavigate }) {
               <label className="sr-only" htmlFor="marketplaceHeaderSearch">
                 Search services
               </label>
-              <input id="marketplaceHeaderSearch" type="search" placeholder="What service are you looking for today?" />
+              <input
+                id="marketplaceHeaderSearch"
+                name="query"
+                type="search"
+                placeholder="What service are you looking for today?"
+                defaultValue={searchQuery}
+              />
               <button type="submit" aria-label="Search services">
                 <Icon name="search" />
               </button>
@@ -181,7 +200,13 @@ function Header({ onNavigate }) {
                 <label className="sr-only" htmlFor="mobileHeaderSearch">
                   Search services
                 </label>
-                <input id="mobileHeaderSearch" type="search" placeholder="What service are you looking for today?" />
+                <input
+                  id="mobileHeaderSearch"
+                  name="query"
+                  type="search"
+                  placeholder="What service are you looking for today?"
+                  defaultValue={searchQuery}
+                />
                 <button type="submit" aria-label="Search services">
                   <Icon name="search" />
                 </button>
@@ -219,8 +244,8 @@ function Header({ onNavigate }) {
               <a
                 key={category.label}
                 className={category.isHot ? "is-hot" : undefined}
-                href={category.hash}
-                onClick={(event) => goHome(event, category.hash)}
+                href={category.path}
+                onClick={(event) => navigateToPath(event, category.path)}
               >
                 {category.label}
                 {category.isHot ? <span aria-hidden="true"></span> : null}

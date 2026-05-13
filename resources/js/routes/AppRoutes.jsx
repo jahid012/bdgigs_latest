@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import DashboardPage from "../pages/DashboardPage.jsx";
-import { DASHBOARD_ROUTES, HOME_ROUTE } from "./routeConfig.js";
+import { DASHBOARD_ROUTES, HOME_ROUTE, MARKETPLACE_ROUTES } from "./routeConfig.js";
 import { usePageNavigation } from "./usePageNavigation.js";
 import { useRouteEffects } from "./useRouteEffects.js";
 
@@ -12,6 +12,9 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path={HOME_ROUTE.path} element={renderRoutePage(HOME_ROUTE, navigate)} />
+      {MARKETPLACE_ROUTES.map((route) => (
+        <Route key={route.key} path={route.path} element={renderRoutePage(route, navigate)} />
+      ))}
       {DASHBOARD_ROUTES.map((route) => (
         <Route key={route.key} path={route.path} element={renderDashboardRoute(route, navigate)} />
       ))}

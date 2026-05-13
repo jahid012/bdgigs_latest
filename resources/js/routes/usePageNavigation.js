@@ -7,6 +7,11 @@ export function usePageNavigation() {
 
   return useCallback(
     (nextPage, hash = "") => {
+      if (nextPage.startsWith("/")) {
+        routerNavigate(`${nextPage}${hash}`);
+        return;
+      }
+
       const nextPath = PAGE_PATHS[nextPage] || PAGE_PATHS.home;
       routerNavigate(`${nextPath}${hash}`);
     },

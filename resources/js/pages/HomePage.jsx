@@ -14,7 +14,7 @@ function HomePage({ onNavigate }) {
       </a>
       <Header onNavigate={onNavigate} />
       <main id="main">
-        <Hero />
+        <Hero onNavigate={onNavigate} />
         <PopularCategories />
         <FeaturedServices />
         <HowItWorks />

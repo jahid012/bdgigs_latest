@@ -10,6 +10,7 @@ export function useRouteEffects() {
     const isDashboard = pageKind === "dashboard" || pageKind === "seller-dashboard";
 
     document.body.classList.toggle("home-page", pageKind === "home");
+    document.body.classList.toggle("marketplace-page", pageKind === "marketplace");
     document.body.classList.toggle("dashboard-page", isDashboard);
     document.body.classList.toggle("seller-dashboard-page", pageKind === "seller-dashboard");
     document.title = getDocumentTitle(pathname);

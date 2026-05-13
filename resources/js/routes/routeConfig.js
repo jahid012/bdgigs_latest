@@ -4,6 +4,7 @@ import BuyerOrdersPage from "../pages/BuyerOrdersPage.jsx";
 import DashboardProfilePage from "../pages/DashboardProfilePage.jsx";
 import DashboardSettingsPage from "../pages/DashboardSettingsPage.jsx";
 import EarningsPage from "../pages/EarningsPage.jsx";
+import GigListingPage from "../pages/GigListingPage.jsx";
 import HomePage from "../pages/HomePage.jsx";
 import OrderDetailsPage from "../pages/OrderDetailsPage.jsx";
 import PaymentsPage from "../pages/PaymentsPage.jsx";
@@ -198,7 +199,24 @@ export const DASHBOARD_ROUTES = [
   },
 ];
 
-const APP_ROUTES = [HOME_ROUTE, ...DASHBOARD_ROUTES];
+export const MARKETPLACE_ROUTES = [
+  {
+    key: "gig-search",
+    path: "/search/gigs",
+    documentTitle: "Search Gigs | BDGigs",
+    Component: GigListingPage,
+    withNavigation: true,
+  },
+  {
+    key: "category-listing",
+    path: "/categories/*",
+    documentTitle: "Category Gigs | BDGigs",
+    Component: GigListingPage,
+    withNavigation: true,
+  },
+];
+
+const APP_ROUTES = [HOME_ROUTE, ...MARKETPLACE_ROUTES, ...DASHBOARD_ROUTES];
 const ROUTES_BY_PATH = new Map(APP_ROUTES.map((route) => [route.path, route]));
 
 export const PAGE_PATHS = APP_ROUTES.reduce((paths, route) => {
@@ -215,6 +233,10 @@ export function getPageKind(pathname) {
 
   if (path.startsWith("/dashboard")) {
     return "dashboard";
+  }
+
+  if (path.startsWith("/search/gigs") || path.startsWith("/categories")) {
+    return "marketplace";
   }
 
   return "home";
@@ -250,6 +272,14 @@ export function getDocumentTitle(pathname) {
 
   if (path.startsWith("/dashboard/orders")) {
     return ROUTES_BY_PATH.get("/dashboard/orders").documentTitle;
+  }
+
+  if (path.startsWith("/search/gigs")) {
+    return "Search Gigs | BDGigs";
+  }
+
+  if (path.startsWith("/categories")) {
+    return "Category Gigs | BDGigs";
   }
 
   if (path.startsWith("/dashboard/seller")) {
