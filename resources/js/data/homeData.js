@@ -7,7 +7,21 @@ export const heroCategories = [
   "WordPress",
 ];
 
-export const popularTags = ["Web Development", "Logo Design", "WordPress", "AI Services", "SEO"];
+export const popularTags = ["Website Development", "Architecture & Interior Design", "UGC Videos", "Video Editing", "Book Publishing"];
+
+export const trustedBrands = ["Meta", "Google", "NETFLIX", "P&G", "PayPal", "Payoneer"];
+
+export const marketplaceCategories = [
+  { icon: "code", title: "Programming & Tech" },
+  { icon: "palette", title: "Graphics & Design" },
+  { icon: "megaphone", title: "Digital Marketing" },
+  { icon: "document", title: "Writing & Translation" },
+  { icon: "video", title: "Video & Animation" },
+  { icon: "spark", title: "AI Services" },
+  { icon: "message", title: "Music & Audio" },
+  { icon: "building", title: "Business" },
+  { icon: "verifiedUser", title: "Consulting" },
+];
 
 export const categories = [
   {
@@ -73,78 +87,78 @@ export const services = [
     imageAlt: "Brand identity and logo design gig preview",
     pill: "Brand Design",
     badge: "Best seller",
-    seller: "Nadia R.",
-    initials: "NR",
-    level: "Top Rated Seller",
-    title: "I will create a premium logo and brand identity kit",
-    rating: "4.9",
-    reviews: "184",
+    seller: "Jannatul",
+    initials: "JA",
+    level: "Level 2",
+    title: "I will do ai website, ai web application, ai software as full stack developer",
+    rating: "5.0",
+    reviews: "538",
     delivery: "3 day delivery",
-    price: "$95",
+    price: "$150",
   },
   {
     id: "web-dashboard",
     category: "development",
-    image: "/assets/img/gig_images/2.png",
+    image: "/assets/img/gig_images/7.png",
     imageAlt: "Responsive website and dashboard gig preview",
     pill: "Web Development",
     badge: "Fast delivery",
-    seller: "Marco L.",
-    initials: "ML",
-    level: "Pro Freelancer",
-    title: "I will build a responsive business website or SaaS dashboard",
-    rating: "5.0",
-    reviews: "212",
+    seller: "Mahafuza A Mony",
+    initials: "MA",
+    level: "Level 1",
+    title: "I will install or fix any codecanyon PHP script",
+    rating: "4.9",
+    reviews: "54",
     delivery: "5 day delivery",
-    price: "$180",
+    price: "$5",
   },
   {
     id: "seo-growth",
     category: "marketing",
-    image: "/assets/img/gig_images/3.png",
+    image: "/assets/img/gig_images/8.png",
     imageAlt: "SEO growth and digital marketing gig preview",
     pill: "SEO Growth",
     badge: "Popular",
-    seller: "Ayesha K.",
-    initials: "AK",
-    level: "Top Rated Seller",
-    title: "I will audit your site and create an SEO growth plan",
-    rating: "4.8",
-    reviews: "156",
+    seller: "Deal With Code",
+    initials: "DW",
+    level: "Level 2",
+    title: "I will install and setup codecanyon PHP script on your hosting",
+    rating: "5.0",
+    reviews: "258",
     delivery: "2 day delivery",
-    price: "$120",
+    price: "$10",
   },
   {
     id: "ai-assistant",
     category: "ai",
-    image: "/assets/img/gig_images/4.png",
+    image: "/assets/img/gig_images/16.png",
     imageAlt: "AI assistant and automation gig preview",
     pill: "AI Services",
     badge: "Trending",
-    seller: "Daniel S.",
-    initials: "DS",
-    level: "AI Specialist",
-    title: "I will build an AI assistant for your internal workflow",
-    rating: "4.9",
-    reviews: "98",
+    seller: "Tecbeck",
+    initials: "TE",
+    level: "Top Rated",
+    title: "I will do mobile app development, android, ios, and app UI",
+    rating: "5.0",
+    reviews: "386",
     delivery: "7 day delivery",
-    price: "$260",
+    price: "$115",
   },
   {
     id: "product-video",
     category: "marketing",
-    image: "/assets/img/gig_images/5.png",
+    image: "/assets/img/gig_images/12.png",
     imageAlt: "Product video editing gig preview",
     pill: "Video Editing",
     badge: "High demand",
-    seller: "Lina P.",
-    initials: "LP",
-    level: "Video Pro",
-    title: "I will edit a high-converting product video for your launch",
-    rating: "4.7",
-    reviews: "121",
+    seller: "Skcoder",
+    initials: "SK",
+    level: "Level 2",
+    title: "I will setup stack food multi restaurant food delivery app",
+    rating: "5.0",
+    reviews: "2",
     delivery: "4 day delivery",
-    price: "$150",
+    price: "$80",
   },
   {
     id: "wordpress-speed",
@@ -161,6 +175,101 @@ export const services = [
     reviews: "143",
     delivery: "2 day delivery",
     price: "$110",
+  },
+];
+
+export const creatorServiceCards = [
+  {
+    title: "Vibe Coding",
+    image: "/assets/img/gig_images/1.png",
+    color: "#b52b55",
+  },
+  {
+    title: "Website Development",
+    image: "/assets/img/gig_images/3.png",
+    color: "#c9f8e8",
+  },
+  {
+    title: "Video Editing",
+    image: "/assets/img/gig_images/4.png",
+    color: "#ffd6c8",
+  },
+  {
+    title: "Software Development",
+    image: "/assets/img/gig_images/11.png",
+    color: "#7a6810",
+  },
+  {
+    title: "Book Publishing",
+    image: "/assets/img/gig_images/13.png",
+    color: "#c9eee0",
+  },
+  {
+    title: "Architecture & Interior Design",
+    image: "/assets/img/gig_images/16.png",
+    color: "#d04472",
+  },
+];
+
+export const marketplaceBenefits = [
+  {
+    icon: "spark",
+    title: "Access a pool of top talent",
+    copy: "Find specialized freelancers for every scope, timeline, and budget.",
+  },
+  {
+    icon: "verifiedUser",
+    title: "Enjoy a simple, easy-to-use experience",
+    copy: "Compare packages, message sellers, and manage orders from one place.",
+  },
+  {
+    icon: "bolt",
+    title: "Get quality work done quickly",
+    copy: "Move from brief to delivery with clear milestones and fast updates.",
+  },
+  {
+    icon: "payment",
+    title: "Only pay when you're happy",
+    copy: "Keep projects protected until the final work is approved.",
+  },
+];
+
+export const aiDirectors = [
+  {
+    name: "Jagger Waters",
+    image: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=320",
+  },
+  {
+    name: "The Visionmaker",
+    image: "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=320",
+  },
+  {
+    name: "Too Short For Modeling",
+    image: "https://images.pexels.com/photos/1674752/pexels-photo-1674752.jpeg?auto=compress&cs=tinysrgb&w=320",
+    featured: true,
+  },
+  {
+    name: "Billy Boman",
+    image: "https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=320",
+  },
+  {
+    name: "Jon Seifert",
+    image: "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=320",
+  },
+];
+
+export const guideCards = [
+  {
+    title: "Start a side business",
+    image: "/assets/img/gig_images/18.png",
+  },
+  {
+    title: "Ecommerce business ideas",
+    image: "/assets/img/gig_images/12.png",
+  },
+  {
+    title: "Start an online business and work from home",
+    image: "/assets/img/gig_images/20.png",
   },
 ];
 

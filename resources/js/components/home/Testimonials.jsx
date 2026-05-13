@@ -1,37 +1,51 @@
-import { testimonials } from "../../data/homeData.js";
-import { Rating } from "../common/Icons.jsx";
+import { useRef } from "react";
+import { guideCards } from "../../data/homeData.js";
+import { Icon } from "../common/Icons.jsx";
 
 function Testimonials() {
-  return (
-    <section className="section testimonials-section">
-      <div className="container">
-        <div className="section-header center">
-          <span className="eyebrow">Testimonials</span>
-          <h2 className="section-title">Teams use BDGigs to hire faster</h2>
-          <p className="section-copy">
-            Buyers rely on clear service packages, transparent reviews, and protected collaboration.
-          </p>
-        </div>
+  const guidesRef = useRef(null);
 
-        <div className="testimonial-grid">
-          {testimonials.map((testimonial) => (
-            <article className="card testimonial-card" key={testimonial.name}>
-              <div className="testimonial-top">
-                <div className="testimonial-author">
-                  <span className="avatar">{testimonial.initials}</span>
-                  <div>
-                    <h3>{testimonial.name}</h3>
-                    <span>{testimonial.role}</span>
-                  </div>
-                </div>
-                <Rating value={testimonial.rating} />
-              </div>
-              <p>{testimonial.feedback}</p>
-            </article>
-          ))}
+  const scrollGuides = () => {
+    guidesRef.current?.scrollBy({ left: 360, behavior: "smooth" });
+  };
+
+  return (
+    <>
+      <section className="guides-section" aria-labelledby="guidesTitle">
+        <div className="container">
+          <div className="guides-heading">
+            <h2 id="guidesTitle">Guides to help you grow</h2>
+            <a href="#services">See more guides</a>
+          </div>
+
+          <div className="guide-card-row" ref={guidesRef}>
+            {guideCards.map((guide) => (
+              <article className="guide-card" key={guide.title}>
+                <a href="#services">
+                  <img src={guide.image} alt="" loading="eager" decoding="async" />
+                  <h3>{guide.title}</h3>
+                </a>
+              </article>
+            ))}
+          </div>
+
+          <button className="guide-carousel-button" type="button" aria-label="View more guides" onClick={scrollGuides}>
+            <Icon name="arrowRight" />
+          </button>
         </div>
-      </div>
-    </section>
+      </section>
+
+      <section className="fingerprints-cta-section" aria-labelledby="fingerprintsTitle">
+        <div className="container">
+          <div className="fingerprints-cta-panel">
+            <h2 id="fingerprintsTitle">
+              Freelance services at your <span>fingertips</span>
+            </h2>
+            <a href="/register">Join BDGigs</a>
+          </div>
+        </div>
+      </section>
+    </>
   );
 }
 

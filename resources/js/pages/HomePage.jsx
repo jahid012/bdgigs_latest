@@ -2,14 +2,13 @@ import FeaturedServices from "../components/home/FeaturedServices.jsx";
 import Hero from "../components/home/Hero.jsx";
 import HowItWorks from "../components/home/HowItWorks.jsx";
 import PopularCategories from "../components/home/PopularCategories.jsx";
-import SellerCTA from "../components/home/SellerCTA.jsx";
 import Testimonials from "../components/home/Testimonials.jsx";
 import Footer from "../components/layout/Footer.jsx";
 import Header from "../components/layout/Header.jsx";
 
 function HomePage({ onNavigate }) {
   return (
-    <>
+    <div className="home-page">
       <a className="skip-link" href="#main">
         Skip to content
       </a>
@@ -19,11 +18,10 @@ function HomePage({ onNavigate }) {
         <PopularCategories />
         <FeaturedServices />
         <HowItWorks />
-        <SellerCTA />
         <Testimonials />
       </main>
       <Footer />
-    </>
+    </div>
   );
 }
 
