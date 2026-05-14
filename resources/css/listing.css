@@ -581,6 +581,13 @@
   aspect-ratio: 1.64 / 1;
 }
 
+.gig-listing-image-link {
+  display: block;
+  width: 100%;
+  height: 100%;
+  color: inherit;
+}
+
 .gig-listing-media img {
   width: 100%;
   height: 100%;
@@ -642,6 +649,14 @@
   object-fit: cover;
 }
 
+.gig-seller-profile-link {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.42rem;
+  color: #222325;
+}
+
 .gig-seller-row strong {
   overflow: hidden;
   min-width: 0;
@@ -666,6 +681,10 @@
   line-height: 1.35;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.gig-listing-body h2 a {
+  color: inherit;
 }
 
 .gig-rating-row {
@@ -743,9 +762,276 @@
   font-weight: 800;
 }
 
+.listing-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.15rem;
+  padding: 3rem 0 2.2rem;
+}
+
+.listing-pagination button {
+  display: inline-grid;
+  min-width: 28px;
+  height: 34px;
+  place-items: center;
+  background: transparent;
+  color: #62646a;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.listing-pagination button:first-child,
+.listing-pagination button:last-child {
+  width: 34px;
+  min-width: 34px;
+  border: 1px solid #dadbdd;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #62646a;
+  transition: border-color var(--transition), color var(--transition), transform var(--transition);
+}
+
+.listing-pagination button:first-child svg {
+  transform: rotate(180deg);
+}
+
+.listing-pagination button:first-child:hover,
+.listing-pagination button:last-child:hover {
+  border-color: #222325;
+  color: #222325;
+  transform: translateY(-1px);
+}
+
+.listing-pagination button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.listing-pagination button.is-active {
+  color: #111111;
+  box-shadow: inset 0 -1px 0 #111111;
+}
+
+.listing-bottom-surface {
+  margin-top: 0.2rem;
+  padding: 1.8rem 0 2.1rem;
+  background: #f5f5f5;
+}
+
+.browsing-history-section {
+  margin-bottom: 2.4rem;
+}
+
+.listing-bottom-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.35rem;
+}
+
+.listing-bottom-heading h2,
+.talent-way-section h2 {
+  color: #222325;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.browsing-history-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.browsing-history-actions button {
+  display: inline-grid;
+  min-height: 30px;
+  place-items: center;
+  background: transparent;
+  color: #222325;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.browsing-history-actions > span {
+  width: 1px;
+  height: 14px;
+  background: #dadbdd;
+}
+
+.browsing-history-actions button:nth-last-child(-n + 2) {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #b5b6ba;
+  box-shadow: 0 1px 5px rgba(34, 35, 37, 0.08);
+}
+
+.browsing-history-actions button:nth-last-child(2) svg {
+  transform: rotate(180deg);
+}
+
+.browsing-history-actions svg {
+  width: 14px;
+  height: 14px;
+}
+
+.browsing-history-row {
+  display: grid;
+  grid-auto-columns: minmax(126px, 1fr);
+  grid-auto-flow: column;
+  gap: 0.95rem;
+  overflow-x: auto;
+  padding-bottom: 0.2rem;
+  scrollbar-width: none;
+}
+
+.browsing-history-row::-webkit-scrollbar {
+  display: none;
+}
+
+.history-gig-card {
+  display: grid;
+  min-width: 0;
+  color: #222325;
+}
+
+.history-gig-media {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #ffffff;
+  aspect-ratio: 1.65 / 1;
+}
+
+.history-gig-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.history-gig-media span {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  color: #ffffff;
+  backdrop-filter: blur(3px);
+}
+
+.history-gig-media svg {
+  width: 16px;
+  height: 16px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.28));
+}
+
+.history-gig-card strong {
+  display: -webkit-box;
+  min-height: 37px;
+  margin-top: 0.55rem;
+  overflow: hidden;
+  color: #111111;
+  font-size: 0.86rem;
+  font-weight: 500;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.talent-way-section h2 {
+  margin-bottom: 1.35rem;
+  font-size: 0.98rem;
+}
+
+.talent-way-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.2rem;
+}
+
+.talent-way-card {
+  display: grid;
+  min-height: 182px;
+  align-content: start;
+  padding: 1.25rem 1.25rem 1rem;
+  border: 1px solid #e4e5e7;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.talent-way-card > svg {
+  width: 26px;
+  height: 26px;
+  margin-bottom: 0.85rem;
+  color: #404145;
+}
+
+.talent-way-card h3 {
+  margin-bottom: 0.35rem;
+  color: #111111;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.talent-way-card p {
+  max-width: 36rem;
+  color: #111111;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.talent-way-card div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+.talent-way-card strong {
+  color: #62646a;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.talent-way-card button {
+  min-height: 34px;
+  padding: 0 0.95rem;
+  border: 1px solid #222325;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111111;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 800;
+  transition: background var(--transition), color var(--transition);
+}
+
+.talent-way-card button:hover {
+  background: #222325;
+  color: #ffffff;
+}
+
 @media (max-width: 1180px) {
   .gig-listing-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .talent-way-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -777,6 +1063,11 @@
   .gig-listing-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .listing-bottom-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 640px) {
@@ -806,5 +1097,21 @@
 
   .gig-listing-grid {
     grid-template-columns: 1fr;
+  }
+
+  .listing-pagination {
+    gap: 0.55rem;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding-bottom: 1.6rem;
+  }
+
+  .browsing-history-actions {
+    flex-wrap: wrap;
+  }
+
+  .talent-way-card div {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

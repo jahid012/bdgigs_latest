@@ -35,12 +35,24 @@ function Hero({ onNavigate }) {
           </form>
 
           <div className="popular-tags" aria-label="Popular service searches">
-            {popularTags.map((tag) => (
-              <a className="hero-tag" href="#services" key={tag}>
-                {tag}
-                <Icon name="arrowRight" />
-              </a>
-            ))}
+            {popularTags.map((tag) => {
+              const path = `/search/gigs?query=${encodeURIComponent(tag)}&source=hero-tag`;
+
+              return (
+                <a
+                  className="hero-tag"
+                  href={path}
+                  key={tag}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    onNavigate(path);
+                  }}
+                >
+                  {tag}
+                  <Icon name="arrowRight" />
+                </a>
+              );
+            })}
           </div>
 
           <div className="trusted-row" aria-label="Trusted by">

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   deliveryOptions,
   listingFilterGroups,
@@ -7,6 +7,7 @@ import {
   listingSortOptions,
   websiteCategoryPage,
 } from "../data/gigListingData.js";
+import { profilePathForSeller } from "../data/userProfileData.js";
 import { useDismissOnInteractOutside } from "../hooks/useDismissOnInteractOutside.js";
 import { Icon } from "../components/common/Icons.jsx";
 import Footer from "../components/layout/Footer.jsx";
@@ -40,13 +41,18 @@ function GigListingPage({ onNavigate }) {
   const [filters, setFilters] = useState(defaultFilters);
   const [draftFilters, setDraftFilters] = useState(defaultFilters);
   const [activePanel, setActivePanel] = useState(null);
+  const [activePage, setActivePage] = useState(4);
+  const [isHistoryHidden, setIsHistoryHidden] = useState(false);
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
   const filterRef = useRef(null);
+  const historyRef = useRef(null);
 
   useDismissOnInteractOutside(filterRef, Boolean(activePanel), () => setActivePanel(null));
 
   const scopedGigs = useMemo(() => getScopedGigs({ isSearchPage, query, pathname: location.pathname }), [isSearchPage, location.pathname, query]);
   const filteredGigs = useMemo(() => sortGigs(applyFilters(scopedGigs, filters), filters.sort), [filters, scopedGigs]);
   const firstOrderGigs = useMemo(() => scopedGigs.filter((gig) => gig.featured).slice(0, 4), [scopedGigs]);
+  const displayedGigs = useMemo(() => getPagedGigs(filteredGigs, activePage), [activePage, filteredGigs]);
   const hasFilters = hasActiveFilters(filters);
   const resultLabel = hasFilters ? `${filteredGigs.length} results` : pageMeta.resultLabel;
   const activeButtons = isSearchPage
@@ -158,7 +164,10 @@ function GigListingPage({ onNavigate }) {
           ) : null}
 
           {filteredGigs.length ? (
-            <GigGrid gigs={filteredGigs} />
+            <>
+              <GigGrid gigs={displayedGigs} />
+              <ListingPagination activePage={activePage} onPageChange={setActivePage} />
+            </>
           ) : (
             <div className="listing-empty-state">
               <Icon name="search" />
@@ -170,10 +179,155 @@ function GigListingPage({ onNavigate }) {
             </div>
           )}
         </div>
+
+        <ListingBottomSections
+          historyGigs={listingGigs.slice(0, isHistoryExpanded ? 12 : 8)}
+          historyRef={historyRef}
+          isHistoryHidden={isHistoryHidden}
+          isHistoryExpanded={isHistoryExpanded}
+          onClearHistory={() => setIsHistoryHidden(true)}
+          onNavigate={onNavigate}
+          onScrollHistory={(direction) => historyRef.current?.scrollBy({ left: direction * 280, behavior: "smooth" })}
+          onToggleHistory={() => setIsHistoryExpanded((expanded) => !expanded)}
+        />
       </main>
 
       <Footer />
     </div>
+  );
+}
+
+function ListingPagination({ activePage, onPageChange }) {
+  const pages = Array.from({ length: 10 }, (_, index) => index + 1);
+
+  const changePage = (page) => {
+    const nextPage = Math.min(Math.max(page, 1), pages.length);
+    onPageChange(nextPage);
+    window.scrollTo({ top: 160, behavior: "smooth" });
+  };
+
+  return (
+    <nav className="listing-pagination" aria-label="Gig results pagination">
+      <button type="button" aria-label="Previous page" onClick={() => changePage(activePage - 1)}>
+        <Icon name="arrowRight" />
+      </button>
+      {pages.map((page) => (
+        <button className={page === activePage ? "is-active" : ""} type="button" key={page} onClick={() => changePage(page)}>
+          {page}
+        </button>
+      ))}
+      <button type="button" aria-label="Next page" onClick={() => changePage(activePage + 1)}>
+        <Icon name="arrowRight" />
+      </button>
+    </nav>
+  );
+}
+
+function ListingBottomSections({
+  historyGigs,
+  historyRef,
+  isHistoryHidden,
+  isHistoryExpanded,
+  onClearHistory,
+  onNavigate,
+  onScrollHistory,
+  onToggleHistory,
+}) {
+  return (
+    <section className="listing-bottom-surface" aria-label="More ways to hire">
+      <div className="container">
+        {!isHistoryHidden ? (
+          <section className="browsing-history-section" aria-labelledby="browsingHistoryTitle">
+            <div className="listing-bottom-heading">
+              <h2 id="browsingHistoryTitle">Your Browsing History</h2>
+              <div className="browsing-history-actions">
+                <button type="button" onClick={onClearHistory}>
+                  Clear All
+                </button>
+                <span aria-hidden="true"></span>
+                <button type="button" onClick={onToggleHistory}>
+                  {isHistoryExpanded ? "Show Less" : "See All"}
+                </button>
+                <button type="button" aria-label="Scroll history left" onClick={() => onScrollHistory(-1)}>
+                  <Icon name="arrowRight" />
+                </button>
+                <button type="button" aria-label="Scroll history right" onClick={() => onScrollHistory(1)}>
+                  <Icon name="arrowRight" />
+                </button>
+              </div>
+            </div>
+
+            <div className="browsing-history-row" ref={historyRef}>
+              {historyGigs.map((gig) => (
+                <a
+                  className="history-gig-card"
+                  href={`/gigs/${gig.id}`}
+                  key={gig.id}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    onNavigate(`/gigs/${gig.id}`);
+                  }}
+                >
+                  <span className="history-gig-media">
+                    <img src={gig.image} alt="" loading="lazy" decoding="async" />
+                    <span aria-hidden="true">
+                      <Icon name="heart" />
+                    </span>
+                  </span>
+                  <strong>{gig.title}</strong>
+                </a>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        <section className="talent-way-section" aria-labelledby="talentWayTitle">
+          <h2 id="talentWayTitle">Find freelance talent - your way</h2>
+          <div className="talent-way-grid">
+            <TalentWayCard
+              action="Post a brief"
+              copy="Generate a brief with AI to receive a curated shortlist of freelancer offers."
+              icon="document"
+              meta=""
+              onClick={() => onNavigate("/search/gigs?query=project%20brief&source=talent-way")}
+              title="Post a project brief"
+            />
+            <TalentWayCard
+              action="Get started"
+              copy="Save the endless search - we'll source, interview, and vet freelancers for you."
+              icon="user"
+              meta="Only $89"
+              onClick={() => onNavigate("/search/gigs?query=expert%20sourcing&source=talent-way")}
+              title="Let us find your freelancer"
+            />
+            <TalentWayCard
+              action="Book free consultation"
+              copy="Big project? No problem. We'll build a freelance team and fully execute your project."
+              icon="verifiedUser"
+              meta="Custom pricing"
+              onClick={() => onNavigate("/search/gigs?query=freelance%20team&source=talent-way")}
+              title="Get a team built for you"
+            />
+          </div>
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function TalentWayCard({ action, copy, icon, meta, onClick, title }) {
+  return (
+    <article className="talent-way-card">
+      <Icon name={icon} />
+      <h3>{title}</h3>
+      <p>{copy}</p>
+      <div>
+        {meta ? <strong>{meta}</strong> : <span></span>}
+        <button type="button" onClick={onClick}>
+          {action}
+        </button>
+      </div>
+    </article>
   );
 }
 
@@ -401,20 +555,26 @@ function GigCard({ gig }) {
   return (
     <article className="gig-listing-card">
       <div className="gig-listing-media">
-        <img src={gig.image} alt={`${gig.title} preview`} />
+        <Link className="gig-listing-image-link" to={`/gigs/${gig.id}`} aria-label={`View ${gig.title}`}>
+          <img src={gig.image} alt={`${gig.title} preview`} />
+        </Link>
         <button className="gig-favorite-button" type="button" aria-label={`Save ${gig.title}`}>
           <Icon name="heart" />
         </button>
       </div>
       <div className="gig-listing-body">
         <div className="gig-seller-row">
-          <span className="gig-avatar">
-            <img src={gig.avatar} alt="" />
-          </span>
-          <strong>{gig.seller}</strong>
+          <Link className="gig-seller-profile-link" to={profilePathForSeller(gig.seller)}>
+            <span className="gig-avatar">
+              <img src={gig.avatar} alt="" />
+            </span>
+            <strong>{gig.seller}</strong>
+          </Link>
           <span>{gig.level}</span>
         </div>
-        <h2>{gig.title}</h2>
+        <h2>
+          <Link to={`/gigs/${gig.id}`}>{gig.title}</Link>
+        </h2>
         <div className="gig-rating-row">
           <Icon name="star" />
           <strong>{gig.rating.toFixed(1)}</strong>
@@ -494,6 +654,14 @@ function sortGigs(gigs, sort) {
   if (sort === "fastest") return sorted.sort((a, b) => a.deliveryDays - b.deliveryDays);
   if (sort === "best-selling") return sorted.sort((a, b) => b.reviews - a.reviews);
   return sorted;
+}
+
+function getPagedGigs(gigs, activePage) {
+  const pageSize = 8;
+  if (gigs.length <= pageSize) return gigs;
+
+  const start = ((activePage - 1) * pageSize) % gigs.length;
+  return [...gigs.slice(start), ...gigs.slice(0, start)].slice(0, pageSize);
 }
 
 function clearFilterGroup(filters, panel) {

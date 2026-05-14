@@ -2,7 +2,16 @@ import { useRef } from "react";
 import { aiDirectors, creatorServiceCards, marketplaceBenefits } from "../../data/homeData.js";
 import { BrandMark, Icon } from "../common/Icons.jsx";
 
-function HowItWorks() {
+const creatorRoutes = {
+  "Vibe Coding": "/search/gigs?query=vibe%20coding&source=creator-card",
+  "Website Development": "/categories/programming-tech/website-development",
+  "Video Editing": "/categories/video-animation/video-editing",
+  "Software Development": "/categories/programming-tech/website-development",
+  "Book Publishing": "/search/gigs?query=book%20publishing&source=creator-card",
+  "Architecture & Interior Design": "/search/gigs?query=architecture%20interior%20design&source=creator-card",
+};
+
+function HowItWorks({ onNavigate }) {
   const cardsRef = useRef(null);
 
   const scrollCards = () => {
@@ -15,7 +24,16 @@ function HowItWorks() {
         <div className="container">
           <div className="creator-card-row" ref={cardsRef}>
             {creatorServiceCards.map((card) => (
-              <a className="creator-service-card" href="#services" key={card.title} style={{ "--card-bg": card.color }}>
+              <a
+                className="creator-service-card"
+                href={creatorRoutes[card.title] || "/search/gigs?source=creator-card"}
+                key={card.title}
+                style={{ "--card-bg": card.color }}
+                onClick={(event) => {
+                  event.preventDefault();
+                  onNavigate(creatorRoutes[card.title] || "/search/gigs?source=creator-card");
+                }}
+              >
                 <h3>{card.title}</h3>
                 <span className="creator-service-image">
                   <img src={card.image} alt="" loading="eager" decoding="async" />
@@ -56,7 +74,15 @@ function HowItWorks() {
                 From vision to final frame, work with renowned AI video directors to create scroll-stopping content and
                 campaigns that drive real impact.
               </p>
-              <a href="#services">Find your AI Director</a>
+              <a
+                href="/categories/ai-services/ai-applications"
+                onClick={(event) => {
+                  event.preventDefault();
+                  onNavigate("/categories/ai-services/ai-applications");
+                }}
+              >
+                Find your AI Director
+              </a>
             </div>
 
             <div className="ai-director-stack" aria-label="Featured AI directors">
@@ -85,7 +111,15 @@ function HowItWorks() {
                 <li>Get a report with clear recommendations</li>
                 <li>Hire vetted freelance talent with confidence</li>
               </ul>
-              <a href="#services">Discover expert sourcing</a>
+              <a
+                href="/search/gigs?query=expert%20sourcing&source=home"
+                onClick={(event) => {
+                  event.preventDefault();
+                  onNavigate("/search/gigs?query=expert%20sourcing&source=home");
+                }}
+              >
+                Discover expert sourcing
+              </a>
               <p className="money-back">
                 <Icon name="payment" />
                 100% money-back guarantee

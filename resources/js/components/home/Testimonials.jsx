@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { guideCards } from "../../data/homeData.js";
 import { Icon } from "../common/Icons.jsx";
 
-function Testimonials() {
+function Testimonials({ onNavigate }) {
   const guidesRef = useRef(null);
 
   const scrollGuides = () => {
@@ -11,17 +11,31 @@ function Testimonials() {
 
   return (
     <>
-      <section className="guides-section" aria-labelledby="guidesTitle">
+      <section className="guides-section" id="guides" aria-labelledby="guidesTitle">
         <div className="container">
           <div className="guides-heading">
             <h2 id="guidesTitle">Guides to help you grow</h2>
-            <a href="#services">See more guides</a>
+            <a
+              href="/search/gigs?query=guides&source=home"
+              onClick={(event) => {
+                event.preventDefault();
+                onNavigate("/search/gigs?query=guides&source=home");
+              }}
+            >
+              See more guides
+            </a>
           </div>
 
           <div className="guide-card-row" ref={guidesRef}>
             {guideCards.map((guide) => (
               <article className="guide-card" key={guide.title}>
-                <a href="#services">
+                <a
+                  href={`/search/gigs?query=${encodeURIComponent(guide.title)}&source=guide-card`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    onNavigate(`/search/gigs?query=${encodeURIComponent(guide.title)}&source=guide-card`);
+                  }}
+                >
                   <img src={guide.image} alt="" loading="eager" decoding="async" />
                   <h3>{guide.title}</h3>
                 </a>

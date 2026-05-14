@@ -15,10 +15,10 @@ function HomePage({ onNavigate }) {
       <Header onNavigate={onNavigate} />
       <main id="main">
         <Hero onNavigate={onNavigate} />
-        <PopularCategories />
-        <FeaturedServices />
-        <HowItWorks />
-        <Testimonials />
+        <PopularCategories onNavigate={onNavigate} />
+        <FeaturedServices onNavigate={onNavigate} />
+        <HowItWorks onNavigate={onNavigate} />
+        <Testimonials onNavigate={onNavigate} />
       </main>
       <Footer />
     </div>

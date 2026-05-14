@@ -1,14 +1,14 @@
 export const exploreLinks = [
-  { label: "Graphics & Design", copy: "Logos, brand systems, social visuals", hash: "#categories" },
-  { label: "Programming & Tech", copy: "Websites, apps, automations", hash: "#services" },
-  { label: "AI Services", copy: "Prompts, workflows, assistants", hash: "#services" },
-  { label: "Digital Marketing", copy: "SEO, ads, launch campaigns", hash: "#categories" },
+  { label: "Graphics & Design", copy: "Logos, brand systems, social visuals", path: "/categories/graphics-design/logo-design" },
+  { label: "Programming & Tech", copy: "Websites, apps, automations", path: "/categories/programming-tech/website-development" },
+  { label: "AI Services", copy: "Prompts, workflows, assistants", path: "/categories/ai-services/ai-applications" },
+  { label: "Digital Marketing", copy: "SEO, ads, launch campaigns", path: "/categories/digital-marketing/seo" },
 ];
 
 export const navLinks = [
-  { label: "Services", hash: "#services" },
-  { label: "How it Works", hash: "#how-it-works" },
-  { label: "Become a Seller", hash: "#seller" },
+  { label: "Services", path: "/search/gigs?source=nav" },
+  { label: "How it Works", path: "/#how-it-works" },
+  { label: "Become a Seller", path: "/dashboard/seller" },
 ];
 
 export const marketplaceHeaderCategories = [

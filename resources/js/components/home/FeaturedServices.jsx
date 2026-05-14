@@ -1,8 +1,18 @@
 import { useState } from "react";
 import { services } from "../../data/homeData.js";
+import { profilePathForSeller } from "../../data/userProfileData.js";
 import { Icon, Rating } from "../common/Icons.jsx";
 
-function FeaturedServices() {
+const serviceDetailRoutes = {
+  "brand-identity": "/gigs/ai-website-chatbot",
+  "web-dashboard": "/gigs/codecanyon-install",
+  "seo-growth": "/gigs/codecanyon-hosting",
+  "ai-assistant": "/gigs/ai-website-chatbot",
+  "product-video": "/gigs/wix-redesign",
+  "wordpress-speed": "/gigs/wordpress-transfer",
+};
+
+function FeaturedServices({ onNavigate }) {
   const [favorites, setFavorites] = useState(() => new Set());
   const visibleServices = services.slice(0, 5);
 
@@ -18,6 +28,10 @@ function FeaturedServices() {
     });
   };
 
+  const openService = (service) => {
+    onNavigate(serviceDetailRoutes[service.id] || `/search/gigs?query=${encodeURIComponent(service.title)}&source=home-card`);
+  };
+
   return (
     <section className="recently-viewed-section" id="services">
       <div className="container">
@@ -31,9 +45,20 @@ function FeaturedServices() {
 
             return (
               <article className="gig-card" key={service.id}>
-                <div className="gig-thumb">
+                <div
+                  className="gig-thumb"
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => openService(service)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      openService(service);
+                    }
+                  }}
+                >
                   <img src={service.image} alt={service.imageAlt} loading="lazy" decoding="async" />
-                  <button className="gig-play-button" type="button" aria-label={`Preview ${service.title}`}>
+                  <button className="gig-play-button" type="button" aria-label={`Preview ${service.title}`} onClick={(event) => event.stopPropagation()}>
                     <Icon name="play" />
                   </button>
                   <button
@@ -41,7 +66,10 @@ function FeaturedServices() {
                     type="button"
                     aria-label={`Save ${service.title}`}
                     aria-pressed={isFavorite}
-                    onClick={() => toggleFavorite(service.id)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleFavorite(service.id);
+                    }}
                   >
                     <Icon name="heart" />
                   </button>
@@ -49,11 +77,29 @@ function FeaturedServices() {
 
                 <div className="gig-seller-row">
                   <span className="gig-seller-avatar">{service.initials}</span>
-                  <strong>{service.seller}</strong>
+                  <a
+                    href={profilePathForSeller(service.seller)}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      onNavigate(profilePathForSeller(service.seller));
+                    }}
+                  >
+                    <strong>{service.seller}</strong>
+                  </a>
                   <span>{service.level}</span>
                 </div>
 
-                <h3>{service.title}</h3>
+                <h3>
+                  <a
+                    href={serviceDetailRoutes[service.id] || `/search/gigs?query=${encodeURIComponent(service.title)}&source=home-card`}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      openService(service);
+                    }}
+                  >
+                    {service.title}
+                  </a>
+                </h3>
 
                 <div className="gig-rating-row">
                   <Rating value={service.rating} reviews={service.reviews} />
@@ -65,7 +111,12 @@ function FeaturedServices() {
             );
           })}
 
-          <button className="gig-carousel-button" type="button" aria-label="View more services">
+          <button
+            className="gig-carousel-button"
+            type="button"
+            aria-label="View more services"
+            onClick={() => onNavigate("/search/gigs?source=recently-viewed")}
+          >
             <Icon name="arrowRight" />
           </button>
         </div>

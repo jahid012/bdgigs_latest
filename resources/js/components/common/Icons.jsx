@@ -325,6 +325,24 @@ const iconPaths = {
       strokeLinejoin="round"
     />
   ),
+  thumbsUp: (
+    <path
+      d="M7 21H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3M7 21h9a3 3 0 0 0 3-2.4l1.2-6A2 2 0 0 0 18.2 10H14l.7-3.6A2.8 2.8 0 0 0 12 3l-5 9v9Z"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
+  thumbsDown: (
+    <path
+      d="M17 3h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3M17 3H8a3 3 0 0 0-3 2.4l-1.2 6A2 2 0 0 0 5.8 14H10l-.7 3.6A2.8 2.8 0 0 0 12 21l5-9V3Z"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
 };
 
 export function Icon({ name, className, title, ...props }) {

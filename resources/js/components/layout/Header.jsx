@@ -83,6 +83,15 @@ function Header({ enableMarketplaceHeader = true, forceSearch = false, onNavigat
     onNavigate(path);
   };
 
+  const navigateLink = (event, link) => {
+    if (link.path) {
+      navigateToPath(event, link.path);
+      return;
+    }
+
+    goHome(event, link.hash);
+  };
+
   const headerClass = [
     "site-header",
     isScrolled ? "is-scrolled" : "",
@@ -137,7 +146,7 @@ function Header({ enableMarketplaceHeader = true, forceSearch = false, onNavigat
                 <div className={`nav-dropdown-panel${isExploreOpen ? " is-open" : ""}`}>
                   <div className="nav-dropdown-grid">
                     {exploreLinks.map((link) => (
-                      <a key={link.label} href={link.hash} onClick={(event) => goHome(event, link.hash)}>
+                      <a key={link.label} href={link.path || link.hash} onClick={(event) => navigateLink(event, link)}>
                         <span className="nav-dropdown-icon" aria-hidden="true">
                           <Icon name="spark" />
                         </span>
@@ -168,7 +177,7 @@ function Header({ enableMarketplaceHeader = true, forceSearch = false, onNavigat
                 <span aria-hidden="true"></span>
                 EN
               </span>
-              <a href="#seller" onClick={(event) => goHome(event, "#seller")}>
+              <a href="/dashboard/seller" onClick={(event) => navigateToPath(event, "/dashboard/seller")}>
                 Become a Seller
               </a>
             </nav>
@@ -215,13 +224,13 @@ function Header({ enableMarketplaceHeader = true, forceSearch = false, onNavigat
               <div className="mobile-menu-group">
                 <span>Explore</span>
                 {exploreLinks.map((link) => (
-                  <a key={link.label} href={link.hash} onClick={(event) => goHome(event, link.hash)}>
+                  <a key={link.label} href={link.path || link.hash} onClick={(event) => navigateLink(event, link)}>
                     {link.label}
                   </a>
                 ))}
               </div>
               {navLinks.map((link) => (
-                <a key={link.hash} href={link.hash} onClick={(event) => goHome(event, link.hash)}>
+                <a key={link.label} href={link.path || link.hash} onClick={(event) => navigateLink(event, link)}>
                   {link.label}
                 </a>
               ))}

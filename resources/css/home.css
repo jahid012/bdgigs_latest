@@ -1486,6 +1486,7 @@
   aspect-ratio: 1.63;
   border-radius: 5px;
   background: #f3f4f6;
+  cursor: pointer;
 }
 
 .gig-thumb img {
@@ -1573,6 +1574,11 @@
   text-overflow: ellipsis;
 }
 
+.gig-seller-row a {
+  min-width: 0;
+  color: #222325;
+}
+
 .gig-seller-row strong {
   font-weight: 800;
 }
@@ -1592,6 +1598,10 @@
   line-height: 1.35;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.gig-card h3 a {
+  color: inherit;
 }
 
 .gig-rating-row {

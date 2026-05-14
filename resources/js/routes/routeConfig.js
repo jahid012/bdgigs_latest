@@ -4,6 +4,7 @@ import BuyerOrdersPage from "../pages/BuyerOrdersPage.jsx";
 import DashboardProfilePage from "../pages/DashboardProfilePage.jsx";
 import DashboardSettingsPage from "../pages/DashboardSettingsPage.jsx";
 import EarningsPage from "../pages/EarningsPage.jsx";
+import GigDetailsPage from "../pages/GigDetailsPage.jsx";
 import GigListingPage from "../pages/GigListingPage.jsx";
 import HomePage from "../pages/HomePage.jsx";
 import OrderDetailsPage from "../pages/OrderDetailsPage.jsx";
@@ -13,6 +14,7 @@ import SellerDashboardPage from "../pages/SellerDashboardPage.jsx";
 import SellerMessagesPage from "../pages/SellerMessagesPage.jsx";
 import SellerOrdersPage from "../pages/SellerOrdersPage.jsx";
 import SellerServicesPage from "../pages/SellerServicesPage.jsx";
+import UserProfilePage from "../pages/UserProfilePage.jsx";
 
 export const HOME_ROUTE = {
   key: "home",
@@ -201,6 +203,20 @@ export const DASHBOARD_ROUTES = [
 
 export const MARKETPLACE_ROUTES = [
   {
+    key: "user-profile",
+    path: "/users/:username",
+    documentTitle: "Seller Profile | BDGigs",
+    Component: UserProfilePage,
+    withNavigation: true,
+  },
+  {
+    key: "gig-details",
+    path: "/gigs/:gigId",
+    documentTitle: "Gig Details | BDGigs",
+    Component: GigDetailsPage,
+    withNavigation: true,
+  },
+  {
     key: "gig-search",
     path: "/search/gigs",
     documentTitle: "Search Gigs | BDGigs",
@@ -235,7 +251,7 @@ export function getPageKind(pathname) {
     return "dashboard";
   }
 
-  if (path.startsWith("/search/gigs") || path.startsWith("/categories")) {
+  if (path.startsWith("/users") || path.startsWith("/gigs") || path.startsWith("/search/gigs") || path.startsWith("/categories")) {
     return "marketplace";
   }
 
@@ -274,8 +290,16 @@ export function getDocumentTitle(pathname) {
     return ROUTES_BY_PATH.get("/dashboard/orders").documentTitle;
   }
 
+  if (path.startsWith("/users")) {
+    return "Seller Profile | BDGigs";
+  }
+
   if (path.startsWith("/search/gigs")) {
     return "Search Gigs | BDGigs";
+  }
+
+  if (path.startsWith("/gigs")) {
+    return "Gig Details | BDGigs";
   }
 
   if (path.startsWith("/categories")) {
