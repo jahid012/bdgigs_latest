@@ -5,24 +5,25 @@ import PopularCategories from "../components/home/PopularCategories.jsx";
 import Testimonials from "../components/home/Testimonials.jsx";
 import Footer from "../components/layout/Footer.jsx";
 import Header from "../components/layout/Header.jsx";
-
+import { useTranslation } from "react-i18next";
 function HomePage({ onNavigate }) {
-  return (
-    <div className="home-page">
-      <a className="skip-link" href="#main">
-        Skip to content
-      </a>
-      <Header onNavigate={onNavigate} />
-      <main id="main">
-        <Hero onNavigate={onNavigate} />
-        <PopularCategories onNavigate={onNavigate} />
-        <FeaturedServices onNavigate={onNavigate} />
-        <HowItWorks onNavigate={onNavigate} />
-        <Testimonials onNavigate={onNavigate} />
-      </main>
-      <Footer />
-    </div>
-  );
+    const { t } = useTranslation();
+    return (
+        <div className="home-page">
+            <a className="skip-link" href="#main">
+                {" "}
+                {t("pages.homepage.skipToContent")}{" "}
+            </a>
+            <Header onNavigate={onNavigate} />
+            <main id="main">
+                <Hero onNavigate={onNavigate} />
+                <PopularCategories onNavigate={onNavigate} />
+                <FeaturedServices onNavigate={onNavigate} />
+                <HowItWorks onNavigate={onNavigate} />
+                <Testimonials onNavigate={onNavigate} />
+            </main>
+            <Footer />
+        </div>
+    );
 }
-
 export default HomePage;

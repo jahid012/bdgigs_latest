@@ -1,50 +1,65 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import DashboardPage from "../pages/DashboardPage.jsx";
-import { DASHBOARD_ROUTES, HOME_ROUTE, MARKETPLACE_ROUTES } from "./routeConfig.js";
+import {
+    DASHBOARD_ROUTES,
+    HOME_ROUTE,
+    MARKETPLACE_ROUTES,
+} from "./routeConfig.js";
 import { usePageNavigation } from "./usePageNavigation.js";
 import { useRouteEffects } from "./useRouteEffects.js";
 
 function AppRoutes() {
-  const navigate = usePageNavigation();
+    const navigate = usePageNavigation();
 
-  useRouteEffects();
+    useRouteEffects();
 
-  return (
-    <Routes>
-      <Route path={HOME_ROUTE.path} element={renderRoutePage(HOME_ROUTE, navigate)} />
-      {MARKETPLACE_ROUTES.map((route) => (
-        <Route key={route.key} path={route.path} element={renderRoutePage(route, navigate)} />
-      ))}
-      {DASHBOARD_ROUTES.map((route) => (
-        <Route key={route.key} path={route.path} element={renderDashboardRoute(route, navigate)} />
-      ))}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  );
+    return (
+        <Routes>
+            <Route
+                path={HOME_ROUTE.path}
+                element={renderRoutePage(HOME_ROUTE, navigate)}
+            />
+            {MARKETPLACE_ROUTES.map((route) => (
+                <Route
+                    key={route.key}
+                    path={route.path}
+                    element={renderRoutePage(route, navigate)}
+                />
+            ))}
+            {DASHBOARD_ROUTES.map((route) => (
+                <Route
+                    key={route.key}
+                    path={route.path}
+                    element={renderDashboardRoute(route, navigate)}
+                />
+            ))}
+            <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+    );
 }
 
 function renderDashboardRoute(route, navigate) {
-  return (
-    <DashboardPage
-      messagesActive={route.messagesActive}
-      onNavigate={navigate}
-      searchPlaceholder={route.searchPlaceholder}
-      title={route.title}
-      variant={route.variant}
-    >
-      {renderRoutePage(route, navigate)}
-    </DashboardPage>
-  );
+    return (
+        <DashboardPage
+            messagesActive={route.messagesActive}
+            onNavigate={navigate}
+            searchPlaceholder={route.searchPlaceholder}
+            title={route.title}
+            variant={route.variant}
+        >
+            {renderRoutePage(route, navigate)}
+        </DashboardPage>
+    );
 }
 
 function renderRoutePage(route, navigate) {
-  const Page = route.Component;
-  const pageProps = {
-    ...(route.pageProps || {}),
-    ...(route.withNavigation ? { onNavigate: navigate } : {}),
-  };
+    const Page = route.Component;
+    const pageProps = {
+        ...(route.pageProps || {}),
+        ...(route.withNavigation ? { onNavigate: navigate } : {}),
+    };
 
-  return <Page {...pageProps} />;
+    return <Page {...pageProps} />;
 }
 
 export default AppRoutes;
