@@ -100,20 +100,6 @@ function ChartCard({ onNavigate }) {
         </div>
         <span className="status-badge status-completed">+14%</span>
       </div>
-      <div className="chart-note">
-        <span>Monthly spending trend</span>
-        <strong>Peak: {chartData.find((bar) => bar.value === topValue)?.label}</strong>
-      </div>
-      <div className="chart-bars" role="img" aria-label="Monthly spending chart">
-        {chartData.map((bar) => (
-          <div className="chart-bar-item" key={bar.label}>
-            <div className="chart-bar-track">
-              <span className="chart-bar" style={{ "--bar-height": `${bar.value}%` }}></span>
-            </div>
-            <span className="chart-label">{bar.label}</span>
-          </div>
-        ))}
-      </div>
     </article>
   );
 }
@@ -201,8 +187,9 @@ function RecommendedServices({ onNavigate }) {
 
 function BuyerDashboardPage({ onNavigate }) {
   return (
-    <main className="dashboard-content">
+    <main className="dashboard-content marketplace-dashboard-content">
       <DashboardPageHeader
+        className="dashboard-overview-hero buyer-overview-hero"
         eyebrow="Buyer workspace"
         title="Welcome back, Jahid"
         titleId="dashboardTitle"

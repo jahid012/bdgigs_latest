@@ -158,7 +158,7 @@ function SellerMessagesPreview({ onNavigate }) {
   );
 }
 
-function SellerPipelineCard() {
+function SellerPipelineCard({ onNavigate }) {
   return (
     <article className="card dashboard-card seller-pipeline-card">
       <div className="card-heading">
@@ -166,7 +166,15 @@ function SellerPipelineCard() {
           <span className="card-kicker">Delivery focus</span>
           <h2>Next Milestones</h2>
         </div>
-        <a href="#">Calendar</a>
+        <a
+          href="/dashboard/seller/orders"
+          onClick={(event) => {
+            event.preventDefault();
+            onNavigate("seller-orders");
+          }}
+        >
+          Calendar
+        </a>
       </div>
       <div className="seller-pipeline-list">
         {sellerPipeline.map((item) => (
@@ -239,8 +247,9 @@ function SellerServices({ onNavigate }) {
 
 function SellerDashboardPage({ onNavigate }) {
   return (
-    <main className="dashboard-content">
+    <main className="dashboard-content marketplace-dashboard-content">
       <DashboardPageHeader
+        className="dashboard-overview-hero seller-overview-hero"
         eyebrow="Seller workspace"
         title="Welcome back, Jahid"
         titleId="sellerDashboardTitle"
@@ -278,7 +287,7 @@ function SellerDashboardPage({ onNavigate }) {
         <SellerOrders onNavigate={onNavigate} />
         <SellerChartCard onNavigate={onNavigate} />
         <SellerMessagesPreview onNavigate={onNavigate} />
-        <SellerPipelineCard />
+        <SellerPipelineCard onNavigate={onNavigate} />
         <SellerServices onNavigate={onNavigate} />
       </section>
     </main>

@@ -1,15 +1,15 @@
 /* Dashboard layout and components */
 body.dashboard-page {
-  background: #f6f8fb;
+  background: #ffffff;
   font-size: 15px;
 }
 
 body.seller-dashboard-page {
-  background: #f6f8fb;
+  background: #ffffff;
 }
 
 .dashboard-layout {
-  --dashboard-radius: 6px;
+  --dashboard-radius: 8px;
   --dashboard-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
   min-height: 100vh;
 }
@@ -1162,6 +1162,246 @@ body.dashboard-page .btn {
 
 .seller-service .status-badge {
   margin-left: 0;
+}
+
+.marketplace-dashboard-content {
+  width: min(100% - 1.5rem, 1180px);
+  color: #222325;
+}
+
+.dashboard-overview-hero {
+  position: relative;
+  margin-bottom: 1.35rem;
+  padding: 0.2rem 0 1.18rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.dashboard-overview-hero::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(90deg, #d8dadd, rgba(216, 218, 221, 0));
+  content: "";
+}
+
+.dashboard-hero-eyebrow {
+  display: inline-flex;
+  min-height: auto;
+  align-items: center;
+  margin-bottom: 0.45rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #008a45;
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.dashboard-overview-hero h1 {
+  color: #111111;
+  font-size: clamp(1.45rem, 2.5vw, 1.85rem);
+}
+
+.dashboard-overview-hero p {
+  color: #62646a;
+  font-size: 0.86rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.dashboard-overview-hero .dashboard-page-stats span {
+  min-width: 96px;
+  padding: 0.12rem 0 0.12rem 0.78rem;
+  border: 0;
+  border-left: 1px solid #e4e5e7;
+  border-radius: 0;
+  background: transparent;
+  color: #62646a;
+}
+
+.dashboard-overview-hero .dashboard-page-stats span:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.dashboard-overview-hero .dashboard-page-stats strong {
+  color: #111111;
+  font-size: 1rem;
+}
+
+.dashboard-overview-hero .dashboard-page-actions .btn-primary {
+  border-color: #222325;
+  background: #222325;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.dashboard-overview-hero .dashboard-page-actions .btn-secondary,
+.dashboard-overview-hero .dashboard-page-actions .btn-light {
+  border: 1px solid #222325;
+  background: #ffffff;
+  color: #111111;
+  box-shadow: none;
+}
+
+.marketplace-dashboard-content .stats-grid {
+  gap: 0;
+  margin-bottom: 1.35rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid #eeeeef;
+  border-bottom: 1px solid #eeeeef;
+}
+
+.marketplace-dashboard-content .stat-card {
+  min-width: 0;
+  padding: 0.45rem 1.05rem;
+  border: 0;
+  border-bottom: 1px solid #eeeeef;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.marketplace-dashboard-content .stat-card:last-child {
+  border-bottom: 0;
+}
+
+.marketplace-dashboard-content .stat-card:hover {
+  border-color: #eeeeef;
+}
+
+.marketplace-dashboard-content .stat-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #f3fbf6;
+}
+
+.marketplace-dashboard-content .stat-card > div > span,
+.marketplace-dashboard-content .card-kicker,
+.marketplace-dashboard-content .orders-table th {
+  color: #62646a;
+}
+
+.marketplace-dashboard-content .stat-card strong,
+.marketplace-dashboard-content .card-heading h2,
+.marketplace-dashboard-content .orders-table td strong,
+.marketplace-dashboard-content .chart-summary strong {
+  color: #111111;
+}
+
+.marketplace-dashboard-content .dashboard-grid {
+  gap: 1.35rem 1.6rem;
+}
+
+.marketplace-dashboard-content .dashboard-card {
+  padding: 0.15rem 0 1.35rem;
+  border: 0;
+  border-bottom: 1px solid #eeeeef;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.marketplace-dashboard-content .dashboard-card:hover {
+  border-color: #eeeeef;
+}
+
+.marketplace-dashboard-content .dashboard-card:last-child {
+  border-bottom: 0;
+}
+
+.marketplace-dashboard-content .card-heading a {
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #222325;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.marketplace-dashboard-content .card-heading a:hover {
+  color: #111111;
+  transform: none;
+}
+
+.marketplace-dashboard-content .orders-table td {
+  color: #404145;
+}
+
+.marketplace-dashboard-content .chart-note {
+  padding: 0.55rem 0 0;
+  border-top: 1px solid #f1f1f2;
+  border-radius: 0;
+  background: transparent;
+}
+
+.marketplace-dashboard-content .mini-service {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.marketplace-dashboard-content .mini-service:hover {
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.marketplace-dashboard-content .mini-thumb {
+  min-height: 0;
+  border-radius: 5px;
+  aspect-ratio: 1.64 / 1;
+}
+
+.marketplace-dashboard-content .mini-thumb img {
+  min-height: 0;
+}
+
+.marketplace-dashboard-content .mini-service:hover .mini-thumb img {
+  transform: scale(1.025);
+}
+
+.marketplace-dashboard-content .message-item,
+.marketplace-dashboard-content .seller-pipeline-item {
+  padding-inline: 0;
+}
+
+.marketplace-dashboard-content .seller-service-meta span {
+  border-color: #dadbdd;
+  background: #f5f5f5;
+}
+
+@media (min-width: 576px) {
+  .marketplace-dashboard-content .stat-card:nth-child(odd) {
+    border-right: 1px solid #eeeeef;
+  }
+
+  .marketplace-dashboard-content .stat-card:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+}
+
+@media (min-width: 992px) {
+  .marketplace-dashboard-content .stat-card,
+  .marketplace-dashboard-content .stat-card:nth-child(odd) {
+    border-right: 1px solid #eeeeef;
+    border-bottom: 0;
+  }
+
+  .marketplace-dashboard-content .stat-card:last-child {
+    border-right: 0;
+  }
 }
 
 .messages-page {
