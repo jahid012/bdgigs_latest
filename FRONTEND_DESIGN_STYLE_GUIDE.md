@@ -290,7 +290,7 @@ Use this prompt when asking Codex to build or modify another template:
 
 ```text
 Please use the design style from FRONTEND_DESIGN_STYLE_GUIDE.md.
-Make this page/component feel like the existing BDGigs marketplace UI:
+Make this page/component feel like the existing bdgigs marketplace UI:
 clean Fiverr-inspired marketplace, compact cards, real images, thin borders,
 black CTAs, subtle green trust accents, responsive layout, and reusable sections.
 Keep the design functional and close to the existing frontend patterns.

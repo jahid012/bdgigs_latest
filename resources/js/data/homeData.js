@@ -327,7 +327,7 @@ export const testimonials = [
         initials: "MC",
         rating: "5.0",
         feedback:
-            "BDGigs helped us find a senior designer in one afternoon. The packages were clear and the delivery process felt organized.",
+            "bdgigs helped us find a senior designer in one afternoon. The packages were clear and the delivery process felt organized.",
     },
     {
         name: "Rafi Ahmed",
@@ -335,7 +335,7 @@ export const testimonials = [
         initials: "RA",
         rating: "4.9",
         feedback:
-            "The seller quality feels premium. We used BDGigs for SEO, landing page copy, and product videos without juggling ten tools.",
+            "The seller quality feels premium. We used bdgigs for SEO, landing page copy, and product videos without juggling ten tools.",
     },
     {
         name: "Elena Torres",

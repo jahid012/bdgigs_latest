@@ -18,7 +18,7 @@
         "facebook": "Facebook",
         "joinHere": "এখানে যোগ দিন",
         "legalAfter": "এবং মাঝে মাঝে আমাদের কাছ থেকে ইমেইল পেতে সম্মত হচ্ছেন। আপনার ব্যক্তিগত তথ্য কীভাবে ব্যবহার করি জানতে আমাদের",
-        "legalBefore": "যোগ দেওয়ার মাধ্যমে আপনি BDGigs-এর",
+        "legalBefore": "যোগ দেওয়ার মাধ্যমে আপনি bdgigs-এর",
         "legalEnd": "পড়ুন।",
         "or": "অথবা",
         "orPrefix": "অথবা",
@@ -31,7 +31,7 @@
     },
     "header": {
         "becomeSeller": "সেলার হোন",
-        "brandAria": "BDGigs হোম",
+        "brandAria": "bdgigs হোম",
         "buyer": "বায়ার",
         "categories": {
             "aiServices": "AI সার্ভিস",
@@ -150,7 +150,7 @@
                 "moreConversationActions": "আরও কথোপকথন কর্ম",
                 "moveToArchive": "আর্কাইভে পাঠান",
                 "noConversationsFound": "কোনও কথোপকথন পাওয়া যায়নি।",
-                "onBdgigsSince": "BDGigs-এ থেকে",
+                "onBdgigsSince": "bdgigs-এ থেকে",
                 "ordersWithYou": "আপনার সাথে অর্ডার",
                 "rating": "রেটিং",
                 "relatedServices": "সম্পর্কিত সার্ভিস",
@@ -238,7 +238,7 @@
                 }
             },
             "sidebar": {
-                "bdgigsHome": "BDGigs হোম",
+                "bdgigsHome": "bdgigs হোম",
                 "closeSidebar": "সাইডবার বন্ধ করুন",
                 "dashboardNavigation": "ড্যাশবোর্ড নেভিগেশন"
             },
@@ -275,7 +275,7 @@
             },
             "howitworks": {
                 "100MoneyBackGuarantee": "১০০% টাকা ফেরত গ্যারান্টি",
-                "bdgigsPro": "BDGigs প্রো।",
+                "bdgigsPro": "bdgigs প্রো।",
                 "discoverExpertSourcing": "বিশেষজ্ঞ সোর্সিং আবিষ্কার করুন",
                 "featuredAiDirectors": "নির্বাচিত AI পরিচালক",
                 "findYourAiDirector": "আপনার AI পরিচালক খুঁজুন",
@@ -308,14 +308,14 @@
                 "fingertips": "আঙুলের নখের টিপ",
                 "freelanceServicesAtYour": "আপনার জন্য ফ্রিল্যান্স সার্ভিস",
                 "guidesToHelpYouGrow": "আপনাকে বাড়তে সাহায্য করার গাইড",
-                "joinBdgigs": "BDGigs-এ যোগ দিন",
+                "joinBdgigs": "bdgigs-এ যোগ দিন",
                 "seeMoreGuides": "আরও গাইড দেখুন",
                 "viewMoreGuides": "আরও গাইড দেখুন"
             }
         },
         "layout": {
             "footer": {
-                "c2026BdgigsAllRightsReserved": "© ২০২৬ BDGigs। সর্বস্বত্ব সংরক্ষিত।"
+                "c2026BdgigsAllRightsReserved": "© ২০২৬ bdgigs। সর্বস্বত্ব সংরক্ষিত।"
             }
         }
     },
@@ -372,7 +372,7 @@
             "clientName": "ক্লায়েন্টের নাম",
             "closeAddClientForm": "ক্লায়েন্ট ফর্ম বন্ধ করুন",
             "cloudpeak": "CloudPeak",
-            "confirmYourWorkWithALinkToAn": "ইনভয়েস, চুক্তি বা প্রকৃত কাজের লিঙ্ক দিয়ে আপনার কাজ নিশ্চিত করুন। যদি ক্লায়েন্ট আপনাকে BDGigs-এর মাধ্যমে নিয়োগ করে, তাহলে আপনি BDGigs অর্ডারের লিঙ্ক দিতে পারেন।",
+            "confirmYourWorkWithALinkToAn": "ইনভয়েস, চুক্তি বা প্রকৃত কাজের লিঙ্ক দিয়ে আপনার কাজ নিশ্চিত করুন। যদি ক্লায়েন্ট আপনাকে bdgigs-এর মাধ্যমে নিয়োগ করে, তাহলে আপনি bdgigs অর্ডারের লিঙ্ক দিতে পারেন।",
             "createAnIntroVideo": "পরিচিতি ভিডিও তৈরি করুন",
             "delete": "মুছুন",
             "describeTheWorkYouDidForThisClient": "এই ক্লায়েন্টের জন্য আপনি যে কাজ করেছেন তা বর্ণনা করুন",
@@ -382,7 +382,7 @@
             "editProfessionalTitle": "পেশাগত শিরোনাম সম্পাদনা করুন",
             "education": "শিক্ষা",
             "featuredClients": "নির্বাচিত ক্লায়েন্ট",
-            "iConfirmIveWorkedWithThisClientAnd": "আমি নিশ্চিত করছি যে আমি এই ক্লায়েন্টের সাথে কাজ করেছি এবং তাদের নাম ও লোগো BDGigs-এ প্রকাশ করার অনুমতি আছে।",
+            "iConfirmIveWorkedWithThisClientAnd": "আমি নিশ্চিত করছি যে আমি এই ক্লায়েন্টের সাথে কাজ করেছি এবং তাদের নাম ও লোগো bdgigs-এ প্রকাশ করার অনুমতি আছে।",
             "iDesignDevelopAndMaintainWebApplicationsUsing": "আমি PHP, Laravel, এবং Node.js ব্যবহার করে ওয়েব অ্যাপ্লিকেশন ডিজাইন, ডেভেলপ এবং রক্ষণাবেক্ষণ করি। আমি বিদ্যমান প্রজেক্টকে নতুন ফিচার যোগ করে, Laravel অ্যাপ্লিকেশনের বাগ সমাধান করে, এবং নতুন ফিচার পরিকল্পনা ও ডেলিভার করতে দলের সঙ্গে সহযোগিতা করি।",
             "introVideo": "পরিচিতি ভিডিও",
             "introduceYourselfAndMakeAConnectionWithPotential": "নিজেকে পরিচয় করান এবং সম্ভাব্য ক্লায়েন্টদের সাথে সংযোগ তৈরি করুন।",
@@ -506,7 +506,7 @@
             "gigFiltersAndSorting": "গিগ ফিল্টার ও শ্রেণীবিভাগ",
             "gigResultsPagination": "গিগ ফলাফলের পেজিনেশন",
             "goToHomePage": "হোম পেজে যান",
-            "howBdgigsWorks": "BDGigs কিভাবে কাজ করে",
+            "howBdgigsWorks": "bdgigs কিভাবে কাজ করে",
             "letUsFindYourFreelancer": "আমাদের আপনার ফ্রিল্যান্সার খুঁজে দিক",
             "maximumBudget": "সর্বোচ্চ বাজেট",
             "moreWaysToHire": "নিয়োগের আরও উপায়",
@@ -568,8 +568,8 @@
             "availableBalances": "উপলভ্য ব্যালেন্স",
             "availableForWithdrawalOrPurchases": "উত্তোলন বা কেনাকাটার জন্য উপলভ্য।",
             "bangladesh": "বাংলাদেশ",
-            "bdgigsBalance": "BDGigs ব্যালেন্স",
-            "bdgigsCredits": "BDGigs ক্রেডিট",
+            "bdgigsBalance": "bdgigs ব্যালেন্স",
+            "bdgigsCredits": "bdgigs ক্রেডিট",
             "billingAndPayments": "বিলিং ও পেমেন্ট",
             "billingHistory": "বিলিং ইতিহাস",
             "billingInformation": "বিলিং তথ্য",
@@ -581,7 +581,7 @@
             "date": "তারিখ",
             "document": "ডকুমেন্ট",
             "downloadReport": "রিপোর্ট ডাউনলোড করুন",
-            "earnBdgigsCredits": "BDGigs ক্রেডিট অর্জন করুন",
+            "earnBdgigsCredits": "bdgigs ক্রেডিট অর্জন করুন",
             "earnings": "আয়",
             "enabled": "সক্রিয়",
             "fromCanceledOrders": "বাতিল করা অর্ডার থেকে",

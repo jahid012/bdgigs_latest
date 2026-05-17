@@ -168,7 +168,7 @@ function Header({
                             onClick={(event) => goHome(event)}
                         >
                             <BrandMark />
-                            BDGigs
+                            bdgigs
                         </a>
 
                         <form

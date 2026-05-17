@@ -1137,9 +1137,17 @@
   gap: 0.72rem;
   max-width: 250px;
   padding: 0.55rem 1rem 0.55rem 0.55rem;
+  border: 0;
   border-radius: 999px;
   background: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
   box-shadow: 0 12px 36px rgba(34, 35, 37, 0.2);
+}
+
+.profile-message-bubble:hover {
+  box-shadow: 0 14px 42px rgba(34, 35, 37, 0.25);
 }
 
 .profile-message-bubble img {
@@ -1168,6 +1176,809 @@
   display: block;
   color: #62646a;
   font-size: 0.68rem;
+}
+
+.profile-dialog-layer,
+.profile-about-sheet-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+}
+
+.profile-dialog-layer {
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.profile-about-sheet-layer {
+  display: flex;
+  align-items: flex-end;
+}
+
+.profile-about-sheet-layer.is-closing {
+  pointer-events: none;
+}
+
+.profile-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.42);
+  cursor: default;
+}
+
+.profile-about-sheet-layer .profile-dialog-backdrop {
+  animation: profileBackdropFadeIn 180ms ease both;
+}
+
+.profile-about-sheet-layer.is-closing .profile-dialog-backdrop {
+  animation: profileBackdropFadeOut 220ms ease both;
+}
+
+.profile-contact-popup {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 438px);
+  overflow: hidden;
+  border-radius: 3px;
+  background: #ffffff;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.24);
+}
+
+.profile-contact-timebar {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0 0.9rem;
+  background: #050505;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.profile-contact-timebar span {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.profile-contact-timebar span::after {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #050505;
+  content: "";
+}
+
+.profile-contact-popup header {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.78rem;
+  align-items: center;
+  min-height: 78px;
+  padding: 1rem 1.05rem 0.95rem 1.2rem;
+  border-bottom: 1px solid #1dbf73;
+}
+
+.profile-contact-popup header > img {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.profile-contact-popup header .profile-online-dot {
+  left: 47px;
+  right: auto;
+  bottom: 17px;
+  width: 11px;
+  height: 11px;
+  border-width: 2px;
+  background: #c5c6c9;
+}
+
+.profile-contact-popup header strong {
+  display: block;
+  color: #404145;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.profile-contact-popup header span:not(.profile-online-dot) {
+  display: block;
+  margin-top: 0.14rem;
+  color: #62646a;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.profile-contact-popup header i {
+  padding: 0 0.25rem;
+  color: #62646a;
+  font-style: normal;
+}
+
+.profile-contact-popup header b {
+  color: #404145;
+  font-weight: 800;
+}
+
+.profile-contact-popup header button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #62646a;
+  cursor: pointer;
+}
+
+.profile-contact-popup header button:hover {
+  background: #f5f5f5;
+  color: #222325;
+}
+
+.profile-contact-popup header svg {
+  width: 18px;
+  height: 18px;
+}
+
+.profile-contact-popup-body {
+  position: relative;
+  min-height: 156px;
+  padding: 1rem 1.15rem 0.55rem;
+}
+
+.profile-contact-popup-body textarea {
+  width: 100%;
+  min-height: 112px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #404145;
+  outline: 0;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 560;
+  line-height: 1.45;
+  resize: none;
+}
+
+.profile-contact-popup-body textarea::placeholder {
+  color: #62646a;
+  opacity: 1;
+}
+
+.profile-message-ai {
+  position: absolute;
+  top: 1.1rem;
+  right: 1rem;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid #dde5ff;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #7a8cff;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(31, 41, 55, 0.12);
+}
+
+.profile-message-ai svg {
+  width: 14px;
+  height: 14px;
+}
+
+.profile-contact-popup footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.8rem;
+  border-top: 1px solid #e4e5e7;
+  background: #fafafa;
+}
+
+.profile-contact-popup footer div {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.36rem;
+}
+
+.profile-contact-popup footer button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.36rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #74767e;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.profile-contact-popup footer div button {
+  width: 34px;
+  padding: 0;
+}
+
+.profile-contact-popup footer svg {
+  width: 18px;
+  height: 18px;
+}
+
+.profile-about-sheet {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-height: calc(100vh - 10px);
+  overflow-y: auto;
+  border-radius: 10px 10px 0 0;
+  background: #ffffff;
+  box-shadow: 0 -18px 55px rgba(0, 0, 0, 0.2);
+  transform-origin: bottom center;
+  will-change: transform, opacity;
+  animation: profileSheetSlideIn 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.profile-about-sheet-layer.is-closing .profile-about-sheet {
+  animation: profileSheetSlideOut 260ms cubic-bezier(0.7, 0, 0.84, 0) both;
+}
+
+@keyframes profileSheetSlideIn {
+  from {
+    opacity: 0.86;
+    transform: translateY(100%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes profileSheetSlideOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0.9;
+    transform: translateY(100%);
+  }
+}
+
+@keyframes profileBackdropFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes profileBackdropFadeOut {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+.profile-about-sheet-head,
+.profile-about-sheet-content {
+  width: min(100% - 2rem, 1120px);
+  margin-inline: auto;
+}
+
+.profile-about-sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 2rem 0 1.7rem;
+}
+
+.profile-about-sheet-person {
+  display: flex;
+  min-width: 0;
+  gap: 1.05rem;
+}
+
+.profile-about-sheet-person > img {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.profile-about-sheet-person h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0 0 0.4rem;
+  color: #050505;
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.profile-about-sheet-person h2 span {
+  color: #62646a;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.profile-about-sheet-person strong {
+  display: block;
+  margin-top: 0.42rem;
+  color: #050505;
+  font-size: 0.9rem;
+}
+
+.profile-about-sheet-person p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin-top: 0.55rem;
+  color: #050505;
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.profile-about-sheet-person p span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+}
+
+.profile-about-sheet-person svg,
+.profile-about-sheet-actions svg,
+.profile-about-sheet-card svg,
+.profile-about-timeline-item svg,
+.profile-learn-row svg {
+  width: 15px;
+  height: 15px;
+}
+
+.profile-about-sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.7rem;
+}
+
+.profile-about-sheet-actions button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  padding: 0 0.9rem;
+  border: 1px solid #dadbdd;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #111111;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.profile-about-sheet-actions button:first-child {
+  border-color: #222325;
+  background: #222325;
+  color: #ffffff;
+}
+
+.profile-about-sheet-actions button:not(:first-child) {
+  width: 40px;
+  padding: 0;
+}
+
+.profile-about-sheet-content {
+  display: grid;
+  grid-template-columns: minmax(0, 720px) minmax(280px, 356px);
+  gap: 3rem;
+  align-items: start;
+  padding: 1.4rem 0 3rem;
+}
+
+.profile-about-sheet-main {
+  display: grid;
+  gap: 2.25rem;
+}
+
+.profile-about-sheet-main h3,
+.profile-about-sheet-card h3 {
+  margin: 0 0 0.7rem;
+  color: #050505;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+.profile-about-sheet-main p {
+  color: #050505;
+  font-size: 0.88rem;
+  font-weight: 560;
+  line-height: 1.45;
+}
+
+.profile-about-skill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.profile-about-skill-list span {
+  min-height: 26px;
+  padding: 0.3rem 0.72rem;
+  border: 1px solid #dadbdd;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #050505;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.profile-learn-row article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.78rem;
+  align-items: center;
+}
+
+.profile-learn-row article > span,
+.profile-about-timeline-item > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: #eef0f2;
+  color: #8b929d;
+}
+
+.profile-learn-row article > span {
+  background: #d8fff0;
+  color: #1dbf73;
+}
+
+.profile-learn-row strong,
+.profile-about-timeline-item strong {
+  display: block;
+  color: #050505;
+  font-size: 0.82rem;
+}
+
+.profile-learn-row p,
+.profile-about-timeline-item p {
+  margin: 0.14rem 0 0;
+  color: #4b5563;
+  font-size: 0.78rem;
+}
+
+.profile-learn-row b {
+  color: #404145;
+  font-size: 1.05rem;
+}
+
+.profile-about-timeline-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.72rem;
+  align-items: start;
+  margin-top: 0.85rem;
+}
+
+.profile-about-sheet-card {
+  position: sticky;
+  top: 1rem;
+  min-height: 284px;
+  padding: 1.65rem;
+  border: 1px solid #e4e5e7;
+  border-radius: 3px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(34, 35, 37, 0.08);
+}
+
+.profile-about-sheet-card > strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #050505;
+  font-size: 0.9rem;
+}
+
+.profile-about-sheet-card hr {
+  margin: 1.5rem 0;
+  border: 0;
+  border-top: 1px solid #e4e5e7;
+}
+
+.profile-about-sheet-card dl {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0 0;
+}
+
+.profile-about-sheet-card dl div {
+  display: grid;
+  grid-template-columns: minmax(0, 0.55fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.profile-about-sheet-card dt {
+  color: #050505;
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+
+.profile-about-sheet-card dd {
+  color: #62646a;
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.profile-message-composer {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 120;
+  width: min(100% - 2rem, 362px);
+  overflow: hidden;
+  border: 1px solid #dadbdd;
+  border-radius: 2px;
+  background: #ffffff;
+  box-shadow: 0 12px 34px rgba(34, 35, 37, 0.14);
+}
+
+.profile-message-composer header {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.72rem;
+  align-items: center;
+  min-height: 78px;
+  padding: 1rem 1rem 0.85rem 1.2rem;
+  border-bottom: 1px solid #1dbf73;
+}
+
+.profile-message-composer header > img {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #e4e5e7;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.profile-message-composer header .profile-online-dot {
+  left: 48px;
+  right: auto;
+  bottom: 22px;
+  width: 11px;
+  height: 11px;
+  border-width: 2px;
+}
+
+.profile-message-composer header strong {
+  display: block;
+  color: #404145;
+  font-size: 0.96rem;
+  line-height: 1.25;
+}
+
+.profile-message-composer header span:not(.profile-online-dot) {
+  display: block;
+  margin-top: 0.14rem;
+  color: #62646a;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.profile-message-composer header i {
+  padding: 0 0.25rem;
+  color: #62646a;
+  font-style: normal;
+}
+
+.profile-message-composer header b {
+  color: #404145;
+  font-weight: 800;
+}
+
+.profile-message-composer header button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #62646a;
+  cursor: pointer;
+}
+
+.profile-message-composer header button:hover {
+  background: #f5f5f5;
+  color: #222325;
+}
+
+.profile-message-composer header svg {
+  width: 18px;
+  height: 18px;
+}
+
+.profile-message-composer-body {
+  position: relative;
+  min-height: 156px;
+  padding: 1rem 1.1rem 0.55rem;
+}
+
+.profile-message-composer textarea {
+  width: 100%;
+  min-height: 112px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #404145;
+  outline: 0;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 560;
+  line-height: 1.45;
+  resize: none;
+}
+
+.profile-message-secure svg {
+  width: 14px;
+  height: 14px;
+}
+
+.profile-message-secure {
+  position: absolute;
+  right: 1.1rem;
+  bottom: 0.55rem;
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border-radius: 50%;
+  background: #0a9f58;
+  color: #ffffff;
+}
+
+.profile-message-secure svg {
+  width: 10px;
+  height: 10px;
+}
+
+.profile-message-prompts {
+  display: grid;
+  gap: 0.46rem;
+  padding: 0.3rem 1.1rem 0.75rem;
+}
+
+.profile-message-prompts button {
+  width: max-content;
+  max-width: 100%;
+  min-height: 30px;
+  overflow: hidden;
+  padding: 0 0.72rem;
+  border: 1px solid #e4e5e7;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #62646a;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-message-prompts button:hover {
+  border-color: #c5c6c9;
+  color: #404145;
+}
+
+.profile-message-count-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 1.1rem 0.85rem;
+  color: #95979d;
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.profile-message-count-row strong {
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.profile-message-composer footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.8rem;
+  border-top: 1px solid #e4e5e7;
+  background: #fafafa;
+}
+
+.profile-message-composer footer div {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.36rem;
+}
+
+.profile-message-composer footer button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.36rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #74767e;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.profile-message-composer footer div button {
+  width: 34px;
+  padding: 0;
+}
+
+.profile-message-composer footer svg {
+  width: 18px;
+  height: 18px;
+}
+
+.profile-message-send {
+  min-width: 136px;
+  padding: 0 0.85rem;
+  background: #222325 !important;
+  color: #ffffff !important;
+}
+
+.profile-message-send:disabled {
+  background: #e4e5e7 !important;
+  color: #a6a8ad !important;
+  cursor: not-allowed;
+}
+
+.profile-message-status {
+  margin: 0;
+  padding: 0 1.1rem 0.9rem;
+  color: #0a9f58;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 @media (max-width: 980px) {
@@ -1203,6 +2014,28 @@
 
   .profile-sourcing-stack {
     display: none;
+  }
+
+  .profile-about-sheet-head,
+  .profile-about-sheet-content {
+    width: min(100% - 1.25rem, 1120px);
+  }
+
+  .profile-about-sheet-head {
+    flex-direction: column;
+  }
+
+  .profile-about-sheet-actions {
+    justify-content: flex-start;
+  }
+
+  .profile-about-sheet-content {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .profile-about-sheet-card {
+    position: static;
   }
 }
 
@@ -1251,5 +2084,42 @@
 
   .profile-message-bubble {
     display: none;
+  }
+
+  .profile-message-composer {
+    right: 0.75rem;
+    left: 0.75rem;
+    bottom: 0.75rem;
+    width: auto;
+  }
+
+  .profile-dialog-layer {
+    align-items: end;
+    padding: 0.75rem;
+  }
+
+  .profile-contact-popup {
+    width: 100%;
+  }
+
+  .profile-about-sheet {
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .profile-about-sheet-person {
+    flex-direction: column;
+  }
+
+  .profile-about-sheet-actions button:first-child {
+    width: 100%;
+  }
+
+  .profile-learn-row article {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .profile-learn-row b {
+    grid-column: 2;
   }
 }

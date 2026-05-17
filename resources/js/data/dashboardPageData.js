@@ -149,7 +149,7 @@ export const sellerSettings = [
 
 export const buyerProfileDetails = [
     { label: "Name", value: "Jahid" },
-    { label: "Company", value: "BDGigs Studio" },
+    { label: "Company", value: "bdgigs Studio" },
     { label: "Primary need", value: "Marketplace growth" },
     { label: "Preferred budget", value: "$100 - $750" },
 ];

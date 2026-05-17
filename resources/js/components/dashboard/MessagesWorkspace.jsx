@@ -88,7 +88,7 @@ function MessagesWorkspace({ variant = "buyer" }) {
                 title: isSeller
                     ? "Conversion-focused dashboard design"
                     : "Responsive marketplace homepage",
-                seller: isSeller ? "BDGigs Pro" : "Marco L.",
+                seller: isSeller ? "bdgigs Pro" : "Marco L.",
                 rating: "5.0",
                 price: isSeller ? "$360" : "$120",
                 image: relatedServiceImages[1],

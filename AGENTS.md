@@ -1,8 +1,8 @@
-# BDGigs React/Laravel Agent Guide
+# bdgigs React/Laravel Agent Guide
 
 ## Project Snapshot
 
-BDGigs is a Laravel application that serves a Vite-powered React SPA. Laravel currently provides the PHP shell, catch-all web routing, configuration, and tests; the user-facing product UI is in `resources/js` and `resources/css`.
+bdgigs is a Laravel application that serves a Vite-powered React SPA. Laravel currently provides the PHP shell, catch-all web routing, configuration, and tests; the user-facing product UI is in `resources/js` and `resources/css`.
 
 Core stack:
 

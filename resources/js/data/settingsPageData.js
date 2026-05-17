@@ -13,7 +13,7 @@ export const settingsProfiles = {
             "We verify your account information with a trusted security partner so protected payments and order activity stay safe.",
         identityCardTitle: "Why is verification important?",
         identityCardText:
-            "BDGigs uses verification to protect buyers, sellers, and payment workflows across the marketplace.",
+            "bdgigs uses verification to protect buyers, sellers, and payment workflows across the marketplace.",
     },
     seller: {
         name: "Jahid Hasan",
@@ -29,7 +29,7 @@ export const settingsProfiles = {
             "We verify your seller ID with a trusted security partner before expanding payouts, visibility, and marketplace trust signals.",
         identityCardTitle: "Why is seller verification important?",
         identityCardText:
-            "BDGigs requires seller verification to build a trusted marketplace, prevent fraud, and support secure payouts.",
+            "bdgigs requires seller verification to build a trusted marketplace, prevent fraud, and support secure payouts.",
     },
 };
 
@@ -59,7 +59,7 @@ export const settingsHubCards = [
         id: "identity-verification",
         icon: "verifiedUser",
         title: "Identity verification",
-        description: "Help BDGigs maintain a safe and trustworthy marketplace.",
+        description: "Help bdgigs maintain a safe and trustworthy marketplace.",
     },
 ];
 
@@ -157,7 +157,7 @@ export const securityRows = [
     {
         title: "Phone verification",
         description:
-            "Your phone is verified with BDGigs. Edit it when your number changes.",
+            "Your phone is verified with bdgigs. Edit it when your number changes.",
         action: "Edit",
     },
     {

@@ -9,7 +9,7 @@ function Sidebar({
     items = sidebarItems,
     label = "Workspace",
     upgradeEyebrow = "Pro insight",
-    upgradeTitle = "BDGigs Pro",
+    upgradeTitle = "bdgigs Pro",
     upgradeCopy = "Unlock priority talent matching and advanced buyer insights.",
     upgradeAction = "Upgrade",
 }) {
@@ -38,7 +38,7 @@ function Sidebar({
                         <span aria-hidden="true">
                             <Icon name="brand" />
                         </span>
-                        BDGigs
+                        bdgigs
                     </a>
                     <button
                         className="sidebar-close"
@@ -82,15 +82,6 @@ function Sidebar({
                         ),
                     )}
                 </nav>
-
-                <div className="sidebar-upgrade">
-                    <span>{upgradeEyebrow}</span>
-                    <h3>{upgradeTitle}</h3>
-                    <p>{upgradeCopy}</p>
-                    <a className="btn btn-primary" href="#">
-                        {upgradeAction}
-                    </a>
-                </div>
             </aside>
 
             <div

@@ -19,7 +19,7 @@ import UserProfilePage from "../pages/UserProfilePage.jsx";
 export const HOME_ROUTE = {
     key: "home",
     path: "/",
-    documentTitle: "BDGigs | Freelance Services Marketplace",
+    documentTitle: "bdgigs | Freelance Services Marketplace",
     Component: HomePage,
     withNavigation: true,
 };
@@ -28,7 +28,7 @@ export const DASHBOARD_ROUTES = [
     {
         key: "dashboard",
         path: "/dashboard",
-        documentTitle: "Dashboard | BDGigs",
+        documentTitle: "Dashboard | bdgigs",
         title: "Overview",
         searchPlaceholder: "Search orders, sellers, services...",
         Component: BuyerDashboardPage,
@@ -37,7 +37,7 @@ export const DASHBOARD_ROUTES = [
     {
         key: "orders",
         path: "/dashboard/orders",
-        documentTitle: "Orders | BDGigs",
+        documentTitle: "Orders | bdgigs",
         title: "Orders",
         searchPlaceholder: "Search orders, services, people...",
         Component: BuyerOrdersPage,
@@ -45,7 +45,7 @@ export const DASHBOARD_ROUTES = [
     {
         key: "order-details",
         path: "/dashboard/orders/:orderId",
-        documentTitle: "Order Details | BDGigs",
+        documentTitle: "Order Details | bdgigs",
         title: "Order Details",
         searchPlaceholder: "Search order activity, requirements, messages...",
         Component: OrderDetailsPage,
@@ -54,7 +54,7 @@ export const DASHBOARD_ROUTES = [
     {
         key: "messages",
         path: "/dashboard/messages",
-        documentTitle: "Messages | BDGigs",
+        documentTitle: "Messages | bdgigs",
         title: "Messages",
         searchPlaceholder: "Search conversations, people, services...",
         messagesActive: true,
@@ -63,7 +63,7 @@ export const DASHBOARD_ROUTES = [
     {
         key: "saved-services",
         path: "/dashboard/saved-services",
-        documentTitle: "Saved Services | BDGigs",
+        documentTitle: "Saved Services | bdgigs",
         title: "Saved Services",
         searchPlaceholder: "Search saved services, sellers, categories...",
         Component: SavedServicesPage,
@@ -72,7 +72,7 @@ export const DASHBOARD_ROUTES = [
     {
         key: "payments",
         path: "/dashboard/payments",
-        documentTitle: "Payments | BDGigs",
+        documentTitle: "Payments | bdgigs",
         title: "Payments",
         searchPlaceholder: "Search payments, payouts, invoices...",
         Component: PaymentsPage,
@@ -81,7 +81,7 @@ export const DASHBOARD_ROUTES = [
     {
         key: "profile",
         path: "/dashboard/profile",
-        documentTitle: "Profile | BDGigs",
+        documentTitle: "Profile | bdgigs",
         title: "Profile",
         searchPlaceholder: "Search profile fields, portfolio, skills...",
         Component: DashboardProfilePage,
@@ -91,7 +91,7 @@ export const DASHBOARD_ROUTES = [
     {
         key: "settings",
         path: "/dashboard/settings",
-        documentTitle: "Settings | BDGigs",
+        documentTitle: "Settings | bdgigs",
         title: "Settings",
         searchPlaceholder: "Search settings and preferences...",
         Component: DashboardSettingsPage,
@@ -101,7 +101,7 @@ export const DASHBOARD_ROUTES = [
     {
         key: "settings-page",
         path: "/dashboard/settings/:settingsPage",
-        documentTitle: "Settings | BDGigs",
+        documentTitle: "Settings | bdgigs",
         title: "Settings",
         searchPlaceholder: "Search settings and preferences...",
         Component: DashboardSettingsPage,
@@ -111,7 +111,7 @@ export const DASHBOARD_ROUTES = [
     {
         key: "seller-dashboard",
         path: "/dashboard/seller",
-        documentTitle: "Seller Dashboard | BDGigs",
+        documentTitle: "Seller Dashboard | bdgigs",
         title: "Seller Overview",
         searchPlaceholder: "Search orders, buyers, gigs...",
         variant: "seller",
@@ -121,7 +121,7 @@ export const DASHBOARD_ROUTES = [
     {
         key: "seller-orders",
         path: "/dashboard/seller/orders",
-        documentTitle: "Seller Orders | BDGigs",
+        documentTitle: "Seller Orders | bdgigs",
         title: "Orders",
         searchPlaceholder: "Search orders, services, people...",
         variant: "seller",
@@ -130,7 +130,7 @@ export const DASHBOARD_ROUTES = [
     {
         key: "seller-order-details",
         path: "/dashboard/seller/orders/:orderId",
-        documentTitle: "Seller Order Details | BDGigs",
+        documentTitle: "Seller Order Details | bdgigs",
         title: "Order Details",
         searchPlaceholder: "Search order activity, requirements, messages...",
         variant: "seller",
@@ -140,7 +140,7 @@ export const DASHBOARD_ROUTES = [
     {
         key: "seller-messages",
         path: "/dashboard/seller/messages",
-        documentTitle: "Seller Messages | BDGigs",
+        documentTitle: "Seller Messages | bdgigs",
         title: "Messages",
         searchPlaceholder: "Search conversations, people, services...",
         messagesActive: true,
@@ -150,7 +150,7 @@ export const DASHBOARD_ROUTES = [
     {
         key: "seller-services",
         path: "/dashboard/seller/services",
-        documentTitle: "My Services | BDGigs",
+        documentTitle: "My Services | bdgigs",
         title: "My Services",
         searchPlaceholder: "Search gigs, packages, buyers...",
         variant: "seller",
@@ -160,7 +160,7 @@ export const DASHBOARD_ROUTES = [
     {
         key: "seller-earnings",
         path: "/dashboard/seller/earnings",
-        documentTitle: "Seller Earnings | BDGigs",
+        documentTitle: "Seller Earnings | bdgigs",
         title: "Earnings",
         searchPlaceholder: "Search payments, payouts, invoices...",
         variant: "seller",
@@ -169,7 +169,7 @@ export const DASHBOARD_ROUTES = [
     {
         key: "seller-profile",
         path: "/dashboard/seller/profile",
-        documentTitle: "Seller Profile | BDGigs",
+        documentTitle: "Seller Profile | bdgigs",
         title: "Seller Profile",
         searchPlaceholder: "Search profile fields, portfolio, skills...",
         variant: "seller",
@@ -178,9 +178,20 @@ export const DASHBOARD_ROUTES = [
         withNavigation: true,
     },
     {
+        key: "seller-profile-portfolio",
+        path: "/dashboard/seller/profile/portfolio",
+        documentTitle: "Seller Portfolio | bdgigs",
+        title: "Seller Portfolio",
+        searchPlaceholder: "Search portfolio projects, industries, skills...",
+        variant: "seller",
+        Component: DashboardProfilePage,
+        pageProps: { initialMode: "portfolio", variant: "seller" },
+        withNavigation: true,
+    },
+    {
         key: "seller-settings",
         path: "/dashboard/seller/settings",
-        documentTitle: "Seller Settings | BDGigs",
+        documentTitle: "Seller Settings | bdgigs",
         title: "Settings",
         searchPlaceholder: "Search settings and preferences...",
         variant: "seller",
@@ -191,7 +202,7 @@ export const DASHBOARD_ROUTES = [
     {
         key: "seller-settings-page",
         path: "/dashboard/seller/settings/:settingsPage",
-        documentTitle: "Seller Settings | BDGigs",
+        documentTitle: "Seller Settings | bdgigs",
         title: "Settings",
         searchPlaceholder: "Search settings and preferences...",
         variant: "seller",
@@ -205,28 +216,28 @@ export const MARKETPLACE_ROUTES = [
     {
         key: "user-profile",
         path: "/users/:username",
-        documentTitle: "Seller Profile | BDGigs",
+        documentTitle: "Seller Profile | bdgigs",
         Component: UserProfilePage,
         withNavigation: true,
     },
     {
         key: "gig-details",
         path: "/gigs/:gigId",
-        documentTitle: "Gig Details | BDGigs",
+        documentTitle: "Gig Details | bdgigs",
         Component: GigDetailsPage,
         withNavigation: true,
     },
     {
         key: "gig-search",
         path: "/search/gigs",
-        documentTitle: "Search Gigs | BDGigs",
+        documentTitle: "Search Gigs | bdgigs",
         Component: GigListingPage,
         withNavigation: true,
     },
     {
         key: "category-listing",
         path: "/categories/*",
-        documentTitle: "Category Gigs | BDGigs",
+        documentTitle: "Category Gigs | bdgigs",
         Component: GigListingPage,
         withNavigation: true,
     },
@@ -276,7 +287,7 @@ export function getDocumentTitle(pathname) {
     }
 
     if (path.startsWith("/dashboard/seller/orders/")) {
-        return "Seller Order Details | BDGigs";
+        return "Seller Order Details | bdgigs";
     }
 
     if (path.startsWith("/dashboard/seller/orders")) {
@@ -288,7 +299,7 @@ export function getDocumentTitle(pathname) {
     }
 
     if (path.startsWith("/dashboard/orders/")) {
-        return "Order Details | BDGigs";
+        return "Order Details | bdgigs";
     }
 
     if (path.startsWith("/dashboard/orders")) {
@@ -296,19 +307,19 @@ export function getDocumentTitle(pathname) {
     }
 
     if (path.startsWith("/users")) {
-        return "Seller Profile | BDGigs";
+        return "Seller Profile | bdgigs";
     }
 
     if (path.startsWith("/search/gigs")) {
-        return "Search Gigs | BDGigs";
+        return "Search Gigs | bdgigs";
     }
 
     if (path.startsWith("/gigs")) {
-        return "Gig Details | BDGigs";
+        return "Gig Details | bdgigs";
     }
 
     if (path.startsWith("/categories")) {
-        return "Category Gigs | BDGigs";
+        return "Category Gigs | bdgigs";
     }
 
     if (path.startsWith("/dashboard/seller")) {

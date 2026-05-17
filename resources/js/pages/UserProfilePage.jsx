@@ -28,7 +28,30 @@ function UserProfilePage({ onNavigate }) {
     const profile = getUserProfile(username);
     const [activeSection, setActiveSection] = useState("about");
     const [isStickyNavVisible, setIsStickyNavVisible] = useState(false);
+    const [activeProfileDialog, setActiveProfileDialog] = useState("");
+    const [isAboutSheetClosing, setIsAboutSheetClosing] = useState(false);
     const summaryRef = useRef(null);
+    const openContactPopup = () => {
+        setIsAboutSheetClosing(false);
+        setActiveProfileDialog("contact");
+    };
+    const openAboutSheet = () => {
+        setIsAboutSheetClosing(false);
+        setActiveProfileDialog("about");
+    };
+    const closeProfileDialog = () => {
+        if (activeProfileDialog === "about") {
+            setIsAboutSheetClosing(true);
+            return;
+        }
+
+        setActiveProfileDialog("");
+    };
+    const finishAboutSheetClose = () => {
+        setActiveProfileDialog("");
+        setIsAboutSheetClosing(false);
+    };
+
     useEffect(() => {
         const observers = profileTabs
             .map(({ id }) => document.getElementById(id))
@@ -71,6 +94,22 @@ function UserProfilePage({ onNavigate }) {
             window.removeEventListener("resize", updateStickyNavVisibility);
         };
     }, [profile.slug]);
+    useEffect(() => {
+        if (!activeProfileDialog) {
+            return undefined;
+        }
+
+        const closeOnEscape = (event) => {
+            if (event.key === "Escape") {
+                closeProfileDialog();
+            }
+        };
+
+        window.addEventListener("keydown", closeOnEscape);
+
+        return () => window.removeEventListener("keydown", closeOnEscape);
+    }, [activeProfileDialog]);
+
     return (
         <div
             className={`user-profile-page${isStickyNavVisible ? " has-profile-sticky-nav" : ""}`}
@@ -85,6 +124,8 @@ function UserProfilePage({ onNavigate }) {
                 <section className="public-profile-shell">
                     <div className="container">
                         <ProfileHero
+                            onContact={openContactPopup}
+                            onMoreAbout={openAboutSheet}
                             profile={profile}
                             summaryRef={summaryRef}
                         />
@@ -94,6 +135,7 @@ function UserProfilePage({ onNavigate }) {
                 <ProfileStickyNav
                     activeSection={activeSection}
                     isVisible={isStickyNavVisible}
+                    onContact={openContactPopup}
                     profile={profile}
                 />
 
@@ -108,12 +150,29 @@ function UserProfilePage({ onNavigate }) {
                 <ProfileTalentSection />
             </main>
 
+            {activeProfileDialog === "contact" ? (
+                <ProfileContactPopup
+                    profile={profile}
+                    onClose={closeProfileDialog}
+                />
+            ) : null}
+
+            {activeProfileDialog === "about" ? (
+                <ProfileAboutSheet
+                    isClosing={isAboutSheetClosing}
+                    profile={profile}
+                    onClose={closeProfileDialog}
+                    onClosed={finishAboutSheetClose}
+                    onContact={openContactPopup}
+                />
+            ) : null}
+
             <ProfileMessageBubble profile={profile} />
             <Footer />
         </div>
     );
 }
-function ProfileHero({ profile, summaryRef }) {
+function ProfileHero({ onContact, onMoreAbout, profile, summaryRef }) {
     const { t } = useTranslation();
     return (
         <header className="public-profile-hero" id="about">
@@ -191,7 +250,7 @@ function ProfileHero({ profile, summaryRef }) {
                 aria-label={`Contact ${profile.name}`}
             >
                 <div className="profile-top-actions">
-                    <button type="button">
+                    <button type="button" onClick={onMoreAbout}>
                         {t("pages.userprofilepage.moreAboutMe")}
                     </button>
                     <button type="button" aria-label={`Save ${profile.name}`}>
@@ -214,7 +273,7 @@ function ProfileHero({ profile, summaryRef }) {
                             </p>
                         </div>
                     </div>
-                    <button type="button">
+                    <button type="button" onClick={onContact}>
                         <Icon name="send" />{" "}
                         {t("pages.userprofilepage.contactMe")}{" "}
                     </button>
@@ -227,7 +286,7 @@ function ProfileHero({ profile, summaryRef }) {
         </header>
     );
 }
-function ProfileStickyNav({ activeSection, isVisible, profile }) {
+function ProfileStickyNav({ activeSection, isVisible, onContact, profile }) {
     const { t } = useTranslation();
     return (
         <div
@@ -273,7 +332,7 @@ function ProfileStickyNav({ activeSection, isVisible, profile }) {
                 </nav>
 
                 <div className="sticky-profile-action">
-                    <button type="button">
+                    <button type="button" onClick={onContact}>
                         <Icon name="send" />{" "}
                         {t("pages.userprofilepage.contactMe")}{" "}
                     </button>
@@ -691,12 +750,496 @@ function ProfileRating({ rating, reviews }) {
         </span>
     );
 }
+
+function ProfileContactPopup({ profile, onClose }) {
+    const { t } = useTranslation();
+    const [messageDraft, setMessageDraft] = useState("");
+    const [sendStatus, setSendStatus] = useState("");
+    const minimumMessageLength = 40;
+    const maxMessageLength = 2500;
+    const messageLength = messageDraft.trim().length;
+    const canSend = messageLength >= minimumMessageLength;
+    const promptStarters = [
+        `Hey ${profile.name}, can you help me with my project?`,
+        "Can you provide your hourly rates for this work?",
+        "Do you think you can deliver an order by this week?",
+    ];
+
+    return (
+        <div className="profile-dialog-layer" role="presentation">
+            <button
+                className="profile-dialog-backdrop"
+                type="button"
+                aria-label="Close contact popup"
+                onClick={onClose}
+            ></button>
+            <section
+                className="profile-contact-popup"
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Message ${profile.name}`}
+            >
+                <div className="profile-contact-timebar">
+                    <span aria-hidden="true"></span>
+                    It's {profile.localTime} for {profile.name}. It might take
+                    some time to get a response
+                </div>
+                <header>
+                    <img src={profile.avatar} alt="" />
+                    <span
+                        className="profile-online-dot"
+                        aria-hidden="true"
+                    ></span>
+                    <div>
+                        <strong>
+                            {t("pages.userprofilepage.message")} {profile.name}
+                        </strong>
+                        <span>
+                            Away <i aria-hidden="true">.</i> Avg. response time:{" "}
+                            <b>{profile.responseTime}</b>
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        aria-label="Close contact popup"
+                        onClick={onClose}
+                    >
+                        <Icon name="close" />
+                    </button>
+                </header>
+
+                <div className="profile-contact-popup-body">
+                    <label className="sr-only" htmlFor="profileContactMessage">
+                        Message
+                    </label>
+                    <textarea
+                        id="profileContactMessage"
+                        maxLength={maxMessageLength}
+                        placeholder={`Ask ${profile.name} a question or share your project details (requirements, timeline, budget, etc.)`}
+                        value={messageDraft}
+                        onChange={(event) => {
+                            setMessageDraft(event.target.value);
+                            setSendStatus("");
+                        }}
+                    />
+                    <button
+                        className="profile-message-ai"
+                        type="button"
+                        aria-label="Improve message"
+                        onClick={() =>
+                            setMessageDraft((current) =>
+                                current.trim().length
+                                    ? current
+                                    : `Hi ${profile.name}, I would like to discuss a project and understand your availability, timeline, and pricing.`,
+                            )
+                        }
+                    >
+                        <Icon name="spark" />
+                    </button>
+                    <span
+                        className="profile-message-secure"
+                        aria-label="Secure message"
+                    >
+                        <Icon name="archive" />
+                    </span>
+                </div>
+
+                <div className="profile-message-prompts">
+                    {promptStarters.map((prompt) => (
+                        <button
+                            type="button"
+                            key={prompt}
+                            onClick={() => {
+                                setMessageDraft(prompt);
+                                setSendStatus("");
+                            }}
+                        >
+                            {prompt}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="profile-message-count-row">
+                    <span>Use at least {minimumMessageLength} characters</span>
+                    <strong>
+                        {messageLength}/{maxMessageLength}
+                    </strong>
+                </div>
+
+                <footer>
+                    <div>
+                        <button type="button" aria-label="Add emoji">
+                            <Icon name="smile" />
+                        </button>
+                        <button type="button" aria-label="Attach file">
+                            <Icon name="paperclip" />
+                        </button>
+                    </div>
+                    <button
+                        className="profile-message-send"
+                        type="button"
+                        disabled={!canSend}
+                        onClick={() => {
+                            if (canSend) {
+                                setSendStatus("Message ready to send.");
+                            }
+                        }}
+                    >
+                        <Icon name="send" /> Send message
+                    </button>
+                </footer>
+
+                {sendStatus ? (
+                    <p className="profile-message-status">{sendStatus}</p>
+                ) : null}
+            </section>
+        </div>
+    );
+}
+
+function ProfileAboutSheet({
+    isClosing = false,
+    onClose,
+    onClosed,
+    onContact,
+    profile,
+}) {
+    const languageLevels = profile.languages.map((language, index) => ({
+        language,
+        level:
+            index === 0
+                ? "Basic"
+                : index === 1
+                  ? "Conversational"
+                  : "Conversational",
+    }));
+    const education = profile.education || {
+        school: "The Islamia University Bahawalpur",
+        degree: "M.A. Degree. Artificial Intelligence",
+        year: "Graduated 2021",
+    };
+    const certifications = profile.certifications || [
+        {
+            name: "IDEOVERSITY Web Development",
+            year: "Graduated 2022",
+        },
+        {
+            name: "IDEOVERSITY Python",
+            year: "Graduated 2020",
+        },
+    ];
+
+    useEffect(() => {
+        if (!isClosing) {
+            return undefined;
+        }
+
+        const closeTimer = window.setTimeout(onClosed, 320);
+
+        return () => window.clearTimeout(closeTimer);
+    }, [isClosing, onClosed]);
+
+    return (
+        <div
+            className={`profile-about-sheet-layer${isClosing ? " is-closing" : " is-opening"}`}
+            role="presentation"
+        >
+            <button
+                className="profile-dialog-backdrop"
+                type="button"
+                aria-label="Close more about me"
+                onClick={onClose}
+            ></button>
+            <section
+                className="profile-about-sheet"
+                role="dialog"
+                aria-modal="true"
+                aria-label={`More about ${profile.name}`}
+                onAnimationEnd={(event) => {
+                    if (isClosing && event.target === event.currentTarget) {
+                        onClosed();
+                    }
+                }}
+            >
+                <header className="profile-about-sheet-head">
+                    <div className="profile-about-sheet-person">
+                        <img src={profile.avatar} alt="" />
+                        <div>
+                            <h2>
+                                {profile.name} <span>{profile.handle}</span>
+                            </h2>
+                            <ProfileRating
+                                rating={profile.rating}
+                                reviews={profile.reviews}
+                            />
+                            <strong>{profile.title}</strong>
+                            <p>
+                                <span>
+                                    <Icon name="location" /> {profile.location}
+                                </span>
+                                <span>
+                                    <Icon name="message" />{" "}
+                                    {profile.languages.join(", ")}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                    <div className="profile-about-sheet-actions">
+                        <button type="button" onClick={onContact}>
+                            <Icon name="send" /> Contact me
+                        </button>
+                        <button
+                            type="button"
+                            aria-label={`Save ${profile.name}`}
+                        >
+                            <Icon name="heart" />
+                        </button>
+                        <button
+                            type="button"
+                            aria-label="Close more about me"
+                            onClick={onClose}
+                        >
+                            <Icon name="close" />
+                        </button>
+                    </div>
+                </header>
+
+                <div className="profile-about-sheet-content">
+                    <div className="profile-about-sheet-main">
+                        <section>
+                            <h3>About me</h3>
+                            <p>{profile.about}</p>
+                        </section>
+
+                        <section>
+                            <h3>Skills</h3>
+                            <div className="profile-about-skill-list">
+                                {profile.skills.map((skill) => (
+                                    <span key={skill}>{skill}</span>
+                                ))}
+                            </div>
+                        </section>
+
+                        <section className="profile-learn-row">
+                            <h3>Successfully completed online</h3>
+                            <article>
+                                <span>
+                                    <Icon name="verifiedUser" />
+                                </span>
+                                <div>
+                                    <strong>
+                                        Online Freelancing Essentials: be a
+                                        successful Fiverr seller
+                                    </strong>
+                                    <p>Oct 2023</p>
+                                </div>
+                                <b>fiverr learn.</b>
+                            </article>
+                        </section>
+
+                        <section>
+                            <h3>Education</h3>
+                            <article className="profile-about-timeline-item">
+                                <span>
+                                    <Icon name="graduation" />
+                                </span>
+                                <div>
+                                    <strong>{education.school}</strong>
+                                    <p>{education.degree}</p>
+                                    <p>{education.year}</p>
+                                </div>
+                            </article>
+                        </section>
+
+                        <section>
+                            <h3>Certifications</h3>
+                            {certifications.map((item) => (
+                                <article
+                                    className="profile-about-timeline-item"
+                                    key={`${item.name}-${item.year}`}
+                                >
+                                    <span>
+                                        <Icon name="star" />
+                                    </span>
+                                    <div>
+                                        <strong>{item.name}</strong>
+                                        <p>{item.year}</p>
+                                    </div>
+                                </article>
+                            ))}
+                        </section>
+                    </div>
+
+                    <aside className="profile-about-sheet-card">
+                        <strong>
+                            <Icon name="user" /> On Fiverr since Aug 2020
+                        </strong>
+                        <hr />
+                        <h3>I speak</h3>
+                        <dl>
+                            {languageLevels.map((item) => (
+                                <div key={item.language}>
+                                    <dt>{item.language}</dt>
+                                    <dd>{item.level}</dd>
+                                </div>
+                            ))}
+                        </dl>
+                    </aside>
+                </div>
+            </section>
+        </div>
+    );
+}
+
 function ProfileMessageBubble({ profile }) {
     const { t } = useTranslation();
+    const [isComposerOpen, setIsComposerOpen] = useState(false);
+    const [messageDraft, setMessageDraft] = useState("Hi,\nThis is my message.");
+    const [sendStatus, setSendStatus] = useState("");
+    const minimumMessageLength = 40;
+    const maxMessageLength = 2500;
+    const messageLength = messageDraft.trim().length;
+    const canSend = messageLength >= minimumMessageLength;
+    const promptStarters = [
+        `Hey ${profile.name}, can you help me with my project?`,
+        "Would it be possible to get a custom offer for this?",
+        "Do you think you can deliver an order by this week?",
+    ];
+
+    useEffect(() => {
+        if (!isComposerOpen) {
+            return undefined;
+        }
+
+        const closeOnEscape = (event) => {
+            if (event.key === "Escape") {
+                setIsComposerOpen(false);
+            }
+        };
+
+        window.addEventListener("keydown", closeOnEscape);
+
+        return () => window.removeEventListener("keydown", closeOnEscape);
+    }, [isComposerOpen]);
+
+    const openComposer = () => {
+        setIsComposerOpen(true);
+        setSendStatus("");
+    };
+
+    const sendMessage = () => {
+        if (!canSend) {
+            return;
+        }
+
+        setSendStatus("Message ready to send.");
+    };
+
+    if (isComposerOpen) {
+        return (
+            <aside
+                className="profile-message-composer"
+                aria-label={`Send a message to ${profile.name}`}
+            >
+                <header>
+                    <img src={profile.avatar} alt="" />
+                    <span
+                        className="profile-online-dot"
+                        aria-hidden="true"
+                    ></span>
+                    <div>
+                        <strong>
+                            {t("pages.userprofilepage.message")} {profile.name}
+                        </strong>
+                        <span>
+                            Online <i aria-hidden="true">.</i> Avg. response
+                            time: <b>{profile.responseTime}</b>
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        aria-label="Close message box"
+                        onClick={() => setIsComposerOpen(false)}
+                    >
+                        <Icon name="close" />
+                    </button>
+                </header>
+
+                <div className="profile-message-composer-body">
+                    <label className="sr-only" htmlFor="profileMessageDraft">
+                        Message
+                    </label>
+                    <textarea
+                        id="profileMessageDraft"
+                        maxLength={maxMessageLength}
+                        value={messageDraft}
+                        onChange={(event) => {
+                            setMessageDraft(event.target.value);
+                            setSendStatus("");
+                        }}
+                    />
+                    <span
+                        className="profile-message-secure"
+                        aria-label="Secure message"
+                    >
+                        <Icon name="archive" />
+                    </span>
+                </div>
+
+                <div className="profile-message-prompts">
+                    {promptStarters.map((prompt) => (
+                        <button
+                            type="button"
+                            key={prompt}
+                            onClick={() => {
+                                setMessageDraft(prompt);
+                                setSendStatus("");
+                            }}
+                        >
+                            {prompt}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="profile-message-count-row">
+                    <span>Use at least {minimumMessageLength} characters</span>
+                    <strong>
+                        {messageLength}/{maxMessageLength}
+                    </strong>
+                </div>
+
+                <footer>
+                    <div>
+                        <button type="button" aria-label="Add emoji">
+                            <Icon name="smile" />
+                        </button>
+                        <button type="button" aria-label="Attach file">
+                            <Icon name="paperclip" />
+                        </button>
+                    </div>
+                    <button
+                        className="profile-message-send"
+                        type="button"
+                        disabled={!canSend}
+                        onClick={sendMessage}
+                    >
+                        <Icon name="send" /> Send message
+                    </button>
+                </footer>
+
+                {sendStatus ? (
+                    <p className="profile-message-status">{sendStatus}</p>
+                ) : null}
+            </aside>
+        );
+    }
+
     return (
-        <aside
+        <button
             className="profile-message-bubble"
             aria-label={`Message ${profile.name}`}
+            type="button"
+            onClick={openComposer}
         >
             <img src={profile.avatar} alt="" />
             <span className="profile-online-dot" aria-hidden="true"></span>
@@ -709,7 +1252,7 @@ function ProfileMessageBubble({ profile }) {
                     {profile.responseTime}
                 </span>
             </div>
-        </aside>
+        </button>
     );
 }
 export default UserProfilePage;

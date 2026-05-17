@@ -15,6 +15,68 @@ export function profilePathForSeller(name) {
     return `/users/${slugifySellerName(name)}`;
 }
 
+const editableSellerStorageKeys = {
+    title: "bdgigs:seller-profile-title",
+    languages: "bdgigs:seller-profile-languages",
+    about: "bdgigs:seller-profile-about",
+    projects: "bdgigs:seller-profile-projects",
+    skills: "bdgigs:seller-profile-skills",
+    work: "bdgigs:seller-profile-work",
+};
+
+const editableSellerProfile = {
+    slug: "jahid-01",
+    aliases: ["hasan", "jahid-01", "jahid01"],
+    name: "Hasan",
+    handle: "@jahid_01",
+    avatar:
+        "https://images.pexels.com/photos/3785077/pexels-photo-3785077.jpeg?auto=compress&cs=tinysrgb&w=240&h=240&fit=crop",
+    title: "Web Developer || Mobile App Developer || Full Stack Developer",
+    level: "Level 2",
+    rating: 4.9,
+    reviews: 25,
+    location: "Bangladesh",
+    localTime: "10:52 PM",
+    responseTime: "1 hour",
+    about: "Hi, I'm your dedicated PHP and full-stack developer with a passion for delivering exceptional digital solutions. Whether you need a quick fix, a complete overhaul, or a bespoke website build from scratch, I'm here to bring your vision to life.",
+    skills: [
+        "Website development",
+        "Website customization",
+        "Laravel development",
+        "Laravel",
+        "PHP Laravel",
+        "Laravel framework",
+    ],
+};
+
+const editableFallbackProject = {
+    id: "wordpress-payment-gateway",
+    name: "Creating a WordPress plugin for payment gateway.",
+    duration: "1-3 months",
+    cost: "90",
+    startedMonth: "03",
+    startedYear: "2025",
+    image: "/assets/img/gig_images/1.png",
+    linkedCatalog: "Full Stack Web Applications",
+    description:
+        "I mirrored the current checkout experience, created a secure plugin, and delivered a reliable gateway that kept the user workflow simple.",
+};
+
+const editableMonthNames = {
+    "01": "January",
+    "02": "February",
+    "03": "March",
+    "04": "April",
+    "05": "May",
+    "06": "June",
+    "07": "July",
+    "08": "August",
+    "09": "September",
+    "10": "October",
+    "11": "November",
+    "12": "December",
+};
+
 export const ahmadProfile = {
     slug: "ahmad",
     name: "Ahmad",
@@ -123,6 +185,10 @@ const explicitProfiles = [ahmadProfile];
 
 export function getUserProfile(username) {
     const slug = slugifySellerName(username);
+    const editableProfile = getEditableSellerProfile(slug);
+
+    if (editableProfile) return editableProfile;
+
     const explicit = explicitProfiles.find(
         (profile) =>
             profile.slug === slug || slugifySellerName(profile.name) === slug,
@@ -143,6 +209,127 @@ export function getUserProfile(username) {
     }
 
     return ahmadProfile;
+}
+
+function getEditableSellerProfile(slug) {
+    if (!editableSellerProfile.aliases.includes(slug)) {
+        return null;
+    }
+
+    const title = readEditableSellerValue(
+        editableSellerStorageKeys.title,
+        editableSellerProfile.title,
+    );
+    const about = readEditableSellerValue(
+        editableSellerStorageKeys.about,
+        editableSellerProfile.about,
+    );
+    const skills = readEditableSellerValue(
+        editableSellerStorageKeys.skills,
+        editableSellerProfile.skills,
+    );
+    const languages = normalizeEditableLanguages(
+        readEditableSellerValue(editableSellerStorageKeys.languages, null),
+    );
+    const projects = readEditableSellerValue(
+        editableSellerStorageKeys.projects,
+        [editableFallbackProject],
+    );
+    const project = projects?.[0] || editableFallbackProject;
+    const work = readEditableSellerValue(editableSellerStorageKeys.work, null);
+    const projectPrice = Number(project.cost) || 100;
+
+    return {
+        ...ahmadProfile,
+        ...editableSellerProfile,
+        title,
+        about,
+        skills,
+        languages,
+        services: [
+            {
+                id: project.id || "full-stack-website",
+                title: project.linkedCatalog || "Full Stack Web Applications",
+                description:
+                    project.name ||
+                    "I will web application, software development, full stack website development",
+                image: project.image || editableFallbackProject.image,
+                price: projectPrice,
+            },
+        ],
+        portfolio: {
+            ...ahmadProfile.portfolio,
+            title: project.name || editableFallbackProject.name,
+            date: formatEditableProjectDate(project),
+            description:
+                project.description || editableFallbackProject.description,
+            image: project.image || editableFallbackProject.image,
+            thumbnails: [
+                project.image || editableFallbackProject.image,
+                "/assets/img/gig_images/20.png",
+                "/assets/img/gig_images/21.png",
+            ],
+            tags: [
+                project.industry || "Programming & Tech",
+                project.expertise || "Laravel",
+                "Website development",
+                "+3",
+            ],
+            cost: `$${projectPrice}`,
+            duration: project.duration || editableFallbackProject.duration,
+        },
+        workExperience: work?.title
+            ? [
+                  {
+                      role: work.title,
+                      company: work.company,
+                      type: work.employmentType,
+                      period: `${work.startDate} - ${work.endDate}`,
+                      duration: work.duration,
+                      description: work.description,
+                  },
+              ]
+            : ahmadProfile.workExperience,
+        reviewsData: {
+            ...ahmadProfile.reviewsData,
+            count: editableSellerProfile.reviews,
+            rating: editableSellerProfile.rating,
+        },
+    };
+}
+
+function readEditableSellerValue(key, fallback) {
+    if (typeof window === "undefined") {
+        return fallback;
+    }
+
+    try {
+        const value = window.localStorage.getItem(key);
+        return value ? JSON.parse(value) : fallback;
+    } catch {
+        return fallback;
+    }
+}
+
+function normalizeEditableLanguages(languages) {
+    if (!Array.isArray(languages) || languages.length === 0) {
+        return ["English", "Bengali", "French", "Spanish"];
+    }
+
+    return languages
+        .map((language) =>
+            typeof language === "string" ? language : language.language,
+        )
+        .filter(Boolean);
+}
+
+function formatEditableProjectDate(project) {
+    if (!project?.startedYear) {
+        return "From: March 2025";
+    }
+
+    const month = editableMonthNames[project.startedMonth] || "March";
+    return `From: ${month} ${project.startedYear}`;
 }
 
 function createProfileFromDetail(detail) {

@@ -36,7 +36,7 @@ const ignoredDirectories = new Set([
     "locales",
     "i18n",
 ]);
-const ignoredTexts = new Set(["BDGigs"]);
+const ignoredTexts = new Set(["bdgigs"]);
 
 function parseArgs(argv) {
     const config = { ...defaultConfig };

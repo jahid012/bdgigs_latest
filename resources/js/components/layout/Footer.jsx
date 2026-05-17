@@ -70,7 +70,7 @@ const footerColumns = [
         title: "For Clients",
         links: [
             {
-                label: "How BDGigs Works",
+                label: "How bdgigs Works",
                 to: "/#how-it-works",
             },
             {
@@ -82,11 +82,11 @@ const footerColumns = [
                 to: "/search/gigs?query=quality%20guide&source=footer",
             },
             {
-                label: "BDGigs Guides",
+                label: "bdgigs Guides",
                 to: "/#guides",
             },
             {
-                label: "BDGigs Answers",
+                label: "bdgigs Answers",
                 to: "/search/gigs?query=answers&source=footer",
             },
             {
@@ -99,7 +99,7 @@ const footerColumns = [
         title: "For Freelancers",
         links: [
             {
-                label: "Become a BDGigs Freelancer",
+                label: "Become a bdgigs Freelancer",
                 to: "/dashboard/seller",
             },
             {
@@ -124,7 +124,7 @@ const footerColumns = [
         title: "Business Solutions",
         links: [
             {
-                label: "BDGigs Pro",
+                label: "bdgigs Pro",
                 to: "/search/gigs?query=pro&source=footer",
             },
             {
@@ -144,7 +144,7 @@ const footerColumns = [
                 to: "/search/gigs?query=dropshipping&source=footer",
             },
             {
-                label: "BDGigs - Software Development",
+                label: "bdgigs - Software Development",
                 to: "/categories/programming-tech/website-development",
             },
             {
@@ -152,7 +152,7 @@ const footerColumns = [
                 to: "/categories/ai-services/ai-applications",
             },
             {
-                label: "BDGigs Logo Maker",
+                label: "bdgigs Logo Maker",
                 to: "/categories/graphics-design/logo-design",
             },
             {
@@ -165,7 +165,7 @@ const footerColumns = [
         title: "Company",
         links: [
             {
-                label: "About BDGigs",
+                label: "About bdgigs",
                 to: "/",
             },
             {

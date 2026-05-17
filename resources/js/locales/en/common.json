@@ -18,7 +18,7 @@
         "facebook": "Facebook",
         "joinHere": "Join here",
         "legalAfter": "and to occasionally receive emails from us. Please read our",
-        "legalBefore": "By joining, you agree to the BDGigs",
+        "legalBefore": "By joining, you agree to the bdgigs",
         "legalEnd": "to learn how we use your personal data.",
         "or": "OR",
         "orPrefix": "Or",
@@ -109,7 +109,7 @@
                 "moreConversationActions": "More conversation actions",
                 "moveToArchive": "Move to archive",
                 "noConversationsFound": "No conversations found.",
-                "onBdgigsSince": "On BDGigs since",
+                "onBdgigsSince": "On bdgigs since",
                 "ordersWithYou": "Orders with you",
                 "rating": "Rating",
                 "relatedServices": "Related services",
@@ -197,7 +197,7 @@
                 }
             },
             "sidebar": {
-                "bdgigsHome": "BDGigs home",
+                "bdgigsHome": "bdgigs home",
                 "closeSidebar": "Close sidebar",
                 "dashboardNavigation": "Dashboard navigation"
             },
@@ -234,7 +234,7 @@
             },
             "howitworks": {
                 "100MoneyBackGuarantee": "100% money-back guarantee",
-                "bdgigsPro": "BDGigs pro.",
+                "bdgigsPro": "bdgigs pro.",
                 "discoverExpertSourcing": "Discover expert sourcing",
                 "featuredAiDirectors": "Featured AI directors",
                 "findYourAiDirector": "Find your AI Director",
@@ -267,20 +267,20 @@
                 "fingertips": "fingertips",
                 "freelanceServicesAtYour": "Freelance services at your",
                 "guidesToHelpYouGrow": "Guides to help you grow",
-                "joinBdgigs": "Join BDGigs",
+                "joinBdgigs": "Join bdgigs",
                 "seeMoreGuides": "See more guides",
                 "viewMoreGuides": "View more guides"
             }
         },
         "layout": {
             "footer": {
-                "c2026BdgigsAllRightsReserved": "(c) 2026 BDGigs. All rights reserved."
+                "c2026BdgigsAllRightsReserved": "(c) 2026 bdgigs. All rights reserved."
             }
         }
     },
     "header": {
         "becomeSeller": "Become a Seller",
-        "brandAria": "BDGigs home",
+        "brandAria": "bdgigs home",
         "buyer": "Buyer",
         "categories": {
             "aiServices": "AI Services",
@@ -372,7 +372,7 @@
             "clientName": "Client name",
             "closeAddClientForm": "Close add client form",
             "cloudpeak": "CloudPeak",
-            "confirmYourWorkWithALinkToAn": "Confirm your work with a link to an invoice, contract, or the actual work. If the client hired you through BDGigs, you can link to the BDGigs order.",
+            "confirmYourWorkWithALinkToAn": "Confirm your work with a link to an invoice, contract, or the actual work. If the client hired you through bdgigs, you can link to the bdgigs order.",
             "createAnIntroVideo": "Create an intro video",
             "delete": "Delete",
             "describeTheWorkYouDidForThisClient": "Describe the work you did for this client",
@@ -382,7 +382,7 @@
             "editProfessionalTitle": "Edit professional title",
             "education": "Education",
             "featuredClients": "Featured clients",
-            "iConfirmIveWorkedWithThisClientAnd": "I confirm I've worked with this client and have permission to publish their name and logo on BDGigs.",
+            "iConfirmIveWorkedWithThisClientAnd": "I confirm I've worked with this client and have permission to publish their name and logo on bdgigs.",
             "iDesignDevelopAndMaintainWebApplicationsUsing": "I design, develop, and maintain web applications using PHP, Laravel, and Node.js. I work on improving existing projects by adding new features, supporting bugs in Laravel applications, and collaborating with teams to plan and deliver new features.",
             "introVideo": "Intro video",
             "introduceYourselfAndMakeAConnectionWithPotential": "Introduce yourself and make a connection with potential clients.",
@@ -506,7 +506,7 @@
             "gigFiltersAndSorting": "Gig filters and sorting",
             "gigResultsPagination": "Gig results pagination",
             "goToHomePage": "Go to home page",
-            "howBdgigsWorks": "How BDGigs Works",
+            "howBdgigsWorks": "How bdgigs Works",
             "letUsFindYourFreelancer": "Let us find your freelancer",
             "maximumBudget": "Maximum budget",
             "moreWaysToHire": "More ways to hire",
@@ -568,8 +568,8 @@
             "availableBalances": "Available balances",
             "availableForWithdrawalOrPurchases": "Available for withdrawal or purchases.",
             "bangladesh": "Bangladesh",
-            "bdgigsBalance": "BDGigs Balance",
-            "bdgigsCredits": "BDGigs Credits",
+            "bdgigsBalance": "bdgigs Balance",
+            "bdgigsCredits": "bdgigs Credits",
             "billingAndPayments": "Billing and payments",
             "billingHistory": "Billing history",
             "billingInformation": "Billing information",
@@ -581,7 +581,7 @@
             "date": "Date",
             "document": "Document",
             "downloadReport": "Download report",
-            "earnBdgigsCredits": "Earn BDGigs Credits",
+            "earnBdgigsCredits": "Earn bdgigs Credits",
             "earnings": "Earnings",
             "enabled": "Enabled",
             "fromCanceledOrders": "From canceled orders",
