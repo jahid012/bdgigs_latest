@@ -231,6 +231,7 @@ button {
 .admin-login-form button,
 .admin-ghost-button,
 .admin-panel-head button,
+.admin-settings-intro button,
 .admin-panel-link {
   display: inline-flex;
   min-height: 38px;
@@ -451,6 +452,7 @@ button {
 
 .admin-ghost-button,
 .admin-panel-head button,
+.admin-settings-intro button,
 .admin-panel-link {
   padding: 0 0.88rem;
   border: 1px solid var(--admin-border);
@@ -460,6 +462,7 @@ button {
 
 .admin-ghost-button:hover,
 .admin-panel-head button:hover,
+.admin-settings-intro button:hover,
 .admin-panel-link:hover {
   border-color: var(--admin-ink);
 }
@@ -953,6 +956,62 @@ button {
   font-weight: 850;
 }
 
+.admin-table-action {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.62rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  color: var(--admin-text);
+  font-size: 0.74rem;
+  font-weight: 850;
+}
+
+.admin-table-action:hover {
+  border-color: var(--admin-ink);
+}
+
+.admin-muted-action {
+  color: var(--admin-muted) !important;
+  background: transparent !important;
+  font-size: 0.74rem !important;
+  font-weight: 760 !important;
+}
+
+.admin-access-badges {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 0.32rem;
+  max-width: 260px;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.admin-access-badges b,
+.admin-access-badges em {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  padding: 0 0.46rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.admin-access-badges b {
+  background: #effcf5;
+  color: #0b6f43;
+}
+
+.admin-access-badges em {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
 .admin-pagination {
   display: flex;
   flex-wrap: wrap;
@@ -1276,6 +1335,656 @@ button {
   gap: 0.82rem;
 }
 
+.admin-settings-layout {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+}
+
+.admin-settings-main,
+.admin-settings-sidebar,
+.admin-setting-rows {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-settings-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background:
+    linear-gradient(135deg, rgba(29, 191, 115, 0.12), transparent 44%),
+    #ffffff;
+}
+
+.admin-settings-intro h2 {
+  max-width: 760px;
+  margin: 0;
+  color: var(--admin-text);
+  font-size: 1.25rem;
+  line-height: 1.25;
+}
+
+.admin-settings-intro p:not(.admin-eyebrow) {
+  max-width: 760px;
+  margin: 0.45rem 0 0;
+  color: var(--admin-muted);
+  font-size: 0.86rem;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.admin-setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(210px, 0.34fr);
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.admin-setting-row-toggle {
+  cursor: pointer;
+}
+
+.admin-setting-copy {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.admin-setting-copy strong {
+  color: var(--admin-text);
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+
+.admin-setting-copy small {
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.admin-setting-control {
+  display: grid;
+  justify-items: end;
+  min-width: 0;
+}
+
+.admin-setting-control select,
+.admin-setting-control textarea,
+.admin-input-shell {
+  width: min(100%, 260px);
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--admin-text);
+  font-size: 0.82rem;
+  font-weight: 760;
+}
+
+.admin-setting-control select,
+.admin-input-shell {
+  min-height: 38px;
+}
+
+.admin-setting-control select {
+  padding: 0 0.65rem;
+  outline: none;
+}
+
+.admin-setting-control textarea {
+  min-height: 88px;
+  padding: 0.65rem;
+  resize: vertical;
+  outline: none;
+  line-height: 1.45;
+}
+
+.admin-input-shell {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.admin-input-shell input {
+  min-width: 0;
+  width: 100%;
+  height: 38px;
+  padding: 0 0.65rem;
+  border: 0;
+  outline: none;
+  color: var(--admin-text);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.admin-input-shell em {
+  display: inline-flex;
+  min-width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.62rem;
+  border-right: 1px solid #eef0f2;
+  background: #fafafa;
+  color: var(--admin-muted);
+  font-size: 0.76rem;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.admin-input-shell em:last-child {
+  border-right: 0;
+  border-left: 1px solid #eef0f2;
+}
+
+.admin-setting-control select:focus,
+.admin-setting-control textarea:focus,
+.admin-input-shell:focus-within {
+  border-color: var(--admin-ink);
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08);
+}
+
+.admin-setting-switch {
+  position: relative;
+  justify-self: end;
+  width: 46px;
+  height: 26px;
+  flex: 0 0 auto;
+}
+
+.admin-setting-switch input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.admin-setting-switch i {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #d1d5db;
+  transition: background 160ms ease;
+}
+
+.admin-setting-switch i::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.24);
+  transition: transform 160ms ease;
+  content: "";
+}
+
+.admin-setting-switch input:checked + i {
+  background: var(--admin-accent);
+}
+
+.admin-setting-switch input:checked + i::after {
+  transform: translateX(20px);
+}
+
+.admin-access-shortcut {
+  display: grid;
+  gap: 1rem;
+  background:
+    linear-gradient(135deg, rgba(17, 24, 39, 0.08), transparent 48%),
+    #ffffff;
+}
+
+.admin-access-shortcut-actions,
+.admin-access-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.admin-access-shortcut h2 {
+  margin: 0;
+  color: var(--admin-text);
+  font-size: 1.05rem;
+}
+
+.admin-access-shortcut p:not(.admin-eyebrow) {
+  margin: 0.36rem 0 0;
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.admin-access-grid {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+}
+
+.admin-access-alert {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--admin-text);
+  font-size: 0.84rem;
+  font-weight: 760;
+}
+
+.admin-access-alert.is-success {
+  border-color: #b7ebd2;
+  background: #effcf5;
+  color: #0b6f43;
+}
+
+.admin-access-alert.is-error {
+  border-color: #fecaca;
+  background: #fff7f7;
+  color: #b91c1c;
+}
+
+.admin-role-list-panel,
+.admin-role-list,
+.admin-permission-panel,
+.admin-permission-groups {
+  display: grid;
+  gap: 0.82rem;
+}
+
+.admin-create-role-form {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.admin-access-task-panel,
+.admin-user-finder,
+.admin-user-search-form {
+  display: grid;
+  gap: 0.82rem;
+}
+
+.admin-user-finder,
+.admin-user-search-form {
+  padding: 0.85rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.admin-create-role-form label,
+.admin-user-role-select,
+.admin-user-finder label,
+.admin-user-search-form label {
+  display: grid;
+  gap: 0.36rem;
+  color: var(--admin-text);
+  font-size: 0.78rem;
+  font-weight: 820;
+}
+
+.admin-create-role-form input,
+.admin-user-finder input,
+.admin-user-search-form input,
+.admin-user-search-form select,
+.admin-user-role-checks {
+  width: 100%;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--admin-text);
+  outline: none;
+  font-size: 0.82rem;
+  font-weight: 760;
+}
+
+.admin-create-role-form input {
+  min-height: 38px;
+  padding: 0 0.7rem;
+}
+
+.admin-user-finder input,
+.admin-user-search-form input,
+.admin-user-search-form select {
+  min-height: 38px;
+  padding: 0 0.7rem;
+}
+
+.admin-create-role-form input:focus,
+.admin-user-finder input:focus,
+.admin-user-search-form input:focus,
+.admin-user-search-form select:focus {
+  border-color: var(--admin-ink);
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08);
+}
+
+.admin-create-role-form button,
+.admin-user-finder button,
+.admin-user-search-form button,
+.admin-user-access-card button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.85rem;
+  border: 1px solid var(--admin-ink);
+  border-radius: 6px;
+  background: var(--admin-ink);
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.admin-create-role-form button:hover,
+.admin-user-finder button:hover,
+.admin-user-search-form button:hover,
+.admin-user-access-card button:hover {
+  background: #050505;
+}
+
+.admin-user-search-form > a {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.85rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--admin-text);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.admin-role-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.85rem;
+  align-items: center;
+  padding: 0.9rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.admin-role-card:hover,
+.admin-role-card.is-active {
+  border-color: #b7ebd2;
+  background: #effcf5;
+}
+
+.admin-role-card span,
+.admin-role-summary span {
+  display: grid;
+  gap: 0.22rem;
+}
+
+.admin-role-card strong {
+  color: var(--admin-text);
+  font-size: 0.9rem;
+}
+
+.admin-role-card small {
+  color: var(--admin-muted);
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.admin-role-card em {
+  min-height: 24px;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--admin-text);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.admin-role-card-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.admin-role-card-actions a {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.7rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--admin-text);
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.admin-role-card-actions a:hover {
+  border-color: var(--admin-ink);
+}
+
+.admin-role-summary {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.8rem;
+  border: 1px solid #eef0f2;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.admin-role-summary span {
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.admin-role-summary b {
+  color: var(--admin-text);
+  font-size: 0.92rem;
+}
+
+.admin-permission-group {
+  padding: 0.9rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.admin-permission-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.78rem;
+}
+
+.admin-permission-group-head strong {
+  color: var(--admin-text);
+  font-size: 0.92rem;
+}
+
+.admin-permission-group-head span {
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+  font-weight: 760;
+}
+
+.admin-permission-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.admin-permission-chip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.7rem;
+  align-items: center;
+  padding: 0.78rem;
+  border: 1px solid #eef0f2;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.admin-permission-chip.is-on {
+  border-color: #b7ebd2;
+  background: #effcf5;
+}
+
+.admin-permission-chip input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--admin-accent);
+}
+
+.admin-permission-chip span {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.admin-permission-chip b {
+  color: var(--admin-text);
+  font-size: 0.82rem;
+}
+
+.admin-permission-chip small {
+  color: var(--admin-muted);
+  font-size: 0.72rem;
+  font-weight: 720;
+}
+
+.admin-permission-chip em {
+  min-height: 23px;
+  padding: 0.22rem 0.48rem;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #c2410c;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.admin-empty-note {
+  margin: 0;
+  padding: 0.9rem;
+  border: 1px dashed var(--admin-border);
+  border-radius: 8px;
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.admin-user-access-panel,
+.admin-user-access-list {
+  display: grid;
+  gap: 0.82rem;
+}
+
+.admin-user-access-card {
+  display: grid;
+  gap: 0.85rem;
+  align-items: center;
+  padding: 0.9rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.admin-user-access-identity {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.admin-user-access-identity strong {
+  color: var(--admin-text);
+  font-size: 0.92rem;
+}
+
+.admin-user-access-identity span,
+.admin-user-access-identity small {
+  color: var(--admin-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.admin-user-role-checks {
+  display: grid;
+  max-height: 150px;
+  overflow-y: auto;
+  padding: 0.38rem;
+}
+
+.admin-user-role-checks label {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0 0.35rem;
+  border-radius: 5px;
+  color: #404145;
+  font-size: 0.76rem;
+  font-weight: 760;
+}
+
+.admin-user-role-checks label:hover {
+  background: #f7f8fa;
+}
+
+.admin-user-role-checks input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--admin-accent);
+}
+
+.admin-user-role-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.34rem;
+}
+
+.admin-user-role-meta b,
+.admin-user-role-meta em {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.admin-user-role-meta b {
+  background: #effcf5;
+  color: #0b6f43;
+}
+
+.admin-user-role-meta em {
+  background: #f3f4f6;
+  color: var(--admin-muted);
+}
+
 .admin-finance-card button {
   min-height: 40px;
   padding: 0 0.9rem;
@@ -1401,9 +2110,34 @@ button {
 
   .admin-mini-card,
   .admin-settings-list label,
+  .admin-setting-row,
   .admin-config-list p {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .admin-settings-intro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-setting-row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-setting-control {
+    justify-items: stretch;
+    width: 100%;
+  }
+
+  .admin-setting-control select,
+  .admin-setting-control textarea,
+  .admin-input-shell {
+    width: 100%;
+  }
+
+  .admin-setting-switch {
+    justify-self: start;
   }
 
   .admin-mini-card > div:last-child {
@@ -1427,7 +2161,9 @@ button {
   .admin-chart-controls label,
   .admin-chart-controls input,
   .admin-chart-controls select,
-  .admin-chart-controls button {
+  .admin-chart-controls button,
+  .admin-user-search-form button,
+  .admin-user-search-form > a {
     width: 100%;
   }
 
@@ -1441,6 +2177,7 @@ button {
   }
 
   .admin-panel-head button,
+  .admin-settings-intro button,
   .admin-panel-link {
     width: 100%;
   }
@@ -1533,8 +2270,29 @@ button {
     grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
   }
 
+  .admin-settings-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  }
+
+  .admin-access-grid {
+    grid-template-columns: minmax(280px, 0.42fr) minmax(0, 1fr);
+  }
+
+  .admin-role-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .admin-workflow-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-user-access-card {
+    grid-template-columns: minmax(210px, 0.7fr) minmax(220px, 0.55fr) minmax(180px, 1fr) auto;
+  }
+
+  .admin-user-search-form {
+    grid-template-columns: minmax(220px, 1fr) minmax(180px, 260px) auto auto;
+    align-items: end;
   }
 }
 

@@ -10,7 +10,7 @@
             <div class="admin-panel-head">
                 <div>
                     <h2>User directory</h2>
-                    <p>Review account health, roles, verification, and region.</p>
+                    <p>Review account health, profile type, verification, and region.</p>
                 </div>
                 <button type="button">Add user</button>
             </div>
@@ -26,7 +26,8 @@
                         <tr>
                             <th>Name</th>
                             <th>Email</th>
-                            <th>Role</th>
+                            <th>Profile type</th>
+                            <th>Seller level</th>
                             <th>Country</th>
                             <th>Status</th>
                             <th>Joined</th>
@@ -37,7 +38,8 @@
                             <tr>
                                 <td>{{ $user['name'] }}</td>
                                 <td>{{ $user['email'] }}</td>
-                                <td>{{ $user['role'] }}</td>
+                                <td>{{ $user['profile_type'] }}</td>
+                                <td>{{ $user['seller_level'] }}</td>
                                 <td>{{ $user['country'] }}</td>
                                 <td><span>{{ $user['status'] }}</span></td>
                                 <td>{{ $user['joined'] }}</td>

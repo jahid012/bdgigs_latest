@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -10,7 +11,7 @@ class AuthController extends Controller
 {
     public function showLogin()
     {
-        if (session('admin_authenticated')) {
+        if (Auth::check() && Auth::user()->can('admin.access')) {
             return redirect()->route('admin.dashboard');
         }
 
@@ -24,34 +25,38 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        $email = strtolower($credentials['email']);
-        $adminEmail = strtolower(config('admin.email'));
-        $adminPassword = config('admin.password');
-
-        if (
-            ! hash_equals($adminEmail, $email) ||
-            ! hash_equals($adminPassword, $credentials['password'])
-        ) {
+        if (! Auth::attempt($credentials)) {
             throw ValidationException::withMessages([
                 'email' => 'These admin credentials do not match our records.',
             ]);
         }
 
-        $request->session()->regenerate();
-        $request->session()->put('admin_authenticated', true);
-        $request->session()->put('admin_user', [
-            'name' => config('admin.name'),
-            'email' => config('admin.email'),
-        ]);
+        if (! Auth::user()->can('admin.access')) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
 
-        return redirect()->intended(route('admin.dashboard'));
+            throw ValidationException::withMessages([
+                'email' => 'This account does not have admin panel access.',
+            ]);
+        }
+
+        $request->session()->regenerate();
+
+        return redirect()
+            ->intended(route('admin.dashboard'))
+            ->withNotify('success', 'Welcome back to the admin panel.', 'Signed in');
     }
 
     public function logout(Request $request)
     {
-        $request->session()->forget(['admin_authenticated', 'admin_user']);
+        Auth::logout();
+
+        $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('admin.login');
+        return redirect()
+            ->route('admin.login')
+            ->withNotify('info', 'You have been signed out safely.', 'Signed out');
     }
 }

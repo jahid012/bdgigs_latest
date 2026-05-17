@@ -15,10 +15,12 @@
       rel="stylesheet"
     >
     <title>bdgigs | Freelance Services Marketplace</title>
+    <link rel="stylesheet" href="{{ asset('assets/shared/notify.css') }}">
     @viteReactRefresh
     @vite(['resources/css/app.css', 'resources/js/main.jsx'])
   </head>
   <body>
     <div id="root"></div>
+    @include('partials.notifications')
   </body>
 </html>

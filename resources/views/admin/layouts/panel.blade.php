@@ -4,16 +4,17 @@
 
 @section('content')
     @php
-        $adminUser = session('admin_user', ['name' => config('admin.name'), 'email' => config('admin.email')]);
+        $adminUser = auth()->user();
         $navItems = [
-            ['label' => 'Overview', 'route' => 'admin.dashboard'],
-            ['label' => 'Users', 'route' => 'admin.users'],
-            ['label' => 'Gigs', 'route' => 'admin.gigs'],
-            ['label' => 'Orders', 'route' => 'admin.orders'],
-            ['label' => 'Payments', 'route' => 'admin.payments'],
-            ['label' => 'Disputes', 'route' => 'admin.disputes'],
-            ['label' => 'Reports', 'route' => 'admin.reports'],
-            ['label' => 'Settings', 'route' => 'admin.settings'],
+            ['label' => 'Overview', 'route' => 'admin.dashboard', 'permission' => 'admin.access'],
+            ['label' => 'Users', 'route' => 'admin.users', 'permission' => 'users.view'],
+            ['label' => 'Gigs', 'route' => 'admin.gigs', 'permission' => 'gigs.view'],
+            ['label' => 'Orders', 'route' => 'admin.orders', 'permission' => 'orders.view'],
+            ['label' => 'Payments', 'route' => 'admin.payments', 'permission' => 'payments.view'],
+            ['label' => 'Disputes', 'route' => 'admin.disputes', 'permission' => 'disputes.view'],
+            ['label' => 'Reports', 'route' => 'admin.reports', 'permission' => 'reports.view'],
+            ['label' => 'Settings', 'route' => 'admin.settings', 'permission' => 'settings.view'],
+            ['label' => 'Access Control', 'route' => 'admin.roles', 'permission' => 'roles.manage'],
         ];
     @endphp
 
@@ -26,10 +27,16 @@
 
             <nav aria-label="Admin navigation">
                 @foreach ($navItems as $item)
-                    <a class="{{ request()->routeIs($item['route']) ? 'is-active' : '' }}" href="{{ route($item['route']) }}">
-                        <span></span>
-                        {{ $item['label'] }}
-                    </a>
+                    @can($item['permission'])
+                        @php
+                            $isActive = request()->routeIs($item['route'])
+                                || ($item['route'] === 'admin.roles' && request()->routeIs('admin.roles.*'));
+                        @endphp
+                        <a class="{{ $isActive ? 'is-active' : '' }}" href="{{ route($item['route']) }}">
+                            <span></span>
+                            {{ $item['label'] }}
+                        </a>
+                    @endcan
                 @endforeach
             </nav>
 
@@ -59,10 +66,10 @@
                         <input type="search" placeholder="{{ $searchPlaceholder ?? 'Search admin' }}">
                     </label>
                     <div class="admin-user-chip">
-                        <span>{{ strtoupper(substr($adminUser['name'], 0, 1)) }}</span>
+                        <span>{{ strtoupper(substr($adminUser?->name ?? config('admin.name'), 0, 1)) }}</span>
                         <div>
-                            <strong>{{ $adminUser['name'] }}</strong>
-                            <small>{{ $adminUser['email'] }}</small>
+                            <strong>{{ $adminUser?->name ?? config('admin.name') }}</strong>
+                            <small>{{ $adminUser?->email ?? config('admin.email') }}</small>
                         </div>
                     </div>
                     <form method="POST" action="{{ route('admin.logout') }}">
@@ -80,10 +87,15 @@
                     </div>
                     <nav>
                         @foreach ($pageActions as $action)
-                            <a href="{{ route($action['route']) }}">
-                                <span>{{ $action['label'] }}</span>
-                                <small>{{ $action['meta'] }}</small>
-                            </a>
+                            @php
+                                $actionPermission = $action['permission'] ?? collect($navItems)->firstWhere('route', $action['route'])['permission'] ?? null;
+                            @endphp
+                            @if (! $actionPermission || auth()->user()?->can($actionPermission))
+                                <a href="{{ route($action['route']) }}">
+                                    <span>{{ $action['label'] }}</span>
+                                    <small>{{ $action['meta'] }}</small>
+                                </a>
+                            @endif
                         @endforeach
                     </nav>
                 </section>

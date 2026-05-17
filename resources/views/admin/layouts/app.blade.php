@@ -5,10 +5,12 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
         <title>@yield('title', 'Admin Panel') | bdgigs</title>
+        <link rel="stylesheet" href="{{ asset('assets/shared/notify.css') }}">
         <link rel="stylesheet" href="{{ asset('assets/admin/admin.css') }}">
     </head>
     <body class="@yield('body_class')">
         @yield('content')
+        @include('partials.notifications')
         @stack('scripts')
     </body>
 </html>

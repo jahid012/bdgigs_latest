@@ -3,70 +3,151 @@
 @section('title', 'Settings')
 
 @section('panel')
-    <section class="admin-page-grid">
-        <article class="admin-panel admin-settings-panel">
-            <div class="admin-panel-head">
+    @include('admin.partials.stats', ['stats' => $stats])
+
+    <section class="admin-settings-layout">
+        <div class="admin-settings-main">
+            <article class="admin-panel admin-settings-intro">
                 <div>
-                    <h2>Marketplace settings</h2>
-                    <p>Static settings template for future admin configuration.</p>
+                    <p class="admin-eyebrow">Configuration center</p>
+                    <h2>Control the marketplace rules that affect revenue, trust, and delivery.</h2>
+                    <p>
+                        These controls are static template fields for now. They are structured so they can later map
+                        cleanly to persisted platform settings.
+                    </p>
                 </div>
                 <button type="button">Save changes</button>
-            </div>
-            <div class="admin-settings-list">
-                @foreach ($settings as $setting)
-                    <label>
-                        <span>
-                            <strong>{{ $setting['label'] }}</strong>
-                            <small>{{ $setting['description'] }}</small>
-                        </span>
-                        <input type="checkbox" @checked($setting['enabled'])>
-                    </label>
-                @endforeach
-            </div>
-        </article>
+            </article>
 
-        <aside class="admin-panel">
-            <div class="admin-panel-head">
-                <div>
-                    <h2>Admin credentials</h2>
-                    <p>Temporary credentials are configured through environment values.</p>
+            @foreach ($settingGroups as $group)
+                <article class="admin-panel admin-settings-panel">
+                    <div class="admin-panel-head">
+                        <div>
+                            <h2>{{ $group['title'] }}</h2>
+                            <p>{{ $group['description'] }}</p>
+                        </div>
+                    </div>
+
+                    <div class="admin-setting-rows">
+                        @foreach ($group['settings'] as $setting)
+                            @php
+                                $fieldId = 'setting-' . $loop->parent->index . '-' . $loop->index;
+                                $type = $setting['type'] ?? 'text';
+                            @endphp
+
+                            @if ($type === 'toggle')
+                                <label class="admin-setting-row admin-setting-row-toggle" for="{{ $fieldId }}">
+                                    <span class="admin-setting-copy">
+                                        <strong>{{ $setting['label'] }}</strong>
+                                        <small>{{ $setting['description'] }}</small>
+                                    </span>
+                                    <span class="admin-setting-switch">
+                                        <input id="{{ $fieldId }}" name="{{ $setting['name'] }}" type="checkbox" @checked($setting['enabled'] ?? false)>
+                                        <i></i>
+                                    </span>
+                                </label>
+                            @else
+                                <label class="admin-setting-row" for="{{ $fieldId }}">
+                                    <span class="admin-setting-copy">
+                                        <strong>{{ $setting['label'] }}</strong>
+                                        <small>{{ $setting['description'] }}</small>
+                                    </span>
+                                    <span class="admin-setting-control">
+                                        @if ($type === 'select')
+                                            <select id="{{ $fieldId }}" name="{{ $setting['name'] }}">
+                                                @foreach (($setting['options'] ?? []) as $option)
+                                                    <option value="{{ $option }}" @selected(($setting['value'] ?? '') === $option)>{{ $option }}</option>
+                                                @endforeach
+                                            </select>
+                                        @elseif ($type === 'textarea')
+                                            <textarea id="{{ $fieldId }}" name="{{ $setting['name'] }}" rows="3">{{ $setting['value'] ?? '' }}</textarea>
+                                        @else
+                                            <span class="admin-input-shell">
+                                                @isset($setting['prefix'])
+                                                    <em>{{ $setting['prefix'] }}</em>
+                                                @endisset
+                                                <input
+                                                    id="{{ $fieldId }}"
+                                                    name="{{ $setting['name'] }}"
+                                                    type="{{ $type === 'number' ? 'number' : 'text' }}"
+                                                    value="{{ $setting['value'] ?? '' }}"
+                                                >
+                                                @isset($setting['suffix'])
+                                                    <em>{{ $setting['suffix'] }}</em>
+                                                @endisset
+                                            </span>
+                                        @endif
+                                    </span>
+                                </label>
+                            @endif
+                        @endforeach
+                    </div>
+                </article>
+            @endforeach
+        </div>
+
+        <aside class="admin-settings-sidebar">
+            <article class="admin-panel">
+                <div class="admin-panel-head">
+                    <div>
+                        <h2>Admin credentials</h2>
+                        <p>Temporary credentials are configured through environment values.</p>
+                    </div>
                 </div>
-            </div>
-            <div class="admin-config-list">
-                <p><span>Name</span><strong>{{ config('admin.name') }}</strong></p>
-                <p><span>Email</span><strong>{{ config('admin.email') }}</strong></p>
-                <p><span>Password env</span><strong>ADMIN_PASSWORD</strong></p>
-            </div>
+                <div class="admin-config-list">
+                    @foreach ($settingsSidebar['systemInfo'] as $item)
+                        <p><span>{{ $item['label'] }}</span><strong>{{ $item['value'] }}</strong></p>
+                    @endforeach
+                </div>
+            </article>
+
+            <article class="admin-panel admin-side-insights">
+                <div class="admin-panel-head">
+                    <div>
+                        <h2>Pending reviews</h2>
+                        <p>Queues affected by these settings.</p>
+                    </div>
+                </div>
+                <ul>
+                    @foreach ($settingsSidebar['reviewQueue'] as $item)
+                        <li><strong>{{ $item['value'] }}</strong><span>{{ $item['label'] }}</span></li>
+                    @endforeach
+                </ul>
+            </article>
+
+            @can('roles.manage')
+                <article class="admin-panel admin-access-shortcut">
+                    <div>
+                        <p class="admin-eyebrow">Security</p>
+                        <h2>Access control</h2>
+                        <p>Manage staff roles, sensitive permissions, and admin module visibility.</p>
+                    </div>
+                    <div class="admin-access-shortcut-actions">
+                        <a class="admin-panel-link" href="{{ route('admin.roles') }}">Open role manager</a>
+                        <a class="admin-panel-link" href="{{ route('admin.roles.users') }}">Find users</a>
+                    </div>
+                </article>
+            @endcan
+
+            <article class="admin-panel">
+                <div class="admin-panel-head">
+                    <div>
+                        <h2>Production checklist</h2>
+                        <p>Recommended before these settings become live.</p>
+                    </div>
+                </div>
+                <div class="admin-card-list compact">
+                    @foreach ($settingsSidebar['checklist'] as $item)
+                        <article class="admin-mini-card">
+                            <div>
+                                <strong>{{ $item['label'] }}</strong>
+                                <p>Configuration readiness</p>
+                            </div>
+                            <b>{{ $item['status'] }}</b>
+                        </article>
+                    @endforeach
+                </div>
+            </article>
         </aside>
-    </section>
-
-    <section class="admin-workflow-grid">
-        <article class="admin-panel">
-            <div class="admin-panel-head">
-                <div>
-                    <h2>Policy guardrails</h2>
-                    <p>Operational rules that should be backed by policies later.</p>
-                </div>
-            </div>
-            <div class="admin-workflow-steps">
-                <span><b>A</b><strong>Admin role permissions</strong><small>Separate finance, support, and catalog access</small></span>
-                <span><b>L</b><strong>Audit logging</strong><small>Track settings and payout changes</small></span>
-                <span><b>2</b><strong>Two-factor login</strong><small>Recommended before production</small></span>
-            </div>
-        </article>
-
-        <article class="admin-panel">
-            <div class="admin-panel-head">
-                <div>
-                    <h2>Environment checklist</h2>
-                    <p>Values to replace before production use.</p>
-                </div>
-            </div>
-            <div class="admin-card-list compact">
-                <article class="admin-mini-card"><div><strong>ADMIN_PASSWORD</strong><p>Move away from demo password</p></div><b>Required</b></article>
-                <article class="admin-mini-card"><div><strong>Admin middleware</strong><p>Replace session template gate</p></div><b>Required</b></article>
-                <article class="admin-mini-card"><div><strong>Role policy map</strong><p>Define permissions per module</p></div><b>Next</b></article>
-            </div>
-        </article>
     </section>
 @endsection
