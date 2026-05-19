@@ -249,12 +249,18 @@ export const SELLER_GIG_ROUTES = [
         key: "seller-gig-create",
         path: "/dashboard/seller/services/create",
         documentTitle: "Create Gig | bdgigs",
+        title: "Create New Gig",
+        searchPlaceholder: "Search gig steps, packages, requirements...",
+        variant: "seller",
         Component: SellerGigEditorPage,
     },
     {
         key: "seller-gig-edit",
         path: "/dashboard/seller/services/:gigId/edit",
         documentTitle: "Edit Gig | bdgigs",
+        title: "Edit Gig",
+        searchPlaceholder: "Search gig steps, packages, requirements...",
+        variant: "seller",
         Component: SellerGigEditorPage,
     },
 ];

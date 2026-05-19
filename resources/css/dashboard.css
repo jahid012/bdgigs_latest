@@ -9341,14 +9341,17 @@ body.dashboard-page .btn {
 }
 
 .gig-editor-page {
-  min-height: 100vh;
-  background: #f7f7f8;
+  display: grid;
+  gap: 1rem;
+  min-height: auto;
+  padding: 1rem 0 2rem;
+  background: transparent;
   color: #222326;
 }
 
 .gig-editor-topbar {
   position: sticky;
-  top: 0;
+  top: 74px;
   z-index: 35;
   border-bottom: 1px solid #d9dde3;
   background: #ffffff;
@@ -9356,17 +9359,19 @@ body.dashboard-page .btn {
 
 .gig-editor-tabs {
   display: flex;
-  width: min(100% - 2rem, 900px);
+  width: min(100%, 900px);
   min-height: 50px;
   align-items: stretch;
-  gap: 0.3rem;
+  gap: 0.28rem;
   margin-inline: auto;
-  overflow-x: auto;
 }
 
 .gig-editor-tabs button {
   position: relative;
+  display: inline-flex;
   min-height: 50px;
+  align-items: center;
+  justify-content: center;
   padding: 0 0.82rem;
   border: 0;
   background: transparent;
@@ -9375,6 +9380,7 @@ body.dashboard-page .btn {
   flex: 0 0 auto;
   font-size: 0.82rem;
   font-weight: 800;
+  transition: color var(--transition);
 }
 
 .gig-editor-tabs button.active {
@@ -9392,9 +9398,9 @@ body.dashboard-page .btn {
 }
 
 .gig-editor-shell {
-  width: min(100% - 1.5rem, 900px);
+  width: min(100%, 900px);
   margin-inline: auto;
-  padding: 4rem 0 1.1rem;
+  padding: 0.35rem 0 0;
 }
 
 .gig-editor-card,
@@ -10158,10 +10164,10 @@ body.dashboard-page .btn {
 
 .gig-editor-actions {
   display: flex;
-  width: min(100% - 2rem, 900px);
+  width: min(100%, 780px);
   align-items: center;
   justify-content: space-between;
-  margin: 1.2rem auto 3rem;
+  margin: 0 auto 2.5rem;
 }
 
 .gig-secondary-action,
@@ -10357,7 +10363,7 @@ body.dashboard-page .btn {
 
 @media (max-width: 767.98px) {
   .gig-editor-shell {
-    padding-top: 2rem;
+    padding-top: 0.35rem;
   }
 
   .overview-editor-card,

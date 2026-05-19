@@ -87,7 +87,7 @@ function SellerGigEditorPage() {
     };
 
     return (
-        <main className="gig-editor-page">
+        <main className="dashboard-content gig-editor-page">
             <StepTabs activeStep={activeStep} onChange={setActiveStep} />
             <div className="gig-editor-shell">
                 {activeStep === "overview" ? (

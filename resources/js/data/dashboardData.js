@@ -174,6 +174,41 @@ export const sellerOrders = [
     },
 ];
 
+export const buyerOrderInsights = [
+    {
+        label: "Next delivery",
+        value: "May 8",
+        detail: "SEO audit from Ayesha K.",
+    },
+    {
+        label: "In review",
+        value: "2",
+        detail: "Landing page and content audit",
+    },
+    {
+        label: "Protected spend",
+        value: "$1.2k",
+        detail: "Held safely until approval",
+    },
+];
+
+export const sellerOrderInsights = [
+    {
+        label: "Next milestone",
+        value: "Today",
+        detail: "CloudPeak wireframe review",
+    },
+    {
+        label: "Pending revisions",
+        value: "2",
+        detail: "BrightCart and LaunchNest",
+    },
+    {
+        label: "Ready to clear",
+        value: "$1.5k",
+        detail: "Projected from active orders",
+    },
+];
 
 export const messages = [
     {

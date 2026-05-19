@@ -31,7 +31,7 @@ function AppRoutes() {
                 <Route
                     key={route.key}
                     path={route.path}
-                    element={renderRoutePage(route, navigate)}
+                    element={renderDashboardRoute(route, navigate)}
                 />
             ))}
             {DASHBOARD_ROUTES.map((route) => (
