@@ -11,6 +11,7 @@ import OrderDetailsPage from "../pages/OrderDetailsPage.jsx";
 import PaymentsPage from "../pages/PaymentsPage.jsx";
 import SavedServicesPage from "../pages/SavedServicesPage.jsx";
 import SellerDashboardPage from "../pages/SellerDashboardPage.jsx";
+import SellerGigEditorPage from "../pages/SellerGigEditorPage.jsx";
 import SellerMessagesPage from "../pages/SellerMessagesPage.jsx";
 import SellerOrdersPage from "../pages/SellerOrdersPage.jsx";
 import SellerServicesPage from "../pages/SellerServicesPage.jsx";
@@ -243,7 +244,27 @@ export const MARKETPLACE_ROUTES = [
     },
 ];
 
-const APP_ROUTES = [HOME_ROUTE, ...MARKETPLACE_ROUTES, ...DASHBOARD_ROUTES];
+export const SELLER_GIG_ROUTES = [
+    {
+        key: "seller-gig-create",
+        path: "/dashboard/seller/services/create",
+        documentTitle: "Create Gig | bdgigs",
+        Component: SellerGigEditorPage,
+    },
+    {
+        key: "seller-gig-edit",
+        path: "/dashboard/seller/services/:gigId/edit",
+        documentTitle: "Edit Gig | bdgigs",
+        Component: SellerGigEditorPage,
+    },
+];
+
+const APP_ROUTES = [
+    HOME_ROUTE,
+    ...MARKETPLACE_ROUTES,
+    ...SELLER_GIG_ROUTES,
+    ...DASHBOARD_ROUTES,
+];
 const ROUTES_BY_PATH = new Map(APP_ROUTES.map((route) => [route.path, route]));
 
 export const PAGE_PATHS = APP_ROUTES.reduce((paths, route) => {
@@ -284,6 +305,19 @@ export function getDocumentTitle(pathname) {
 
     if (path.startsWith("/dashboard/seller/settings")) {
         return ROUTES_BY_PATH.get("/dashboard/seller/settings").documentTitle;
+    }
+
+    if (path === "/dashboard/seller/services/create") {
+        return ROUTES_BY_PATH.get(
+            "/dashboard/seller/services/create",
+        ).documentTitle;
+    }
+
+    if (
+        path.startsWith("/dashboard/seller/services/") &&
+        path.endsWith("/edit")
+    ) {
+        return "Edit Gig | bdgigs";
     }
 
     if (path.startsWith("/dashboard/seller/orders/")) {

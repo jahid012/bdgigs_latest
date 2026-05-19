@@ -324,10 +324,10 @@ function SellerDashboardPage({ onNavigate }) {
                     <>
                         <a
                             className="btn btn-primary"
-                            href="/dashboard/seller/services"
+                            href="/dashboard/seller/services/create"
                             onClick={(event) => {
                                 event.preventDefault();
-                                onNavigate("seller-services");
+                                onNavigate("seller-gig-create");
                             }}
                         >
                             {" "}

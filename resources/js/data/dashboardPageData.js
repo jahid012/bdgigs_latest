@@ -60,6 +60,8 @@ export const dashboardDetailCopy = {
                 { value: "15%", label: "Avg conversion" },
             ],
             actionLabel: "Create New Gig",
+            actionPage: "seller-gig-create",
+            actionPath: "/dashboard/seller/services/create",
             mode: "services",
             kicker: "Service catalog",
             heading: "Active seller services",

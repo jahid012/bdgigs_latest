@@ -26,7 +26,6 @@ function OrdersWorkspace({ variant = "buyer" }) {
     const { t } = useTranslation();
     const isSeller = variant === "seller";
     const rawOrders = isSeller ? sellerOrders : orders;
-    const insights = isSeller ? sellerOrderInsights : buyerOrderInsights;
     const activeOrders = rawOrders.filter(
         (order) => order.status === "In Progress",
     ).length;
@@ -54,7 +53,6 @@ function OrdersWorkspace({ variant = "buyer" }) {
                         ? "Manage active work, delivery dates, revisions, and buyer approvals from a focused seller order center."
                         : "Track purchases, delivery status, seller progress, and approval steps across every active project."
                 }
-                stats={insights}
             />
 
             <section

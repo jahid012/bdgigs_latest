@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { FinanceNotice } from "./FinanceControls.jsx";
 import { Icon, Rating } from "../common/Icons.jsx";
+import { useToast } from "../common/ToastProvider.jsx";
 import { useTranslation } from "react-i18next";
 function MinimalServiceList({ content, onNavigate, seller = false, services }) {
     const { t } = useTranslation();
+    const notify = useToast();
     const [activeFilter, setActiveFilter] = useState("all");
-    const [notice, setNotice] = useState("");
     const filters = seller
         ? [
               {
@@ -44,9 +44,12 @@ function MinimalServiceList({ content, onNavigate, seller = false, services }) {
             return Number(service.price.replace(/[^0-9.]/g, "")) < 150;
         return true;
     });
+    const openSellerGigEditor = (service) => {
+        onNavigate(`/dashboard/seller/services/${service.id}/edit`);
+    };
+
     return (
         <section className="minimal-services-section">
-            <FinanceNotice message={notice} />
             <article className="service-list-panel">
                 <div className="service-list-header">
                     <div>
@@ -107,15 +110,18 @@ function MinimalServiceList({ content, onNavigate, seller = false, services }) {
                                 className="minimal-service-thumb"
                                 href={
                                     seller
-                                        ? "/dashboard/seller/services"
+                                        ? `/dashboard/seller/services/${service.id}/edit`
                                         : "/#services"
                                 }
                                 onClick={(event) => {
                                     event.preventDefault();
-                                    setNotice(
-                                        seller
-                                            ? `${service.title} opened for editing.`
-                                            : `${service.title} opened for comparison.`,
+                                    if (seller) {
+                                        openSellerGigEditor(service);
+                                        return;
+                                    }
+
+                                    notify.info(
+                                        `${service.title} opened for comparison.`,
                                     );
                                 }}
                             >
@@ -158,13 +164,16 @@ function MinimalServiceList({ content, onNavigate, seller = false, services }) {
                                 <button
                                     className="service-text-button"
                                     type="button"
-                                    onClick={() =>
-                                        setNotice(
-                                            seller
-                                                ? `${service.title} is ready to edit.`
-                                                : `${service.title} added to compare list.`,
-                                        )
-                                    }
+                                    onClick={() => {
+                                        if (seller) {
+                                            openSellerGigEditor(service);
+                                            return;
+                                        }
+
+                                        notify.success(
+                                            `${service.title} added to compare list.`,
+                                        );
+                                    }}
                                 >
                                     {seller ? "Edit" : "Compare"}
                                 </button>
@@ -177,7 +186,7 @@ function MinimalServiceList({ content, onNavigate, seller = false, services }) {
                                             : "Remove saved service"
                                     }
                                     onClick={() =>
-                                        setNotice(
+                                        notify.info(
                                             seller
                                                 ? `${service.title} options opened.`
                                                 : `${service.title} removed from this view.`,

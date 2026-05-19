@@ -6,17 +6,21 @@
     @include('admin.partials.stats', ['stats' => $stats])
 
     <section class="admin-settings-layout">
-        <div class="admin-settings-main">
+        <form class="admin-settings-main" method="POST" action="{{ route('admin.settings.update') }}">
+            @csrf
             <article class="admin-panel admin-settings-intro">
                 <div>
                     <p class="admin-eyebrow">Configuration center</p>
                     <h2>Control the marketplace rules that affect revenue, trust, and delivery.</h2>
                     <p>
-                        These controls are static template fields for now. They are structured so they can later map
-                        cleanly to persisted platform settings.
+                        These controls are stored in the database and read through cache by the platform settings helpers.
                     </p>
                 </div>
-                <button type="button">Save changes</button>
+                @can('settings.update')
+                    <button type="submit">Save changes</button>
+                @else
+                    <button type="button" disabled>View only</button>
+                @endcan
             </article>
 
             @foreach ($settingGroups as $group)
@@ -42,7 +46,14 @@
                                         <small>{{ $setting['description'] }}</small>
                                     </span>
                                     <span class="admin-setting-switch">
-                                        <input id="{{ $fieldId }}" name="{{ $setting['name'] }}" type="checkbox" @checked($setting['enabled'] ?? false)>
+                                        <input
+                                            id="{{ $fieldId }}"
+                                            name="settings[{{ $setting['name'] }}]"
+                                            value="1"
+                                            type="checkbox"
+                                            @checked($setting['value'] ?? false)
+                                            @disabled(! auth()->user()?->can('settings.update'))
+                                        >
                                         <i></i>
                                     </span>
                                 </label>
@@ -54,13 +65,18 @@
                                     </span>
                                     <span class="admin-setting-control">
                                         @if ($type === 'select')
-                                            <select id="{{ $fieldId }}" name="{{ $setting['name'] }}">
+                                            <select id="{{ $fieldId }}" name="settings[{{ $setting['name'] }}]" @disabled(! auth()->user()?->can('settings.update'))>
                                                 @foreach (($setting['options'] ?? []) as $option)
                                                     <option value="{{ $option }}" @selected(($setting['value'] ?? '') === $option)>{{ $option }}</option>
                                                 @endforeach
                                             </select>
                                         @elseif ($type === 'textarea')
-                                            <textarea id="{{ $fieldId }}" name="{{ $setting['name'] }}" rows="3">{{ $setting['value'] ?? '' }}</textarea>
+                                            <textarea
+                                                id="{{ $fieldId }}"
+                                                name="settings[{{ $setting['name'] }}]"
+                                                rows="3"
+                                                @disabled(! auth()->user()?->can('settings.update'))
+                                            >{{ $setting['value'] ?? '' }}</textarea>
                                         @else
                                             <span class="admin-input-shell">
                                                 @isset($setting['prefix'])
@@ -68,9 +84,10 @@
                                                 @endisset
                                                 <input
                                                     id="{{ $fieldId }}"
-                                                    name="{{ $setting['name'] }}"
+                                                    name="settings[{{ $setting['name'] }}]"
                                                     type="{{ $type === 'number' ? 'number' : 'text' }}"
                                                     value="{{ $setting['value'] ?? '' }}"
+                                                    @disabled(! auth()->user()?->can('settings.update'))
                                                 >
                                                 @isset($setting['suffix'])
                                                     <em>{{ $setting['suffix'] }}</em>
@@ -84,7 +101,7 @@
                     </div>
                 </article>
             @endforeach
-        </div>
+        </form>
 
         <aside class="admin-settings-sidebar">
             <article class="admin-panel">

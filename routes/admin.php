@@ -25,6 +25,7 @@ Route::prefix(config('admin.route_prefix', 'admin'))
             Route::get('/disputes', [AdminPanelController::class, 'disputes'])->middleware('permission:disputes.view')->name('disputes');
             Route::get('/reports', [AdminPanelController::class, 'reports'])->middleware('permission:reports.view')->name('reports');
             Route::get('/settings', [AdminPanelController::class, 'settings'])->middleware('permission:settings.view')->name('settings');
+            Route::post('/settings', [AdminPanelController::class, 'updateSettings'])->middleware('permission:settings.update')->name('settings.update');
             Route::get('/roles', [AdminPanelController::class, 'roles'])->middleware('permission:roles.manage')->name('roles');
             Route::post('/roles', [AdminPanelController::class, 'storeRole'])->middleware('permission:roles.manage')->name('roles.store');
             Route::get('/roles/users', [AdminPanelController::class, 'roleUsers'])->middleware('permission:roles.manage')->name('roles.users');

@@ -4,6 +4,7 @@ import {
     DASHBOARD_ROUTES,
     HOME_ROUTE,
     MARKETPLACE_ROUTES,
+    SELLER_GIG_ROUTES,
 } from "./routeConfig.js";
 import { usePageNavigation } from "./usePageNavigation.js";
 import { useRouteEffects } from "./useRouteEffects.js";
@@ -20,6 +21,13 @@ function AppRoutes() {
                 element={renderRoutePage(HOME_ROUTE, navigate)}
             />
             {MARKETPLACE_ROUTES.map((route) => (
+                <Route
+                    key={route.key}
+                    path={route.path}
+                    element={renderRoutePage(route, navigate)}
+                />
+            ))}
+            {SELLER_GIG_ROUTES.map((route) => (
                 <Route
                     key={route.key}
                     path={route.path}

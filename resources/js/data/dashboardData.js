@@ -174,41 +174,6 @@ export const sellerOrders = [
     },
 ];
 
-export const buyerOrderInsights = [
-    {
-        label: "Next delivery",
-        value: "May 8",
-        detail: "SEO audit from Ayesha K.",
-    },
-    {
-        label: "In review",
-        value: "2",
-        detail: "Landing page and content audit",
-    },
-    {
-        label: "Protected spend",
-        value: "$1.2k",
-        detail: "Held safely until approval",
-    },
-];
-
-export const sellerOrderInsights = [
-    {
-        label: "Next milestone",
-        value: "Today",
-        detail: "CloudPeak wireframe review",
-    },
-    {
-        label: "Pending revisions",
-        value: "2",
-        detail: "BrightCart and LaunchNest",
-    },
-    {
-        label: "Ready to clear",
-        value: "$1.5k",
-        detail: "Projected from active orders",
-    },
-];
 
 export const messages = [
     {
@@ -560,6 +525,7 @@ export const recommendedServices = [
 
 export const sellerServices = [
     {
+        id: "modern-website-landing-page-design",
         title: "Modern Website Landing Page Design",
         category: "UI/UX Design",
         rating: "4.9",
@@ -573,6 +539,7 @@ export const sellerServices = [
         statusClass: "status-completed",
     },
     {
+        id: "complete-saas-dashboard-ui-design",
         title: "Complete SaaS Dashboard UI Design",
         category: "Product Design",
         rating: "5.0",
@@ -586,6 +553,7 @@ export const sellerServices = [
         statusClass: "status-completed",
     },
     {
+        id: "premium-brand-identity-starter-pack",
         title: "Premium Brand Identity Starter Pack",
         category: "Brand Design",
         rating: "4.8",
@@ -599,6 +567,7 @@ export const sellerServices = [
         statusClass: "status-delivered",
     },
     {
+        id: "ai-landing-page-conversion-audit",
         title: "AI Landing Page Conversion Audit",
         category: "Growth Design",
         rating: "4.9",

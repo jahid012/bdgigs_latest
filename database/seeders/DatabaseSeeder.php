@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Support\PlatformSettings;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -117,6 +118,8 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'password' => Hash::make('password'),
         ]);
+
+        PlatformSettings::syncDefinitions();
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }

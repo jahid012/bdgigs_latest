@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\PlatformSettings;
 use Illuminate\Http\RedirectResponse;
 
 if (! function_exists('notifyFlash')) {
@@ -46,5 +47,40 @@ if (! function_exists('backWithNotify')) {
         array $options = []
     ): RedirectResponse {
         return back()->withNotify($type, $message, $title, $options);
+    }
+}
+
+if (! function_exists('appSetting')) {
+    function appSetting(string $key, mixed $default = null): mixed
+    {
+        return PlatformSettings::get($key, $default);
+    }
+}
+
+if (! function_exists('platformSetting')) {
+    function platformSetting(string $key, mixed $default = null): mixed
+    {
+        return PlatformSettings::get($key, $default);
+    }
+}
+
+if (! function_exists('platformSettings')) {
+    function platformSettings(?string $group = null): array
+    {
+        return $group ? PlatformSettings::group($group) : PlatformSettings::all();
+    }
+}
+
+if (! function_exists('setPlatformSetting')) {
+    function setPlatformSetting(string $key, mixed $value): void
+    {
+        PlatformSettings::set($key, $value);
+    }
+}
+
+if (! function_exists('clearPlatformSettingsCache')) {
+    function clearPlatformSettingsCache(): void
+    {
+        PlatformSettings::clearCache();
     }
 }

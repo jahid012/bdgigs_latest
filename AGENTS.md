@@ -2,7 +2,7 @@
 
 ## Project Snapshot
 
-bdgigs is a Laravel application that serves a Vite-powered React SPA. Laravel currently provides the PHP shell, catch-all web routing, configuration, and tests; the user-facing product UI is in `resources/js` and `resources/css`.
+bdgigs is a Laravel application that serves a Vite-powered React SPA for the marketplace frontend and a Blade-only admin panel for operations. The user-facing product UI is in `resources/js` and `resources/css`; admin, access control, settings, and notifications are handled by Laravel.
 
 Core stack:
 
@@ -25,8 +25,9 @@ There is no dedicated JavaScript lint or test script at the moment. For frontend
 
 ## Repository Structure
 
-- `app/` contains the minimal Laravel backend: base controller, `User` model, and service provider.
-- `routes/web.php` maps `/` and every other path to `resources/views/app.blade.php` so React Router can handle navigation.
+- `app/` contains the Laravel backend, including admin controllers, the `User` model, platform settings helpers/services, and service providers.
+- `routes/admin.php` contains the Blade admin panel routes and is loaded before `routes/web.php` from `bootstrap/app.php` so admin URLs are not swallowed by the SPA catch-all.
+- `routes/web.php` maps `/` and every other non-admin path to `resources/views/app.blade.php` so React Router can handle navigation.
 - `resources/views/app.blade.php` defines the SPA root `<div id="root"></div>`, loads Inter from Google Fonts, and includes `resources/css/app.css` plus `resources/js/main.jsx` through Vite.
 - `resources/js/` contains the React app.
 - `resources/css/` contains global, home, and dashboard styles imported by `resources/css/app.css`.
@@ -34,13 +35,24 @@ There is no dedicated JavaScript lint or test script at the moment. For frontend
 - `public/build/`, `public/hot`, `node_modules/`, `vendor/`, logs, and generated caches are build/runtime artifacts. Do not edit them for source changes.
 - `tests/` contains the default Laravel Feature and Unit tests.
 
+## Admin, Access Control, And Settings
+
+- The admin panel is Blade-only and lives under the prefix from `config/admin.php` (`ADMIN_ROUTE_PREFIX`, default `/admin`). Keep admin routes in `routes/admin.php` and admin controllers in `app/Http/Controllers/Admin/`.
+- Admin auth uses the normal `users` table. Do not create separate admin/staff tables unless the product direction changes.
+- Spatie Laravel Permission is installed. `App\Models\User` uses `HasRoles`; admin access requires `admin.access`, with page permissions such as `users.view`, `gigs.view`, `settings.update`, and `roles.manage`.
+- Seller levels are marketplace business logic, not Spatie roles. Roles answer what a user can access; seller levels answer what benefits a seller receives.
+- Access control pages are separate from Settings: `/admin/roles`, `/admin/roles/{role}/permissions`, and `/admin/roles/users` manage roles, permissions, and assigning roles to users.
+- Platform settings are stored in the `platform_settings` table, defined in `config/platform_settings.php`, cached by `App\Support\PlatformSettings`, and saved from `/admin/settings`.
+- Use helpers for settings access: `appSetting()`, `platformSetting()`, `platformSettings()`, `setPlatformSetting()`, and `clearPlatformSettingsCache()`.
+- Flash and JS notifications use the shared toast system in `public/assets/shared/notify.css`, `public/assets/shared/notify.js`, and `resources/views/partials/notifications.blade.php`. In PHP use `->withNotify()`, `redirectWithNotify()`, or `backWithNotify()`; in JS use `window.notify.success(...)`, `window.notify.error(...)`, or `window.notify({...})`.
+
 ## React Entry And Routing
 
 - `resources/js/main.jsx` mounts `<App />` into `#root` inside React `StrictMode`.
 - `resources/js/App.jsx` only wraps `AppRoutes` in `BrowserRouter`.
 - `resources/js/routes/AppRoutes.jsx` renders all client routes from `routeConfig.js`.
 - `resources/js/routes/routeConfig.js` is the source of truth for pages, paths, document titles, dashboard metadata, and route keys.
-- Laravel intentionally falls back to the Blade app view for all routes. Add client pages in `routeConfig.js`; only change Laravel routing when the server needs a real backend endpoint.
+- Laravel intentionally falls back to the Blade app view for non-admin routes. Add client pages in `routeConfig.js`; only change Laravel routing when the server needs a real backend endpoint.
 
 When adding a page:
 
@@ -103,7 +115,7 @@ When adding a page:
 
 ## Backend And Testing Notes
 
-- Backend code is still close to a fresh Laravel install. Avoid adding backend complexity unless the requested feature needs server persistence, APIs, auth, queues, or database behavior.
+- The backend now includes a real Blade admin panel, Spatie access control, cached platform settings, and shared notifications. Keep backend additions aligned with those systems instead of adding duplicate helpers.
 - The default feature test verifies `/` returns HTTP 200. If server routes change, update or add Feature tests.
 - If adding database-backed behavior, use Laravel migrations, models, factories, and tests following standard Laravel conventions.
 

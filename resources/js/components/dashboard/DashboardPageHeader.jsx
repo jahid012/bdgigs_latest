@@ -22,19 +22,6 @@ function DashboardPageHeader({
 
             {(stats.length > 0 || actions) && (
                 <div className="dashboard-page-header-side">
-                    {stats.length > 0 ? (
-                        <div
-                            className="dashboard-page-stats"
-                            aria-label={`${title} summary`}
-                        >
-                            {stats.map((stat) => (
-                                <span key={stat.label}>
-                                    <strong>{stat.value}</strong>
-                                    {stat.label}
-                                </span>
-                            ))}
-                        </div>
-                    ) : null}
                     {actions ? (
                         <div className="dashboard-page-actions">{actions}</div>
                     ) : null}

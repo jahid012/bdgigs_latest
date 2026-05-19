@@ -4,10 +4,14 @@ import { useTranslation } from "react-i18next";
 function HeaderActions({ content, onNavigate }) {
     if (!content.actionLabel) return null;
     if (content.actionPage) {
+        const fallbackHref = content.actionPage.startsWith("/")
+            ? content.actionPage
+            : `/dashboard/${content.actionPage}`;
         const href =
-            content.actionPage === "home"
+            content.actionPath ||
+            (content.actionPage === "home"
                 ? `/${content.actionHash || ""}`
-                : `/dashboard/${content.actionPage}`;
+                : `${fallbackHref}${content.actionHash || ""}`);
         return (
             <a
                 className="btn btn-primary"
