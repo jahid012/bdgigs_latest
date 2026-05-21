@@ -11,14 +11,27 @@
                 <h2>Order operations</h2>
                 <p>Monitor delivery health, revision state, and value at risk.</p>
             </div>
-            <button type="button">Export orders</button>
         </div>
+        <form class="admin-user-search-form" method="GET" action="{{ route('admin.orders') }}">
+            <input type="hidden" name="status" value="{{ $currentFilter }}">
+            <label>
+                <span>Order search</span>
+                <input type="search" name="q" value="{{ $searchQuery }}" placeholder="Search code, buyer, seller, service, or status">
+            </label>
+            <button type="submit">Search orders</button>
+            @if ($searchQuery !== '' || $currentFilter !== 'all')
+                <a href="{{ route('admin.orders') }}">Clear</a>
+            @endif
+        </form>
         <div class="admin-filter-row">
-            <button type="button" class="is-active">All</button>
-            <button type="button">Late risk</button>
-            <button type="button">Revision</button>
-            <button type="button">Delivered</button>
-            <button type="button">Cancelled</button>
+            @foreach ($filters as $filter)
+                <a
+                    class="{{ $currentFilter === $filter['value'] ? 'is-active' : '' }}"
+                    href="{{ request()->fullUrlWithQuery(['status' => $filter['value'], 'page' => 1]) }}"
+                >
+                    {{ $filter['label'] }} <span>{{ number_format($filter['count']) }}</span>
+                </a>
+            @endforeach
         </div>
         <div class="admin-table-wrap">
             <table>
@@ -29,20 +42,41 @@
                         <th>Seller</th>
                         <th>Service</th>
                         <th>Status</th>
+                        <th>Due</th>
                         <th>Amount</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach ($orders as $order)
+                    @forelse ($orders as $order)
                         <tr>
                             <td>{{ $order['id'] }}</td>
                             <td>{{ $order['buyer'] }}</td>
                             <td>{{ $order['seller'] }}</td>
                             <td>{{ $order['service'] }}</td>
-                            <td><span>{{ $order['status'] }}</span></td>
+                            <td><span class="admin-status-badge {{ $order['status_class'] }}">{{ $order['status'] }}</span></td>
+                            <td>{{ $order['due'] }}</td>
                             <td>{{ $order['amount'] }}</td>
+                            <td>
+                                @can('orders.manage')
+                                    <form class="admin-inline-select-form" method="POST" action="{{ route('admin.orders.status', $order['route_id']) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        <select name="status" aria-label="Update order status">
+                                            @foreach ($statusOptions as $status)
+                                                <option value="{{ $status }}" @selected($order['status'] === $status)>{{ $status }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="submit">Save</button>
+                                    </form>
+                                @endcan
+                            </td>
                         </tr>
-                    @endforeach
+                    @empty
+                        <tr>
+                            <td colspan="8">No orders matched your filters.</td>
+                        </tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>
@@ -58,9 +92,9 @@
                 </div>
             </div>
             <div class="admin-quality-bars">
-                <span style="--value: 92%"><b>On-time delivery</b><em>92%</em></span>
-                <span style="--value: 63%"><b>Requirements completed</b><em>63%</em></span>
-                <span style="--value: 18%"><b>Revision pressure</b><em>18%</em></span>
+                @foreach ($slaBars as $bar)
+                    <span style="--value: {{ $bar['value'] }}%"><b>{{ $bar['label'] }}</b><em>{{ $bar['value'] }}%</em></span>
+                @endforeach
             </div>
         </article>
 
@@ -72,9 +106,9 @@
                 </div>
             </div>
             <div class="admin-workflow-steps">
-                <span><b>1</b><strong>Nudge missing requirements</strong><small>42 buyers</small></span>
-                <span><b>2</b><strong>Contact late-risk sellers</strong><small>23 orders</small></span>
-                <span><b>3</b><strong>Audit cancellation reasons</strong><small>5 orders</small></span>
+                @foreach ($workflowSteps as $item)
+                    <span><b>{{ $item['step'] }}</b><strong>{{ $item['label'] }}</strong><small>{{ $item['meta'] }}</small></span>
+                @endforeach
             </div>
         </article>
     </section>

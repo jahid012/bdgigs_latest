@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
-import { recommendedServices } from "../data/dashboardData.js";
+import { useEffect, useMemo, useState } from "react";
 import { dashboardDetailCopy } from "../data/dashboardPageData.js";
 import DashboardPageHeader from "../components/dashboard/DashboardPageHeader.jsx";
 import { FinanceNotice } from "../components/dashboard/FinanceControls.jsx";
 import { Icon, Rating } from "../components/common/Icons.jsx";
 import { useTranslation } from "react-i18next";
+import { useMarketplaceStore } from "../stores/useMarketplaceStore.js";
 const savedServiceDetails = [
     {
         match: "96%",
@@ -56,13 +56,17 @@ const savedFilters = [
 function SavedServicesPage({ onNavigate }) {
     const { t } = useTranslation();
     const content = dashboardDetailCopy.buyer.savedServices;
+    const savedServices = useMarketplaceStore((state) => state.savedServices);
+    const fetchSavedServices = useMarketplaceStore(
+        (state) => state.fetchSavedServices,
+    );
     const services = useMemo(
         () =>
-            recommendedServices.map((service, index) => ({
+            savedServices.map((service, index) => ({
                 ...service,
                 ...savedServiceDetails[index],
             })),
-        [],
+        [savedServices],
     );
     const [activeFilter, setActiveFilter] = useState("all");
     const [searchTerm, setSearchTerm] = useState("");
@@ -70,6 +74,11 @@ function SavedServicesPage({ onNavigate }) {
     const [selectedServices, setSelectedServices] = useState(
         () => new Set(services.slice(0, 2).map((service) => service.title)),
     );
+
+    useEffect(() => {
+        fetchSavedServices();
+    }, [fetchSavedServices]);
+
     const filteredServices = services.filter((service) =>
         matchesSavedServiceFilter(service, activeFilter, searchTerm),
     );

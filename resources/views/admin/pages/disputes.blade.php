@@ -12,7 +12,6 @@
                     <h2>Resolution queue</h2>
                     <p>Prioritize cases by urgency, owner, and buyer/seller risk.</p>
                 </div>
-                <button type="button">Assign cases</button>
             </div>
             <div class="admin-table-wrap">
                 <table>
@@ -26,7 +25,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($disputes as $dispute)
+                        @forelse ($disputes as $dispute)
                             <tr>
                                 <td>{{ $dispute['case'] }}</td>
                                 <td>{{ $dispute['order'] }}</td>
@@ -34,7 +33,11 @@
                                 <td>{{ $dispute['owner'] }}</td>
                                 <td><span>{{ $dispute['priority'] }}</span></td>
                             </tr>
-                        @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="5">No priority conversation cases are open.</td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
@@ -80,9 +83,9 @@
                 </div>
             </div>
             <div class="admin-card-list compact">
-                <article class="admin-mini-card"><div><strong>High-value refund risk</strong><p>3 cases above $500</p></div><b>Critical</b></article>
-                <article class="admin-mini-card"><div><strong>Late delivery dispute</strong><p>9 active cases</p></div><b>High</b></article>
-                <article class="admin-mini-card"><div><strong>Scope disagreement</strong><p>7 cases need evidence</p></div><b>Normal</b></article>
+                @foreach ($riskBuckets as $bucket)
+                    <article class="admin-mini-card"><div><strong>{{ $bucket['label'] }}</strong><p>{{ $bucket['meta'] }}</p></div><b>{{ $bucket['tone'] }}</b></article>
+                @endforeach
             </div>
         </article>
     </section>

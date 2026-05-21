@@ -1093,6 +1093,105 @@ body.auth-modal-open {
     gap: 0.78rem;
 }
 
+.auth-email-form {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.auth-email-form label {
+    display: grid;
+    gap: 0.42rem;
+    color: #222325;
+    font-size: 0.84rem;
+    font-weight: 800;
+}
+
+.auth-email-form input {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid #dadbdd;
+    border-radius: 6px;
+    padding: 0 0.78rem;
+    background: #ffffff;
+    color: #222325;
+    font: inherit;
+    font-weight: 600;
+    outline: none;
+    transition:
+        border-color var(--transition),
+        box-shadow var(--transition);
+}
+
+.auth-email-form input:focus {
+    border-color: #1dbf73;
+    box-shadow: 0 0 0 3px rgba(29, 191, 115, 0.14);
+}
+
+.auth-password-field {
+    position: relative;
+    display: block;
+}
+
+.auth-password-field input {
+    padding-right: 2.65rem;
+}
+
+.auth-password-field button {
+    position: absolute;
+    top: 50%;
+    right: 0.4rem;
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    border-radius: 50%;
+    color: #62646a;
+    transform: translateY(-50%);
+}
+
+.auth-password-field svg {
+    width: 17px;
+    height: 17px;
+}
+
+.auth-forgot-link {
+    justify-self: end;
+    margin-top: -0.35rem;
+    color: #222325;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-decoration: underline;
+}
+
+.auth-submit-button {
+    min-height: 42px;
+    margin-top: 0.3rem;
+    border-radius: 6px;
+    background: #222325;
+    color: #ffffff;
+    font-size: 0.92rem;
+    font-weight: 800;
+    transition:
+        background var(--transition),
+        opacity var(--transition);
+}
+
+.auth-submit-button:disabled {
+    background: #e4e5e7;
+    color: #95979d;
+    cursor: not-allowed;
+}
+
+.auth-form-error {
+    border-radius: 6px;
+    padding: 0.65rem 0.75rem;
+    background: #fef2f2;
+    color: #b42318;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
 .auth-provider-list > button,
 .auth-provider-split button {
     position: relative;

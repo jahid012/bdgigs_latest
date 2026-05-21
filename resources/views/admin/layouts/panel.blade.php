@@ -61,10 +61,17 @@
                     @endisset
                 </div>
                 <div class="admin-topbar-actions">
-                    <label class="admin-search">
-                        <span class="sr-only">Search admin</span>
-                        <input type="search" placeholder="{{ $searchPlaceholder ?? 'Search admin' }}">
-                    </label>
+                    <form class="admin-search" method="GET" action="{{ url()->current() }}">
+                        @foreach (request()->except(['q', 'page']) as $name => $value)
+                            @if (is_scalar($value))
+                                <input type="hidden" name="{{ $name }}" value="{{ $value }}">
+                            @endif
+                        @endforeach
+                        <label>
+                            <span class="sr-only">Search admin</span>
+                            <input type="search" name="q" value="{{ request('q') }}" placeholder="{{ $searchPlaceholder ?? 'Search admin' }}">
+                        </label>
+                    </form>
                     <div class="admin-user-chip">
                         <span>{{ strtoupper(substr($adminUser?->name ?? config('admin.name'), 0, 1)) }}</span>
                         <div>

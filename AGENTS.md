@@ -10,7 +10,8 @@ Core stack:
 - React `^19.2.5`, React DOM `^19.2.5`
 - React Router DOM `^7.15.0`
 - Vite `^8.0.0` with `laravel-vite-plugin`
-- Zustand is installed but is not currently used in `resources/js`
+- Zustand powers the React marketplace state layer, seeded from mock data and hydrated from Laravel APIs
+- Laravel Echo and `pusher-js` are installed for Pusher-compatible realtime hooks
 
 ## Important Commands
 
@@ -27,9 +28,14 @@ There is no dedicated JavaScript lint or test script at the moment. For frontend
 
 - `app/` contains the Laravel backend, including admin controllers, the `User` model, platform settings helpers/services, and service providers.
 - `routes/admin.php` contains the Blade admin panel routes and is loaded before `routes/web.php` from `bootstrap/app.php` so admin URLs are not swallowed by the SPA catch-all.
+- `routes/api.php` contains session-authenticated marketplace JSON endpoints under `/api/*` and is loaded before the SPA catch-all.
+- `routes/channels.php` contains private broadcast channel authorization such as `user.{id}`.
 - `routes/web.php` maps `/` and every other non-admin path to `resources/views/app.blade.php` so React Router can handle navigation.
-- `resources/views/app.blade.php` defines the SPA root `<div id="root"></div>`, loads Inter from Google Fonts, and includes `resources/css/app.css` plus `resources/js/main.jsx` through Vite.
+- `resources/views/app.blade.php` defines the SPA root, CSRF meta tag, Inter font loading, shared notifications, and Vite entries.
 - `resources/js/` contains the React app.
+- `resources/js/stores/` contains Zustand stores for session, dashboard, marketplace, and gig editor state.
+- `resources/js/api/apiClient.js` contains the shared `fetch` wrapper with session credentials, CSRF headers, and JSON error handling.
+- `resources/js/realtime/echo.js` initializes Laravel Echo only when Pusher env keys are present.
 - `resources/css/` contains global, home, and dashboard styles imported by `resources/css/app.css`.
 - `public/assets/img/gig_images/` contains service/gig images referenced by frontend data.
 - `public/build/`, `public/hot`, `node_modules/`, `vendor/`, logs, and generated caches are build/runtime artifacts. Do not edit them for source changes.
@@ -46,9 +52,19 @@ There is no dedicated JavaScript lint or test script at the moment. For frontend
 - Use helpers for settings access: `appSetting()`, `platformSetting()`, `platformSettings()`, `setPlatformSetting()`, and `clearPlatformSettingsCache()`.
 - Flash and JS notifications use the shared toast system in `public/assets/shared/notify.css`, `public/assets/shared/notify.js`, and `resources/views/partials/notifications.blade.php`. In PHP use `->withNotify()`, `redirectWithNotify()`, or `backWithNotify()`; in JS use `window.notify.success(...)`, `window.notify.error(...)`, or `window.notify({...})`.
 
+## Dynamic Marketplace, Auth, And APIs
+
+- Marketplace auth uses the normal `users` table and the Laravel `web` session guard. React calls `/api/me`, `/api/auth/login`, `/api/auth/register`, and `/api/auth/logout`.
+- The homepage auth modal now supports email/password sign in and sign up. Dashboard routes are guarded in `AppRoutes.jsx`; unauthenticated users are redirected to `/?auth=login&redirect=...`.
+- Marketplace data is database-backed through models for gigs, orders, conversations, messages, saved services, and user notifications. The demo seeder populates enough data for the current UI.
+- Key API groups are seller services, marketplace gigs, saved services, orders, conversations/messages, and notifications. Keep response shapes close to the current React store shapes.
+- Persisted notifications live in the `notifications` table through `App\Models\UserNotification` and are exposed through `/api/notifications`.
+- Realtime is prepared, not fully required for normal operation. Events include `NotificationCreated`, `MessageSent`, and `OrderStatusUpdated`; API fetching remains the source of truth.
+
 ## React Entry And Routing
 
 - `resources/js/main.jsx` mounts `<App />` into `#root` inside React `StrictMode`.
+- `resources/js/main.jsx` also calls `configureRealtime()`; Echo is only enabled when Pusher Vite env keys exist.
 - `resources/js/App.jsx` only wraps `AppRoutes` in `BrowserRouter`.
 - `resources/js/routes/AppRoutes.jsx` renders all client routes from `routeConfig.js`.
 - `resources/js/routes/routeConfig.js` is the source of truth for pages, paths, document titles, dashboard metadata, and route keys.
@@ -72,6 +88,10 @@ When adding a page:
 - `components/dashboard/settings/` and `components/dashboard/earnings/` contain feature-specific dashboard components.
 - `pages/` contains route-level components. Thin buyer/seller wrapper pages are normal when they pass a `variant` to a shared workspace.
 - `data/` contains static mock data and copy as named exports. Prefer extending these data files instead of hard-coding large arrays in components.
+- `data/` now acts mostly as seed/fallback data and static copy. Dynamic dashboard, marketplace, and gig editor state should go through stores first.
+- `stores/` contains Zustand domain stores. Add new shared dynamic state there instead of passing large mutable datasets through components.
+- `api/` contains frontend API helpers. Use `apiClient` for Laravel JSON requests so CSRF/session handling stays consistent.
+- `realtime/` contains Echo setup. Keep websocket usage optional and backed by normal API fetching.
 - `hooks/` contains reusable React hooks as named exports.
 - `routes/` contains router config and route side-effect hooks.
 - `utils/` contains framework-independent helpers such as chart geometry.
@@ -84,7 +104,7 @@ When adding a page:
 - Default-export route pages and most single components from their files.
 - Use named exports for shared helpers, hooks, data, and grouped control components.
 - Keep component filenames PascalCase for JSX components and camelCase for hooks/utilities/data files.
-- Keep React state local with `useState`, `useMemo`, `useCallback`, `useRef`, and `useEffect` unless shared state becomes necessary. Zustand is available but not currently part of the app pattern.
+- Keep temporary UI state local with `useState`, `useMemo`, `useCallback`, `useRef`, and `useEffect`. Use Zustand for shared domain data such as session, gigs, seller services, orders, messages, notifications, saved services, and gig drafts.
 - Use optional callbacks (`onNavigate?.()`) only when a component can safely operate without the callback.
 - Keep buyer/seller behavior unified through `variant = "buyer"` and `isSeller = variant === "seller"` when the UI is mostly shared.
 
@@ -95,6 +115,7 @@ When adding a page:
 - When intercepting an `<a>` click to call `onNavigate`, call `event.preventDefault()` first.
 - `useRouteEffects()` owns document titles, body classes (`home-page`, `dashboard-page`, `seller-dashboard-page`), scroll-to-top behavior, and hash scrolling. Keep those route-wide side effects centralized there.
 - Dashboard shell pages are wrapped by `DashboardPage` in `AppRoutes.jsx`; dashboard route metadata controls title, search placeholder, messages state, and seller/buyer variant.
+- Dashboard routes must stay behind the `RequireAuth` guard in `AppRoutes.jsx`.
 
 ## UI And Accessibility Patterns
 
@@ -115,14 +136,15 @@ When adding a page:
 
 ## Backend And Testing Notes
 
-- The backend now includes a real Blade admin panel, Spatie access control, cached platform settings, and shared notifications. Keep backend additions aligned with those systems instead of adding duplicate helpers.
+- The backend now includes a real Blade admin panel, Spatie access control, cached platform settings, marketplace APIs, persisted user notifications, and Pusher-compatible broadcast hooks. Keep backend additions aligned with those systems instead of adding duplicate helpers.
 - The default feature test verifies `/` returns HTTP 200. If server routes change, update or add Feature tests.
 - If adding database-backed behavior, use Laravel migrations, models, factories, and tests following standard Laravel conventions.
+- `MarketplaceApiTest` covers the new marketplace APIs, but the local PHP install must include `pdo_sqlite` for the default in-memory PHPUnit database.
 
 ## Working Rules For Future Agents
 
 - Read `resources/js/routes/routeConfig.js` before changing navigation or page availability.
-- Search `resources/js/data/` before adding new copy, cards, orders, services, settings, or dashboard records.
+- Search `resources/js/stores/`, `resources/js/api/`, and `resources/js/data/` before adding new copy, cards, orders, services, settings, or dashboard records.
 - Keep source edits scoped to `resources/js`, `resources/css`, Laravel app files, routes, tests, or public source assets as appropriate.
 - Do not edit dependency or generated directories (`vendor/`, `node_modules/`, `public/build/`) for application changes.
 - Prefer `npm run build` after React/CSS edits and `php artisan test` after Laravel edits.

@@ -91,6 +91,9 @@ class DatabaseSeeder extends Seeder
                 'name' => config('admin.name'),
                 'password' => Hash::make(config('admin.password')),
                 'email_verified_at' => now(),
+                'profile_type' => 'staff',
+                'country' => 'Bangladesh',
+                'verification_status' => 'verified',
             ]
         )->syncRoles(['super_admin']);
 
@@ -100,6 +103,9 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Finance Manager',
                 'password' => Hash::make(config('admin.password')),
                 'email_verified_at' => now(),
+                'profile_type' => 'staff',
+                'country' => 'Bangladesh',
+                'verification_status' => 'verified',
             ]
         )->syncRoles(['finance_manager']);
 
@@ -109,17 +115,25 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Support Agent',
                 'password' => Hash::make(config('admin.password')),
                 'email_verified_at' => now(),
+                'profile_type' => 'staff',
+                'country' => 'Bangladesh',
+                'verification_status' => 'verified',
             ]
         )->syncRoles(['support_agent']);
 
         User::firstOrCreate([
             'email' => 'test@example.com',
         ], [
-            'name' => 'Test User',
+            'name' => 'Jahid',
             'password' => Hash::make('password'),
+            'profile_type' => 'seller',
+            'country' => 'Bangladesh',
+            'verification_status' => 'verified',
         ]);
 
         PlatformSettings::syncDefinitions();
+
+        $this->call(MarketplaceDemoSeeder::class);
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }

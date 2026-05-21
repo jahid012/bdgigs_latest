@@ -1,17 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Icon } from "../components/common/Icons.jsx";
 import { useToast } from "../components/common/ToastProvider.jsx";
-import { sellerServices } from "../data/dashboardData.js";
 import {
     deliveryOptions,
     gigEditorCategories,
-    gigEditorDraft,
     gigEditorSteps,
     gigEditorSubcategories,
     requirementTypeOptions,
     revisionOptions,
 } from "../data/gigEditorData.js";
+import { useDashboardStore } from "../stores/useDashboardStore.js";
+import { useGigEditorStore } from "../stores/useGigEditorStore.js";
 
 const emptyRequirementDraft = {
     question: "",
@@ -26,12 +26,22 @@ function SellerGigEditorPage() {
     const navigate = useNavigate();
     const notify = useToast();
     const isEditing = Boolean(gigId);
-    const sourceService = useMemo(
-        () => sellerServices.find((service) => service.id === gigId),
-        [gigId],
+    const form = useGigEditorStore((state) => state.draft);
+    const createGigDraft = useGigEditorStore((state) => state.createGigDraft);
+    const updateGigDraft = useGigEditorStore((state) => state.updateGigDraft);
+    const setGigDraft = useGigEditorStore((state) => state.setGigDraft);
+    const resetGigDraft = useGigEditorStore((state) => state.resetGigDraft);
+    const createSellerService = useDashboardStore(
+        (state) => state.createSellerService,
+    );
+    const saveSellerService = useDashboardStore(
+        (state) => state.saveSellerService,
+    );
+    const fetchSellerService = useDashboardStore(
+        (state) => state.fetchSellerService,
     );
     const [activeStep, setActiveStep] = useState("overview");
-    const [form, setForm] = useState(() => createInitialDraft(sourceService));
+    const [isSaving, setIsSaving] = useState(false);
     const activeStepIndex = gigEditorSteps.findIndex(
         (step) => step.id === activeStep,
     );
@@ -42,18 +52,24 @@ function SellerGigEditorPage() {
     }, [activeStep]);
 
     useEffect(() => {
-        setForm(createInitialDraft(sourceService));
-        setActiveStep("overview");
-    }, [sourceService]);
+        if (!gigId) {
+            createGigDraft();
+            setActiveStep("overview");
+            return;
+        }
+
+        fetchSellerService(gigId).finally(() => {
+            createGigDraft(gigId);
+            setActiveStep("overview");
+        });
+        return undefined;
+    }, [createGigDraft, fetchSellerService, gigId]);
 
     const updateField = (field, value) => {
-        setForm((currentForm) => ({
-            ...currentForm,
-            [field]: value,
-        }));
+        updateGigDraft(field, value);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (activeStep === "overview" && !form.title.trim()) {
             notify.error("Add a clear gig title before saving this step.", {
                 title: "Title required",
@@ -70,6 +86,24 @@ function SellerGigEditorPage() {
             return;
         }
 
+        setIsSaving(true);
+
+        try {
+            if (isEditing) {
+                await saveSellerService(gigId, form);
+            } else {
+                await createSellerService(form);
+            }
+        } catch {
+            notify.error("We could not save this gig. Please try again.", {
+                title: "Save failed",
+            });
+            setIsSaving(false);
+            return;
+        }
+
+        setIsSaving(false);
+        resetGigDraft();
         notify.success(
             isEditing
                 ? "Your gig changes have been saved."
@@ -82,6 +116,7 @@ function SellerGigEditorPage() {
     };
 
     const handleCancel = () => {
+        resetGigDraft();
         notify.info("Gig editor closed.");
         navigate("/dashboard/seller/services");
     };
@@ -94,27 +129,31 @@ function SellerGigEditorPage() {
                     <OverviewStep form={form} onUpdate={updateField} />
                 ) : null}
                 {activeStep === "pricing" ? (
-                    <PricingStep form={form} onUpdate={setForm} />
+                    <PricingStep form={form} onUpdate={setGigDraft} />
                 ) : null}
                 {activeStep === "description" ? (
-                    <DescriptionFaqStep form={form} onUpdate={setForm} />
+                    <DescriptionFaqStep form={form} onUpdate={setGigDraft} />
                 ) : null}
                 {activeStep === "requirements" ? (
                     <RequirementsStep
                         form={form}
-                        onUpdate={setForm}
+                        onUpdate={setGigDraft}
                         notify={notify}
                     />
                 ) : null}
                 {activeStep === "gallery" ? (
                     <GalleryStep
                         form={form}
-                        onUpdate={setForm}
+                        onUpdate={setGigDraft}
                         notify={notify}
                     />
                 ) : null}
             </div>
-            <EditorActions onCancel={handleCancel} onSave={handleSave} />
+            <EditorActions
+                isSaving={isSaving}
+                onCancel={handleCancel}
+                onSave={handleSave}
+            />
         </main>
     );
 }
@@ -1089,47 +1128,22 @@ function SelectField({ label, value, options, onChange }) {
     );
 }
 
-function EditorActions({ onCancel, onSave }) {
+function EditorActions({ isSaving, onCancel, onSave }) {
     return (
         <footer className="gig-editor-actions">
             <button className="gig-secondary-action" type="button" onClick={onCancel}>
                 Cancel
             </button>
-            <button className="gig-primary-action" type="button" onClick={onSave}>
-                Save
+            <button
+                className="gig-primary-action"
+                type="button"
+                disabled={isSaving}
+                onClick={onSave}
+            >
+                {isSaving ? "Saving..." : "Save"}
             </button>
         </footer>
     );
-}
-
-function createInitialDraft(service) {
-    const draft = JSON.parse(JSON.stringify(gigEditorDraft));
-
-    if (!service) return draft;
-
-    const startingPrice = service.price.replace(/[^0-9.]/g, "") || "5";
-
-    return {
-        ...draft,
-        title: service.title,
-        category: service.category,
-        tags: [
-            ...new Set([
-                service.category,
-                service.tag,
-                "Laravel",
-                "Customization",
-                "Website",
-            ]),
-        ].slice(0, 5),
-        packages: draft.packages.map((item, index) =>
-            index === 0 ? { ...item, price: startingPrice } : item,
-        ),
-        galleryImages: [
-            service.image,
-            ...draft.galleryImages.filter((image) => image !== service.image),
-        ].slice(0, 3),
-    };
 }
 
 export default SellerGigEditorPage;

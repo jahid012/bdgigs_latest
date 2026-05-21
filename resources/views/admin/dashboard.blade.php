@@ -62,7 +62,7 @@
                 <button type="button">Export</button>
             </div>
             <div class="admin-chart" aria-label="Revenue chart">
-                @foreach ([48, 62, 54, 78, 70, 88, 76, 94] as $height)
+                @foreach (($revenueTrend ?? [8]) as $height)
                     <span style="height: {{ $height }}%"></span>
                 @endforeach
             </div>
@@ -76,18 +76,12 @@
                 </div>
             </div>
             <div class="admin-queue-list">
-                <a href="{{ route('admin.gigs') }}">
-                    <span>Gig approvals</span>
-                    <strong>74</strong>
-                </a>
-                <a href="{{ route('admin.users') }}">
-                    <span>Seller documents</span>
-                    <strong>18</strong>
-                </a>
-                <a href="{{ route('admin.disputes') }}">
-                    <span>Reported messages</span>
-                    <strong>6</strong>
-                </a>
+                @foreach (($moderationQueue ?? []) as $item)
+                    <a href="{{ route($item['route']) }}">
+                        <span>{{ $item['label'] }}</span>
+                        <strong>{{ $item['value'] }}</strong>
+                    </a>
+                @endforeach
             </div>
         </article>
     </section>
@@ -114,7 +108,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($orders as $order)
+                    @forelse ($orders as $order)
                             <tr>
                                 <td>{{ $order['id'] }}</td>
                                 <td>{{ $order['buyer'] }}</td>
@@ -123,7 +117,11 @@
                                 <td><span>{{ $order['status'] }}</span></td>
                                 <td>{{ $order['amount'] }}</td>
                             </tr>
-                        @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="6">No orders have been created yet.</td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
@@ -154,10 +152,9 @@
                 </div>
             </div>
             <div class="admin-workflow-steps">
-                <span><b>1</b><strong>Clear urgent disputes</strong><small>Protect buyer trust</small></span>
-                <span><b>2</b><strong>Review gig backlog</strong><small>Unlock new seller inventory</small></span>
-                <span><b>3</b><strong>Approve payout batch</strong><small>Keep sellers engaged</small></span>
-                <span><b>4</b><strong>Check late orders</strong><small>Reduce cancellations</small></span>
+                @foreach (($priorityWorkflow ?? []) as $item)
+                    <span><b>{{ $item['step'] }}</b><strong>{{ $item['label'] }}</strong><small>{{ $item['meta'] }}</small></span>
+                @endforeach
             </div>
         </article>
 
@@ -169,9 +166,9 @@
                 </div>
             </div>
             <div class="admin-quality-bars">
-                <span style="--value: 86%"><b>Gig image quality</b><em>86%</em></span>
-                <span style="--value: 72%"><b>Requirement completion</b><em>72%</em></span>
-                <span style="--value: 94%"><b>Seller response health</b><em>94%</em></span>
+                @foreach (($qualityBars ?? []) as $bar)
+                    <span style="--value: {{ $bar['value'] }}%"><b>{{ $bar['label'] }}</b><em>{{ $bar['value'] }}%</em></span>
+                @endforeach
             </div>
         </article>
     </section>

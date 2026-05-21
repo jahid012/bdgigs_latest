@@ -1,14 +1,10 @@
-import { useState } from "react";
-import {
-    buyerNotifications,
-    messages,
-    sellerMessages,
-    sellerNotifications,
-    sellerSidebarItems,
-} from "../data/dashboardData.js";
+import { useEffect, useState } from "react";
+import { sellerSidebarItems } from "../data/dashboardData.js";
 import Sidebar from "../components/dashboard/Sidebar.jsx";
 import Topbar from "../components/dashboard/Topbar.jsx";
 import { useTranslation } from "react-i18next";
+import { useDashboardStore } from "../stores/useDashboardStore.js";
+import { useSessionStore } from "../stores/useSessionStore.js";
 function DashboardPage({
     children,
     messagesActive = false,
@@ -20,12 +16,33 @@ function DashboardPage({
     const { t } = useTranslation();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const isSeller = variant === "seller";
+    const currentUser = useSessionStore((state) => state.currentUser);
+    const messageItems = useDashboardStore((state) =>
+        isSeller ? state.sellerMessages : state.messages,
+    );
+    const notificationItems = useDashboardStore((state) =>
+        isSeller ? state.sellerNotifications : state.buyerNotifications,
+    );
+    const fetchConversations = useDashboardStore(
+        (state) => state.fetchConversations,
+    );
+    const fetchNotifications = useDashboardStore(
+        (state) => state.fetchNotifications,
+    );
+    const hydrateSession = useSessionStore((state) => state.hydrateSession);
     const dashboardTitle = title || (isSeller ? "Seller Overview" : "Overview");
     const dashboardSearchPlaceholder =
         searchPlaceholder ||
         (isSeller
             ? "Search orders, buyers, gigs..."
             : "Search orders, sellers, services...");
+
+    useEffect(() => {
+        hydrateSession();
+        fetchNotifications();
+        fetchConversations(isSeller ? "seller" : "buyer");
+    }, [fetchConversations, fetchNotifications, hydrateSession, isSeller]);
+
     return (
         <>
             <a className="skip-link" href="#dashboardMain">
@@ -67,12 +84,12 @@ function DashboardPage({
                                 isSeller ? "seller-messages" : "messages",
                             )
                         }
-                        messageItems={isSeller ? sellerMessages : messages}
+                        messageItems={messageItems}
                         messageActionLabel="View all messages"
-                        notificationItems={
-                            isSeller ? sellerNotifications : buyerNotifications
-                        }
+                        notificationItems={notificationItems}
                         notificationActionLabel="View all updates"
+                        profileName={currentUser?.name || "Guest"}
+                        profileInitials={currentUser?.initials || "GU"}
                         profileLinks={
                             isSeller
                                 ? [

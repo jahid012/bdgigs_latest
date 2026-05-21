@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
     exploreLinks,
     marketplaceHeaderCategories,
@@ -8,6 +9,7 @@ import {
 import { useDismissOnInteractOutside } from "../../hooks/useDismissOnInteractOutside.js";
 import { useScrolledPast } from "../../hooks/useScrolledPast.js";
 import { supportedLanguages } from "../../i18n/index.js";
+import { useSessionStore } from "../../stores/useSessionStore.js";
 import { BrandMark, Icon } from "../common/Icons.jsx";
 
 const authBenefitKeys = [
@@ -52,10 +54,15 @@ function Header({
     searchQuery = "",
 }) {
     const { i18n, t } = useTranslation();
+    const location = useLocation();
+    const routerNavigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isExploreOpen, setIsExploreOpen] = useState(false);
     const [authMode, setAuthMode] = useState(null);
+    const [pendingPath, setPendingPath] = useState("");
     const exploreRef = useRef(null);
+    const currentUser = useSessionStore((state) => state.currentUser);
+    const hydrateSession = useSessionStore((state) => state.hydrateSession);
     const isScrolled = useScrolledPast(24);
     const isPastHomeHero = useScrolledPast(520);
     const showMarketplaceHeader = enableMarketplaceHeader && isPastHomeHero;
@@ -63,6 +70,33 @@ function Header({
     const closeExploreMenu = useCallback(() => setIsExploreOpen(false), []);
 
     useDismissOnInteractOutside(exploreRef, isExploreOpen, closeExploreMenu);
+
+    useEffect(() => {
+        hydrateSession();
+    }, [hydrateSession]);
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const requestedMode = params.get("auth");
+
+        if (requestedMode !== "login" && requestedMode !== "register") {
+            return;
+        }
+
+        setAuthMode(requestedMode);
+        setPendingPath(params.get("redirect") || "");
+        params.delete("auth");
+        params.delete("redirect");
+
+        routerNavigate(
+            {
+                pathname: location.pathname,
+                search: params.toString() ? `?${params.toString()}` : "",
+                hash: location.hash,
+            },
+            { replace: true },
+        );
+    }, [location.hash, location.pathname, location.search, routerNavigate]);
 
     useEffect(() => {
         if (authMode === null) return undefined;
@@ -93,6 +127,13 @@ function Header({
         event.preventDefault();
         setIsMenuOpen(false);
         setIsExploreOpen(false);
+
+        if (!currentUser?.authenticated) {
+            setPendingPath("/dashboard");
+            setAuthMode("login");
+            return;
+        }
+
         onNavigate("dashboard");
     };
 
@@ -100,6 +141,13 @@ function Header({
         event.preventDefault();
         setIsMenuOpen(false);
         setIsExploreOpen(false);
+
+        if (!currentUser?.authenticated) {
+            setPendingPath("/dashboard/seller");
+            setAuthMode("login");
+            return;
+        }
+
         onNavigate("seller-dashboard");
     };
 
@@ -107,7 +155,18 @@ function Header({
         event.preventDefault();
         setIsMenuOpen(false);
         setIsExploreOpen(false);
+        setPendingPath("");
         setAuthMode(mode);
+    };
+
+    const handleAuthSuccess = () => {
+        const nextPath = pendingPath;
+        setAuthMode(null);
+        setPendingPath("");
+
+        if (nextPath) {
+            onNavigate(nextPath);
+        }
     };
 
     const handleHeaderSearch = (event) => {
@@ -315,9 +374,7 @@ function Header({
                             </label>
                             <a
                                 href="/dashboard/seller"
-                                onClick={(event) =>
-                                    navigateToPath(event, "/dashboard/seller")
-                                }
+                                onClick={goSellerDashboard}
                             >
                                 {t("header.becomeSeller")}
                             </a>
@@ -506,6 +563,7 @@ function Header({
                 <AuthModal
                     mode={authMode}
                     onClose={() => setAuthMode(null)}
+                    onSuccess={handleAuthSuccess}
                     onModeChange={setAuthMode}
                 />
             ) : null}
@@ -513,9 +571,57 @@ function Header({
     );
 }
 
-function AuthModal({ mode, onClose, onModeChange }) {
+function AuthModal({ mode, onClose, onModeChange, onSuccess }) {
     const { t } = useTranslation();
     const isRegister = mode === "register";
+    const login = useSessionStore((state) => state.login);
+    const register = useSessionStore((state) => state.register);
+    const isLoading = useSessionStore((state) => state.isLoading);
+    const [form, setForm] = useState({
+        name: "",
+        email: "",
+        password: "",
+        password_confirmation: "",
+    });
+    const [formError, setFormError] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+
+    const updateForm = (field, value) => {
+        setForm((current) => ({
+            ...current,
+            [field]: value,
+        }));
+    };
+
+    const handleSubmit = async (event) => {
+        event.preventDefault();
+        setFormError("");
+
+        if (isRegister && form.password !== form.password_confirmation) {
+            setFormError("Passwords do not match.");
+            return;
+        }
+
+        try {
+            if (isRegister) {
+                await register(form);
+            } else {
+                await login({
+                    email: form.email,
+                    password: form.password,
+                });
+            }
+
+            onSuccess?.();
+        } catch (error) {
+            const validationMessage =
+                error.payload?.errors?.email?.[0] ||
+                error.payload?.errors?.password?.[0] ||
+                error.payload?.errors?.name?.[0] ||
+                error.message;
+            setFormError(validationMessage);
+        }
+    };
 
     return (
         <div
@@ -583,64 +689,115 @@ function AuthModal({ mode, onClose, onModeChange }) {
                         </p>
                     </div>
 
-                    <div className="auth-provider-list">
-                        <button type="button">
-                            <span className="auth-provider-mark google">G</span>
-                            {t("auth.continueGoogle")}
-                        </button>
+                    <form className="auth-email-form" onSubmit={handleSubmit}>
                         {isRegister ? (
-                            <>
-                                <button type="button">
-                                    <span className="auth-provider-mark apple">
-                                        A
-                                    </span>
-                                    {t("auth.continueApple")}
+                            <label>
+                                <span>Name</span>
+                                <input
+                                    type="text"
+                                    value={form.name}
+                                    autoComplete="name"
+                                    onChange={(event) =>
+                                        updateForm("name", event.target.value)
+                                    }
+                                    required
+                                />
+                            </label>
+                        ) : null}
+                        <label>
+                            <span>Email</span>
+                            <input
+                                type="email"
+                                value={form.email}
+                                autoComplete="email"
+                                onChange={(event) =>
+                                    updateForm("email", event.target.value)
+                                }
+                                required
+                            />
+                        </label>
+                        <label>
+                            <span>Password</span>
+                            <span className="auth-password-field">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    value={form.password}
+                                    autoComplete={
+                                        isRegister
+                                            ? "new-password"
+                                            : "current-password"
+                                    }
+                                    minLength={isRegister ? 8 : undefined}
+                                    onChange={(event) =>
+                                        updateForm(
+                                            "password",
+                                            event.target.value,
+                                        )
+                                    }
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    aria-label={
+                                        showPassword
+                                            ? "Hide password"
+                                            : "Show password"
+                                    }
+                                    onClick={() =>
+                                        setShowPassword((visible) => !visible)
+                                    }
+                                >
+                                    <Icon name="eye" />
                                 </button>
-                                <button type="button">
-                                    <span className="auth-provider-mark facebook">
-                                        f
-                                    </span>
-                                    {t("auth.continueFacebook")}
-                                </button>
-                            </>
+                            </span>
+                        </label>
+                        {isRegister ? (
+                            <label>
+                                <span>Confirm password</span>
+                                <input
+                                    type="password"
+                                    value={form.password_confirmation}
+                                    autoComplete="new-password"
+                                    minLength="8"
+                                    onChange={(event) =>
+                                        updateForm(
+                                            "password_confirmation",
+                                            event.target.value,
+                                        )
+                                    }
+                                    required
+                                />
+                            </label>
                         ) : (
-                            <>
-                                <button type="button">
-                                    <span className="auth-provider-mark email">
-                                        @
-                                    </span>
-                                    {t("auth.continueEmail")}
-                                </button>
-                                <div className="auth-divider">
-                                    <span>{t("auth.or")}</span>
-                                </div>
-                                <div className="auth-provider-split">
-                                    <button type="button">
-                                        <span className="auth-provider-mark apple">
-                                            A
-                                        </span>
-                                        {t("auth.apple")}
-                                    </button>
-                                    <button type="button">
-                                        <span className="auth-provider-mark facebook">
-                                            f
-                                        </span>
-                                        {t("auth.facebook")}
-                                    </button>
-                                </div>
-                            </>
-                        )}
-                    </div>
-
-                    {isRegister ? (
-                        <div className="auth-email-link">
-                            {t("auth.orPrefix")}{" "}
-                            <button type="button">
-                                {t("auth.emailSignup")}
+                            <button
+                                className="auth-forgot-link"
+                                type="button"
+                            >
+                                Forgot password?
                             </button>
-                            <span>{t("auth.verificationNote")}</span>
-                        </div>
-                    ) : null}
+                        )}
+                        {formError ? (
+                            <p className="auth-form-error">{formError}</p>
+                        ) : null}
+                        <button
+                            className="auth-submit-button"
+                            type="submit"
+                            disabled={
+                                isLoading ||
+                                !form.email ||
+                                !form.password ||
+                                (isRegister &&
+                                    (!form.name ||
+                                        !form.password_confirmation))
+                            }
+                        >
+                            {isLoading
+                                ? "Please wait..."
+                                : isRegister
+                                  ? "Create account"
+                                  : "Sign in"}
+                        </button>
+                    </form>
 
                     <p className="auth-legal">
                         {t("auth.legalBefore")}{" "}

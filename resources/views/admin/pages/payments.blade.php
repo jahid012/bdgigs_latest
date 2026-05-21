@@ -12,7 +12,6 @@
                     <h2>Payout queue</h2>
                     <p>Review seller payout batches and held transactions.</p>
                 </div>
-                <button type="button">Create payout batch</button>
             </div>
             <div class="admin-table-wrap">
                 <table>
@@ -26,7 +25,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($payments as $payment)
+                        @forelse ($payments as $payment)
                             <tr>
                                 <td>{{ $payment['id'] }}</td>
                                 <td>{{ $payment['seller'] }}</td>
@@ -34,7 +33,11 @@
                                 <td>{{ $payment['amount'] }}</td>
                                 <td><span>{{ $payment['status'] }}</span></td>
                             </tr>
-                        @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="5">No delivered orders are ready for the future payout system.</td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
@@ -48,9 +51,9 @@
                     <p>Template controls for future payment workflows.</p>
                 </div>
             </div>
-            <button type="button">Hold selected payouts</button>
-            <button type="button">Release approved payouts</button>
-            <button type="button">Download finance report</button>
+            <button type="button" disabled>Hold payouts in Part 3</button>
+            <button type="button" disabled>Release payouts in Part 3</button>
+            <a class="admin-panel-link" href="{{ route('admin.reports') }}">Open finance report</a>
         </aside>
     </section>
 

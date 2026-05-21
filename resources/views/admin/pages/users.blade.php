@@ -12,13 +12,27 @@
                     <h2>User directory</h2>
                     <p>Review account health, profile type, verification, and region.</p>
                 </div>
-                <button type="button">Add user</button>
             </div>
+            <form class="admin-user-search-form" method="GET" action="{{ route('admin.users') }}">
+                <input type="hidden" name="type" value="{{ $currentFilter }}">
+                <label>
+                    <span>User search</span>
+                    <input type="search" name="q" value="{{ $searchQuery }}" placeholder="Search name, email, or country">
+                </label>
+                <button type="submit">Search users</button>
+                @if ($searchQuery !== '' || $currentFilter !== 'all')
+                    <a href="{{ route('admin.users') }}">Clear</a>
+                @endif
+            </form>
             <div class="admin-filter-row">
-                <button type="button" class="is-active">All</button>
-                <button type="button">Buyers</button>
-                <button type="button">Sellers</button>
-                <button type="button">Flagged</button>
+                @foreach ($filters as $filter)
+                    <a
+                        class="{{ $currentFilter === $filter['value'] ? 'is-active' : '' }}"
+                        href="{{ request()->fullUrlWithQuery(['type' => $filter['value'], 'page' => 1]) }}"
+                    >
+                        {{ $filter['label'] }} <span>{{ number_format($filter['count']) }}</span>
+                    </a>
+                @endforeach
             </div>
             <div class="admin-table-wrap">
                 <table>
@@ -31,20 +45,48 @@
                             <th>Country</th>
                             <th>Status</th>
                             <th>Joined</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($users as $user)
+                        @forelse ($users as $user)
                             <tr>
                                 <td>{{ $user['name'] }}</td>
                                 <td>{{ $user['email'] }}</td>
                                 <td>{{ $user['profile_type'] }}</td>
                                 <td>{{ $user['seller_level'] }}</td>
                                 <td>{{ $user['country'] }}</td>
-                                <td><span>{{ $user['status'] }}</span></td>
+                                <td><span class="admin-status-badge {{ $user['status_class'] }}">{{ $user['status'] }}</span></td>
                                 <td>{{ $user['joined'] }}</td>
+                                <td>
+                                    <div class="admin-row-actions">
+                                        @can('users.verify')
+                                            <form method="POST" action="{{ route('admin.users.verify', $user['id']) }}">
+                                                @csrf
+                                                <button type="submit">Verify</button>
+                                            </form>
+                                        @endcan
+                                        @can('users.suspend')
+                                            @if ($user['can_restore'])
+                                                <form method="POST" action="{{ route('admin.users.restore', $user['id']) }}">
+                                                    @csrf
+                                                    <button type="submit">Restore</button>
+                                                </form>
+                                            @elseif ($user['can_suspend'])
+                                                <form method="POST" action="{{ route('admin.users.suspend', $user['id']) }}">
+                                                    @csrf
+                                                    <button type="submit">Suspend</button>
+                                                </form>
+                                            @endif
+                                        @endcan
+                                    </div>
+                                </td>
                             </tr>
-                        @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="8">No users matched your filters.</td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
@@ -59,9 +101,9 @@
                 </div>
             </div>
             <ul>
-                <li><strong>18</strong><span>Seller identity reviews</span></li>
-                <li><strong>9</strong><span>Payout method changes</span></li>
-                <li><strong>6</strong><span>Duplicate account signals</span></li>
+                @foreach ($verificationFocus as $item)
+                    <li><strong>{{ $item['value'] }}</strong><span>{{ $item['label'] }}</span></li>
+                @endforeach
             </ul>
         </aside>
     </section>
@@ -75,9 +117,9 @@
                 </div>
             </div>
             <div class="admin-quality-bars">
-                <span style="--value: 68%"><b>Identity submitted</b><em>68%</em></span>
-                <span style="--value: 52%"><b>Portfolio complete</b><em>52%</em></span>
-                <span style="--value: 81%"><b>Payout connected</b><em>81%</em></span>
+                @foreach ($verificationPipeline as $item)
+                    <span style="--value: {{ $item['value'] }}%"><b>{{ $item['label'] }}</b><em>{{ $item['value'] }}%</em></span>
+                @endforeach
             </div>
         </article>
 
@@ -89,9 +131,9 @@
                 </div>
             </div>
             <div class="admin-workflow-steps">
-                <span><b>1</b><strong>Request missing ID</strong><small>18 sellers</small></span>
-                <span><b>2</b><strong>Review flagged logins</strong><small>6 accounts</small></span>
-                <span><b>3</b><strong>Welcome high-value buyers</strong><small>32 new buyers</small></span>
+                <span><b>1</b><strong>Verify review users</strong><small>{{ $verificationFocus[0]['value'] ?? 0 }} pending</small></span>
+                <span><b>2</b><strong>Restore trusted accounts</strong><small>{{ $verificationFocus[1]['value'] ?? 0 }} suspended</small></span>
+                <span><b>3</b><strong>Complete email checks</strong><small>{{ $verificationFocus[2]['value'] ?? 0 }} unverified</small></span>
             </div>
         </article>
     </section>

@@ -1,7 +1,15 @@
 <?php
 
-use App\Http\Controllers\Admin\AdminPanelController;
 use App\Http\Controllers\Admin\AuthController;
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\DisputeController;
+use App\Http\Controllers\Admin\GigController;
+use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\RoleController;
+use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix(config('admin.route_prefix', 'admin'))
@@ -17,21 +25,32 @@ Route::prefix(config('admin.route_prefix', 'admin'))
         Route::middleware(['auth', 'permission:admin.access'])->group(function () {
             Route::redirect('/', '/'.trim(config('admin.route_prefix', 'admin'), '/').'/dashboard')->name('home');
 
-            Route::get('/dashboard', [AdminPanelController::class, 'dashboard'])->name('dashboard');
-            Route::get('/users', [AdminPanelController::class, 'users'])->middleware('permission:users.view')->name('users');
-            Route::get('/gigs', [AdminPanelController::class, 'gigs'])->middleware('permission:gigs.view')->name('gigs');
-            Route::get('/orders', [AdminPanelController::class, 'orders'])->middleware('permission:orders.view')->name('orders');
-            Route::get('/payments', [AdminPanelController::class, 'payments'])->middleware('permission:payments.view')->name('payments');
-            Route::get('/disputes', [AdminPanelController::class, 'disputes'])->middleware('permission:disputes.view')->name('disputes');
-            Route::get('/reports', [AdminPanelController::class, 'reports'])->middleware('permission:reports.view')->name('reports');
-            Route::get('/settings', [AdminPanelController::class, 'settings'])->middleware('permission:settings.view')->name('settings');
-            Route::post('/settings', [AdminPanelController::class, 'updateSettings'])->middleware('permission:settings.update')->name('settings.update');
-            Route::get('/roles', [AdminPanelController::class, 'roles'])->middleware('permission:roles.manage')->name('roles');
-            Route::post('/roles', [AdminPanelController::class, 'storeRole'])->middleware('permission:roles.manage')->name('roles.store');
-            Route::get('/roles/users', [AdminPanelController::class, 'roleUsers'])->middleware('permission:roles.manage')->name('roles.users');
-            Route::get('/roles/{role}/permissions', [AdminPanelController::class, 'rolePermissions'])->middleware('permission:roles.manage')->name('roles.permissions');
-            Route::post('/roles/{role}/permissions', [AdminPanelController::class, 'updateRolePermissions'])->middleware('permission:roles.manage')->name('roles.permissions.update');
-            Route::post('/users/{user}/roles', [AdminPanelController::class, 'updateUserRoles'])->middleware('permission:roles.manage')->name('users.roles.update');
+            Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+            Route::get('/users', [UserController::class, 'index'])->middleware('permission:users.view')->name('users');
+            Route::post('/users/{user}/verify', [UserController::class, 'verify'])->middleware('permission:users.verify')->name('users.verify');
+            Route::post('/users/{user}/suspend', [UserController::class, 'suspend'])->middleware('permission:users.suspend')->name('users.suspend');
+            Route::post('/users/{user}/restore', [UserController::class, 'restore'])->middleware('permission:users.suspend')->name('users.restore');
+            Route::post('/users/{user}/roles', [RoleController::class, 'updateUserRoles'])->middleware('permission:roles.manage')->name('users.roles.update');
+
+            Route::get('/gigs', [GigController::class, 'index'])->middleware('permission:gigs.view')->name('gigs');
+            Route::patch('/gigs/{gig}/status', [GigController::class, 'updateStatus'])->middleware('permission:gigs.review|gigs.publish')->name('gigs.status');
+
+            Route::get('/orders', [OrderController::class, 'index'])->middleware('permission:orders.view')->name('orders');
+            Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->middleware('permission:orders.manage')->name('orders.status');
+
+            Route::get('/payments', [PaymentController::class, 'index'])->middleware('permission:payments.view')->name('payments');
+            Route::get('/disputes', [DisputeController::class, 'index'])->middleware('permission:disputes.view')->name('disputes');
+            Route::get('/reports', [ReportController::class, 'index'])->middleware('permission:reports.view')->name('reports');
+
+            Route::get('/settings', [SettingController::class, 'edit'])->middleware('permission:settings.view')->name('settings');
+            Route::post('/settings', [SettingController::class, 'update'])->middleware('permission:settings.update')->name('settings.update');
+
+            Route::get('/roles', [RoleController::class, 'index'])->middleware('permission:roles.manage')->name('roles');
+            Route::post('/roles', [RoleController::class, 'store'])->middleware('permission:roles.manage')->name('roles.store');
+            Route::get('/roles/users', [RoleController::class, 'users'])->middleware('permission:roles.manage')->name('roles.users');
+            Route::get('/roles/{role}/permissions', [RoleController::class, 'permissions'])->middleware('permission:roles.manage')->name('roles.permissions');
+            Route::post('/roles/{role}/permissions', [RoleController::class, 'updatePermissions'])->middleware('permission:roles.manage')->name('roles.permissions.update');
         });
 
         Route::get('/{any}', function () {

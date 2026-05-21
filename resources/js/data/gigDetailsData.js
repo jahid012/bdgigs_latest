@@ -232,7 +232,7 @@ export function getRecommendedGigs(currentId) {
     return listingGigs.filter((gig) => gig.id !== currentId).slice(0, 2);
 }
 
-function createDetailFromListingGig(gig) {
+export function createDetailFromListingGig(gig) {
     return {
         ...aiGigDetail,
         id: gig.id,

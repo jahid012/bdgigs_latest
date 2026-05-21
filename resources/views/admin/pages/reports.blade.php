@@ -43,9 +43,9 @@
                 </div>
             </div>
             <div class="admin-quality-bars">
-                <span style="--value: 64%"><b>Search-to-click</b><em>64%</em></span>
-                <span style="--value: 38%"><b>Click-to-order</b><em>38%</em></span>
-                <span style="--value: 42%"><b>Repeat purchase</b><em>42%</em></span>
+                @foreach ($buyerBehavior as $bar)
+                    <span style="--value: {{ $bar['value'] }}%"><b>{{ $bar['label'] }}</b><em>{{ $bar['value'] }}%</em></span>
+                @endforeach
             </div>
         </article>
 

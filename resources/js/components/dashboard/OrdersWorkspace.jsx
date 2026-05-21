@@ -1,13 +1,9 @@
-import {
-    buyerOrderInsights,
-    orders,
-    sellerOrderInsights,
-    sellerOrders,
-} from "../../data/dashboardData.js";
 import { Link } from "react-router-dom";
+import { useEffect } from "react";
 import DashboardPageHeader from "./DashboardPageHeader.jsx";
 import { Icon } from "../common/Icons.jsx";
 import { useTranslation } from "react-i18next";
+import { useDashboardStore } from "../../stores/useDashboardStore.js";
 const getProgress = (status) => {
     const progressMap = {
         "In Progress": 62,
@@ -25,7 +21,14 @@ const getOrderDetailPath = (order, isSeller) => {
 function OrdersWorkspace({ variant = "buyer" }) {
     const { t } = useTranslation();
     const isSeller = variant === "seller";
-    const rawOrders = isSeller ? sellerOrders : orders;
+    const rawOrders = useDashboardStore((state) =>
+        isSeller ? state.sellerOrders : state.orders,
+    );
+    const fetchOrders = useDashboardStore((state) => state.fetchOrders);
+
+    useEffect(() => {
+        fetchOrders(isSeller ? "seller" : "buyer");
+    }, [fetchOrders, isSeller]);
     const activeOrders = rawOrders.filter(
         (order) => order.status === "In Progress",
     ).length;

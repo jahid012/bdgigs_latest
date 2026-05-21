@@ -1,5 +1,5 @@
-import { sellerChartData } from "../../../data/dashboardData.js";
 import { buildLineChartGeometry } from "../../../utils/lineChart.js";
+import { useDashboardStore } from "../../../stores/useDashboardStore.js";
 
 const defaultChartConfig = {
     width: 640,
@@ -12,15 +12,17 @@ function SellerEarningsLineChart({
     ariaLabel = "Seller earnings line chart for the last seven months",
     chartConfig = defaultChartConfig,
     className,
-    data = sellerChartData,
+    data,
     gradientId = "earningsLineGradient",
     showHeader = true,
     summaryLabel = "Net earnings trend",
     summaryValue = "$1,040.80",
     trendLabel = "+18% vs. previous period",
 }) {
+    const sellerChartData = useDashboardStore((state) => state.sellerChartData);
+    const chartData = data || sellerChartData;
     const { areaPath, gridLines, linePath, points } = buildLineChartGeometry(
-        data,
+        chartData,
         chartConfig,
     );
     const chartClassName = ["finance-line-chart", className]
@@ -78,7 +80,7 @@ function SellerEarningsLineChart({
                 ))}
             </svg>
             <div className="finance-line-labels" aria-hidden="true">
-                {data.map((item) => (
+                {chartData.map((item) => (
                     <span key={item.label}>{item.label}</span>
                 ))}
             </div>

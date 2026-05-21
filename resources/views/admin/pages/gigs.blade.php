@@ -12,21 +12,73 @@
                     <h2>Gig moderation</h2>
                     <p>Approve, request edits, or watch published service quality.</p>
                 </div>
-                <button type="button">Bulk review</button>
+            </div>
+            <form class="admin-user-search-form" method="GET" action="{{ route('admin.gigs') }}">
+                <input type="hidden" name="status" value="{{ $currentFilter }}">
+                <label>
+                    <span>Gig search</span>
+                    <input type="search" name="q" value="{{ $searchQuery }}" placeholder="Search title, seller, category, or status">
+                </label>
+                <button type="submit">Search gigs</button>
+                @if ($searchQuery !== '' || $currentFilter !== 'all')
+                    <a href="{{ route('admin.gigs') }}">Clear</a>
+                @endif
+            </form>
+            <div class="admin-filter-row">
+                @foreach ($filters as $filter)
+                    <a
+                        class="{{ $currentFilter === $filter['value'] ? 'is-active' : '' }}"
+                        href="{{ request()->fullUrlWithQuery(['status' => $filter['value'], 'page' => 1]) }}"
+                    >
+                        {{ $filter['label'] }} <span>{{ number_format($filter['count']) }}</span>
+                    </a>
+                @endforeach
             </div>
             <div class="admin-card-list">
-                @foreach ($gigs as $gig)
+                @forelse ($gigs as $gig)
                     <article class="admin-mini-card">
                         <div>
                             <strong>{{ $gig['title'] }}</strong>
-                            <p>{{ $gig['seller'] }} - {{ $gig['category'] }}</p>
+                            <p>{{ $gig['seller'] }} - {{ $gig['category'] }} - Updated {{ $gig['updated'] }}</p>
                         </div>
                         <div>
-                            <span>{{ $gig['status'] }}</span>
+                            <span class="admin-status-badge {{ $gig['status_class'] }}">{{ $gig['status'] }}</span>
                             <b>{{ $gig['price'] }}</b>
+                            <div class="admin-row-actions">
+                                @can('gigs.publish')
+                                    <form method="POST" action="{{ route('admin.gigs.status', $gig['id']) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        <input type="hidden" name="action" value="publish">
+                                        <button type="submit">Publish</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('admin.gigs.status', $gig['id']) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        <input type="hidden" name="action" value="pause">
+                                        <button type="submit">Pause</button>
+                                    </form>
+                                @endcan
+                                @can('gigs.review')
+                                    <form method="POST" action="{{ route('admin.gigs.status', $gig['id']) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        <input type="hidden" name="action" value="request_edits">
+                                        <button type="submit">Request edits</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('admin.gigs.status', $gig['id']) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        <input type="hidden" name="action" value="reject">
+                                        <button type="submit">Reject</button>
+                                    </form>
+                                @endcan
+                            </div>
                         </div>
                     </article>
-                @endforeach
+                @empty
+                    <p class="admin-empty-note">No gigs matched your filters.</p>
+                @endforelse
             </div>
             @include('admin.partials.pagination', ['pagination' => $pagination, 'label' => 'Gig moderation pagination'])
         </article>
@@ -56,10 +108,11 @@
                 </div>
             </div>
             <div class="admin-quality-bars">
-                <span style="--value: 91%"><b>Programming & Tech</b><em>91%</em></span>
-                <span style="--value: 84%"><b>Digital Marketing</b><em>84%</em></span>
-                <span style="--value: 78%"><b>Graphics & Design</b><em>78%</em></span>
-                <span style="--value: 70%"><b>AI Services</b><em>70%</em></span>
+                @forelse ($categoryHealth as $category)
+                    <span style="--value: {{ $category['value'] }}%"><b>{{ $category['label'] }}</b><em>{{ $category['value'] }}%</em></span>
+                @empty
+                    <span style="--value: 0%"><b>No categories yet</b><em>0%</em></span>
+                @endforelse
             </div>
         </article>
 
@@ -71,9 +124,9 @@
                 </div>
             </div>
             <div class="admin-card-list compact">
-                <article class="admin-mini-card"><div><strong>Unclear package scope</strong><p>32% of rejected gigs</p></div><b>High</b></article>
-                <article class="admin-mini-card"><div><strong>Low quality gallery image</strong><p>24% of rejected gigs</p></div><b>Medium</b></article>
-                <article class="admin-mini-card"><div><strong>External contact details</strong><p>8% of rejected gigs</p></div><b>Critical</b></article>
+                @foreach ($rejectionReasons as $reason)
+                    <article class="admin-mini-card"><div><strong>{{ $reason['label'] }}</strong><p>{{ $reason['meta'] }}</p></div><b>{{ $reason['tone'] }}</b></article>
+                @endforeach
             </div>
         </article>
     </section>

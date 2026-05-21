@@ -412,6 +412,10 @@ button {
   width: min(100%, 320px);
 }
 
+.admin-search label {
+  display: block;
+}
+
 .admin-user-chip {
   display: inline-flex;
   min-height: 42px;
@@ -1215,8 +1219,12 @@ button {
   margin-bottom: 0.95rem;
 }
 
-.admin-filter-row button {
+.admin-filter-row button,
+.admin-filter-row a {
+  display: inline-flex;
   min-height: 32px;
+  align-items: center;
+  gap: 0.35rem;
   padding: 0 0.72rem;
   border: 1px solid var(--admin-border);
   border-radius: 999px;
@@ -1228,10 +1236,89 @@ button {
 }
 
 .admin-filter-row button.is-active,
-.admin-filter-row button:hover {
+.admin-filter-row button:hover,
+.admin-filter-row a.is-active,
+.admin-filter-row a:hover {
   border-color: #b7ebd2;
   background: #effcf5;
   color: #0b6f43;
+}
+
+.admin-status-badge {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 0 0.55rem;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #404145;
+  font-size: 0.74rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.admin-status-badge.is-good,
+.admin-status-badge.status-completed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.admin-status-badge.is-warn,
+.admin-status-badge.status-delivered,
+.admin-status-badge.status-progress {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.admin-status-badge.is-danger,
+.admin-status-badge.status-cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.admin-row-actions,
+.admin-inline-select-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+  align-items: center;
+}
+
+.admin-row-actions {
+  justify-content: flex-end;
+}
+
+.admin-row-actions form {
+  margin: 0;
+}
+
+.admin-row-actions button,
+.admin-inline-select-form button {
+  min-height: 30px;
+  padding: 0 0.55rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--admin-text);
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 850;
+}
+
+.admin-row-actions button:hover,
+.admin-inline-select-form button:hover {
+  border-color: var(--admin-ink);
+}
+
+.admin-inline-select-form select {
+  min-height: 30px;
+  padding: 0 0.45rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--admin-text);
+  font-size: 0.74rem;
+  font-weight: 800;
 }
 
 .admin-card-list {

@@ -1,9 +1,8 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
     deliveryOptions,
     listingFilterGroups,
-    listingGigs,
     listingSortOptions,
     websiteCategoryPage,
 } from "../data/gigListingData.js";
@@ -13,6 +12,7 @@ import { Icon } from "../components/common/Icons.jsx";
 import Footer from "../components/layout/Footer.jsx";
 import Header from "../components/layout/Header.jsx";
 import { useTranslation } from "react-i18next";
+import { useMarketplaceStore } from "../stores/useMarketplaceStore.js";
 const defaultFilters = {
     category: "",
     serviceOptions: [],
@@ -37,6 +37,8 @@ function GigListingPage({ onNavigate }) {
     const query = searchParams.get("query")?.trim() || "";
     const isSearchPage = location.pathname.startsWith("/search");
     const pageMeta = getPageMeta(location.pathname, query, isSearchPage);
+    const listingGigs = useMarketplaceStore((state) => state.listingGigs);
+    const fetchGigs = useMarketplaceStore((state) => state.fetchGigs);
     const [filters, setFilters] = useState(defaultFilters);
     const [draftFilters, setDraftFilters] = useState(defaultFilters);
     const [activePanel, setActivePanel] = useState(null);
@@ -48,14 +50,20 @@ function GigListingPage({ onNavigate }) {
     useDismissOnInteractOutside(filterRef, Boolean(activePanel), () =>
         setActivePanel(null),
     );
+
+    useEffect(() => {
+        fetchGigs();
+    }, [fetchGigs]);
+
     const scopedGigs = useMemo(
         () =>
             getScopedGigs({
                 isSearchPage,
                 query,
                 pathname: location.pathname,
+                listingGigs,
             }),
-        [isSearchPage, location.pathname, query],
+        [isSearchPage, listingGigs, location.pathname, query],
     );
     const filteredGigs = useMemo(
         () => sortGigs(applyFilters(scopedGigs, filters), filters.sort),
@@ -900,7 +908,7 @@ function getPageMeta(pathname, query, isSearchPage) {
         chips: websiteCategoryPage.chips,
     };
 }
-function getScopedGigs({ isSearchPage, query, pathname }) {
+function getScopedGigs({ isSearchPage, query, pathname, listingGigs }) {
     if (isSearchPage) {
         const normalizedQuery = query.toLowerCase();
         if (!normalizedQuery) return listingGigs;

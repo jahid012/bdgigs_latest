@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-    buyerMessageThreads,
-    sellerMessageThreads,
-} from "../../data/dashboardData.js";
 import { useDismissOnInteractOutside } from "../../hooks/useDismissOnInteractOutside.js";
 import { Icon } from "../common/Icons.jsx";
 import { useTranslation } from "react-i18next";
+import { useDashboardStore } from "../../stores/useDashboardStore.js";
 const relatedServiceImages = [
     "/assets/img/gig_images/6.png",
     "/assets/img/gig_images/8.png",
@@ -14,14 +11,19 @@ const relatedServiceImages = [
 function MessagesWorkspace({ variant = "buyer" }) {
     const { t } = useTranslation();
     const isSeller = variant === "seller";
-    const threads = isSeller ? sellerMessageThreads : buyerMessageThreads;
+    const threads = useDashboardStore((state) =>
+        isSeller ? state.sellerMessageThreads : state.buyerMessageThreads,
+    );
+    const fetchConversations = useDashboardStore(
+        (state) => state.fetchConversations,
+    );
+    const sendMessage = useDashboardStore((state) => state.sendMessage);
     const [activeThreadIds, setActiveThreadIds] = useState({});
     const [isInboxSearchOpen, setIsInboxSearchOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [conversationMenuOpen, setConversationMenuOpen] = useState(false);
     const [openMessageMenu, setOpenMessageMenu] = useState(null);
     const [draft, setDraft] = useState("");
-    const [sentMessages, setSentMessages] = useState({});
     const searchInputRef = useRef(null);
     const textareaRef = useRef(null);
     const workspaceRef = useRef(null);
@@ -40,6 +42,11 @@ function MessagesWorkspace({ variant = "buyer" }) {
             searchInputRef.current?.focus();
         }
     }, [isInboxSearchOpen]);
+
+    useEffect(() => {
+        fetchConversations(variant);
+    }, [fetchConversations, variant]);
+
     useEffect(() => {
         if (!textareaRef.current) return;
         textareaRef.current.style.height = "auto";
@@ -69,11 +76,8 @@ function MessagesWorkspace({ variant = "buyer" }) {
         });
     }, [searchTerm, threads]);
     const activeMessages = useMemo(
-        () => [
-            ...activeThread.messages,
-            ...(sentMessages[activeThread.id] || []),
-        ],
-        [activeThread, sentMessages],
+        () => activeThread.messages,
+        [activeThread],
     );
     const relatedServices = useMemo(
         () => [
@@ -105,27 +109,16 @@ function MessagesWorkspace({ variant = "buyer" }) {
         ],
         [activeThread.name, activeThread.service, isSeller],
     );
-    const handleSendMessage = () => {
+    const handleSendMessage = async () => {
         const text = draft.trim();
         if (!text) return;
-        const now = new Date().toLocaleTimeString([], {
-            hour: "numeric",
-            minute: "2-digit",
-        });
-        const newMessage = {
-            from: "Jahid",
-            text,
-            time: now,
-            own: true,
-        };
-        setSentMessages((current) => ({
-            ...current,
-            [activeThread.id]: [
-                ...(current[activeThread.id] || []),
-                newMessage,
-            ],
-        }));
         setDraft("");
+
+        try {
+            await sendMessage(activeThread.id, text, variant);
+        } catch {
+            setDraft(text);
+        }
     };
     const handleComposerKeyDown = (event) => {
         if (event.key === "Enter" && !event.shiftKey) {

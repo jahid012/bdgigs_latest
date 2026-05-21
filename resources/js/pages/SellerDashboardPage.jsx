@@ -1,18 +1,12 @@
-import {
-    sellerChartData,
-    sellerDashboardHighlights,
-    sellerMessages,
-    sellerOrders,
-    sellerPipeline,
-    sellerServices,
-    sellerStats,
-} from "../data/dashboardData.js";
 import DashboardPageHeader from "../components/dashboard/DashboardPageHeader.jsx";
 import SellerEarningsLineChart from "../components/dashboard/earnings/SellerEarningsLineChart.jsx";
 import { Icon, Rating } from "../components/common/Icons.jsx";
 import { useTranslation } from "react-i18next";
+import { useDashboardStore } from "../stores/useDashboardStore.js";
+import { useEffect } from "react";
 function SellerStatsGrid() {
     const { t } = useTranslation();
+    const sellerStats = useDashboardStore((state) => state.sellerStats);
     return (
         <section
             className="stats-grid"
@@ -35,6 +29,7 @@ function SellerStatsGrid() {
 }
 function SellerOrders({ onNavigate }) {
     const { t } = useTranslation();
+    const sellerOrders = useDashboardStore((state) => state.sellerOrders);
     return (
         <article className="card dashboard-card orders-card seller-orders-card">
             <div className="card-heading">
@@ -94,6 +89,7 @@ function SellerOrders({ onNavigate }) {
 }
 function SellerChartCard({ onNavigate }) {
     const { t } = useTranslation();
+    const sellerChartData = useDashboardStore((state) => state.sellerChartData);
     const topValue = Math.max(...sellerChartData.map((bar) => bar.value));
     return (
         <article className="card dashboard-card chart-card seller-chart-card">
@@ -155,6 +151,7 @@ function SellerChartCard({ onNavigate }) {
 }
 function SellerMessagesPreview({ onNavigate }) {
     const { t } = useTranslation();
+    const sellerMessages = useDashboardStore((state) => state.sellerMessages);
     return (
         <article className="card dashboard-card messages-card">
             <div className="card-heading">
@@ -192,6 +189,7 @@ function SellerMessagesPreview({ onNavigate }) {
 }
 function SellerPipelineCard({ onNavigate }) {
     const { t } = useTranslation();
+    const sellerPipeline = useDashboardStore((state) => state.sellerPipeline);
     return (
         <article className="card dashboard-card seller-pipeline-card">
             <div className="card-heading">
@@ -241,6 +239,7 @@ function SellerPipelineCard({ onNavigate }) {
 }
 function SellerServices({ onNavigate }) {
     const { t } = useTranslation();
+    const sellerServices = useDashboardStore((state) => state.sellerServices);
     return (
         <article className="card dashboard-card recommend-card seller-services-card">
             <div className="card-heading">
@@ -311,6 +310,23 @@ function SellerServices({ onNavigate }) {
 }
 function SellerDashboardPage({ onNavigate }) {
     const { t } = useTranslation();
+    const sellerDashboardHighlights = useDashboardStore(
+        (state) => state.sellerDashboardHighlights,
+    );
+    const fetchOrders = useDashboardStore((state) => state.fetchOrders);
+    const fetchConversations = useDashboardStore(
+        (state) => state.fetchConversations,
+    );
+    const fetchSellerServices = useDashboardStore(
+        (state) => state.fetchSellerServices,
+    );
+
+    useEffect(() => {
+        fetchOrders("seller");
+        fetchConversations("seller");
+        fetchSellerServices();
+    }, [fetchConversations, fetchOrders, fetchSellerServices]);
+
     return (
         <main className="dashboard-content marketplace-dashboard-content">
             <DashboardPageHeader

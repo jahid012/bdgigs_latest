@@ -1,17 +1,18 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
     aiGigDetailId,
+    createDetailFromListingGig,
     getGigDetail,
     getRecommendedGigs,
 } from "../data/gigDetailsData.js";
-import { listingGigs } from "../data/gigListingData.js";
 import { profilePathForSeller } from "../data/userProfileData.js";
 import { useDismissOnInteractOutside } from "../hooks/useDismissOnInteractOutside.js";
 import { Icon } from "../components/common/Icons.jsx";
 import Footer from "../components/layout/Footer.jsx";
 import Header from "../components/layout/Header.jsx";
 import { useTranslation } from "react-i18next";
+import { useMarketplaceStore } from "../stores/useMarketplaceStore.js";
 const packageFeatureRows = [
     "Functional Web App",
     "Desktop Application",
@@ -23,7 +24,9 @@ const packageFeatureRows = [
 function GigDetailsPage({ onNavigate }) {
     const { t } = useTranslation();
     const { gigId } = useParams();
-    const detail = getGigDetail(gigId);
+    const apiGig = useMarketplaceStore((state) => state.gigsById[gigId]);
+    const fetchGig = useMarketplaceStore((state) => state.fetchGig);
+    const detail = apiGig ? createDetailFromListingGig(apiGig) : getGigDetail(gigId);
     const [activeImage, setActiveImage] = useState(0);
     const [activePackage, setActivePackage] = useState(detail.packages[0].id);
     const [openFaq, setOpenFaq] = useState(null);
@@ -35,6 +38,11 @@ function GigDetailsPage({ onNavigate }) {
     useDismissOnInteractOutside(reportRef, isReportOpen, () =>
         setIsReportOpen(false),
     );
+
+    useEffect(() => {
+        fetchGig(gigId);
+    }, [fetchGig, gigId]);
+
     const changeImage = (direction) => {
         setActiveImage(
             (current) =>
@@ -848,6 +856,7 @@ function ReviewsSection({ detail }) {
 }
 function GigDetailBottomSections({ detail, onNavigate }) {
     const { t } = useTranslation();
+    const listingGigs = useMarketplaceStore((state) => state.listingGigs);
     const [isHistoryHidden, setIsHistoryHidden] = useState(false);
     const moreFromRef = useRef(null);
     const viewedRef = useRef(null);

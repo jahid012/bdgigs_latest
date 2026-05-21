@@ -1,16 +1,11 @@
-import {
-    chartData,
-    dashboardHighlights,
-    messages,
-    orders,
-    recommendedServices,
-    stats,
-} from "../data/dashboardData.js";
 import DashboardPageHeader from "../components/dashboard/DashboardPageHeader.jsx";
 import { Icon, Rating } from "../components/common/Icons.jsx";
 import { useTranslation } from "react-i18next";
+import { useDashboardStore } from "../stores/useDashboardStore.js";
+import { useEffect } from "react";
 function StatsGrid() {
     const { t } = useTranslation();
+    const stats = useDashboardStore((state) => state.stats);
     return (
         <section
             className="stats-grid"
@@ -33,6 +28,7 @@ function StatsGrid() {
 }
 function RecentOrders({ onNavigate }) {
     const { t } = useTranslation();
+    const orders = useDashboardStore((state) => state.orders);
     return (
         <article className="card dashboard-card orders-card">
             <div className="card-heading">
@@ -92,6 +88,7 @@ function RecentOrders({ onNavigate }) {
 }
 function ChartCard({ onNavigate }) {
     const { t } = useTranslation();
+    const chartData = useDashboardStore((state) => state.chartData);
     const topValue = Math.max(...chartData.map((bar) => bar.value));
     return (
         <article className="card dashboard-card chart-card">
@@ -127,6 +124,7 @@ function ChartCard({ onNavigate }) {
 }
 function MessagesPreview({ onNavigate }) {
     const { t } = useTranslation();
+    const messages = useDashboardStore((state) => state.messages);
     return (
         <article className="card dashboard-card messages-card">
             <div className="card-heading">
@@ -164,6 +162,9 @@ function MessagesPreview({ onNavigate }) {
 }
 function RecommendedServices({ onNavigate }) {
     const { t } = useTranslation();
+    const recommendedServices = useDashboardStore(
+        (state) => state.recommendedServices,
+    );
     return (
         <article className="card dashboard-card recommend-card">
             <div className="card-heading">
@@ -226,6 +227,19 @@ function RecommendedServices({ onNavigate }) {
 }
 function BuyerDashboardPage({ onNavigate }) {
     const { t } = useTranslation();
+    const dashboardHighlights = useDashboardStore(
+        (state) => state.dashboardHighlights,
+    );
+    const fetchOrders = useDashboardStore((state) => state.fetchOrders);
+    const fetchConversations = useDashboardStore(
+        (state) => state.fetchConversations,
+    );
+
+    useEffect(() => {
+        fetchOrders("buyer");
+        fetchConversations("buyer");
+    }, [fetchConversations, fetchOrders]);
+
     return (
         <main className="dashboard-content marketplace-dashboard-content">
             <DashboardPageHeader
