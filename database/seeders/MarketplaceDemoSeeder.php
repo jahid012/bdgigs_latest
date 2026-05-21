@@ -196,11 +196,26 @@ class MarketplaceDemoSeeder extends Seeder
         ];
 
         foreach ($orders as $order) {
+            $counterpartyName = $order['role'] === 'buyer'
+                ? $order['seller']
+                : $order['buyer'];
+            $counterparty = User::updateOrCreate(
+                ['email' => Str::slug($counterpartyName).'@bdgigs.test'],
+                [
+                    'name' => $counterpartyName,
+                    'password' => Hash::make('password'),
+                    'email_verified_at' => now(),
+                    'profile_type' => $order['role'] === 'buyer' ? 'seller' : 'buyer',
+                    'country' => $order['role'] === 'buyer' ? 'Bangladesh' : 'United States',
+                    'verification_status' => 'verified',
+                ]
+            );
+
             Order::updateOrCreate(
                 ['code' => $order['code']],
                 [
-                    'buyer_id' => $order['role'] === 'buyer' ? $user->id : null,
-                    'seller_id' => $order['role'] === 'seller' ? $user->id : null,
+                    'buyer_id' => $order['role'] === 'buyer' ? $user->id : $counterparty->id,
+                    'seller_id' => $order['role'] === 'seller' ? $user->id : $counterparty->id,
                     'service' => $order['service'],
                     'buyer_name' => $order['buyer'] ?? $user->name,
                     'seller_name' => $order['seller'] ?? $user->name,
@@ -236,18 +251,31 @@ class MarketplaceDemoSeeder extends Seeder
                 'subject' => 'Premium marketplace landing page',
                 'buyer_name' => 'CloudPeak Labs',
                 'seller_name' => $user->name,
+                'created_by_id' => $counterpart->id,
+                'context_type' => 'order',
+                'context_id' => 'SH-2094',
                 'status' => 'In Progress',
                 'status_class' => 'status-progress',
                 'priority' => 'Needs reply',
                 'seller_unread_count' => 3,
+                'last_message_at' => now()->subMinutes(6),
             ]
         );
 
         $conversation->messages()->delete();
         $conversation->messages()->createMany([
-            ['sender_id' => $counterpart->id, 'sender_name' => 'CloudPeak Labs', 'body' => 'Can we review the pricing block before the next milestone?', 'sent_at' => now()->subMinutes(8)],
-            ['sender_id' => $user->id, 'sender_name' => $user->name, 'body' => 'Yes. I can send an updated comparison layout in the next delivery.', 'sent_at' => now()->subMinutes(6)],
+            ['sender_id' => $counterpart->id, 'recipient_id' => $user->id, 'sender_name' => 'CloudPeak Labs', 'body' => 'Can we review the pricing block before the next milestone?', 'sent_at' => now()->subMinutes(8)],
+            ['sender_id' => $user->id, 'recipient_id' => $counterpart->id, 'sender_name' => $user->name, 'body' => 'Yes. I can send an updated comparison layout in the next delivery.', 'sent_at' => now()->subMinutes(6)],
         ]);
+
+        $conversation->participants()->updateOrCreate(
+            ['user_id' => $counterpart->id],
+            ['context_role' => 'buying', 'unread_count' => 0]
+        );
+        $conversation->participants()->updateOrCreate(
+            ['user_id' => $user->id],
+            ['context_role' => 'selling', 'unread_count' => 3]
+        );
     }
 
     private function seedNotifications(User $user): void

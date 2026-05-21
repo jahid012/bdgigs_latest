@@ -6,8 +6,12 @@ import {
     getGigDetail,
     getRecommendedGigs,
 } from "../data/gigDetailsData.js";
-import { profilePathForSeller } from "../data/userProfileData.js";
+import {
+    profilePathForSeller,
+    slugifySellerName,
+} from "../data/userProfileData.js";
 import { useDismissOnInteractOutside } from "../hooks/useDismissOnInteractOutside.js";
+import { useConversationLauncher } from "../hooks/useConversationLauncher.js";
 import { Icon } from "../components/common/Icons.jsx";
 import Footer from "../components/layout/Footer.jsx";
 import Header from "../components/layout/Header.jsx";
@@ -26,11 +30,13 @@ function GigDetailsPage({ onNavigate }) {
     const { gigId } = useParams();
     const apiGig = useMarketplaceStore((state) => state.gigsById[gigId]);
     const fetchGig = useMarketplaceStore((state) => state.fetchGig);
+    const launchConversation = useConversationLauncher();
     const detail = apiGig ? createDetailFromListingGig(apiGig) : getGigDetail(gigId);
     const [activeImage, setActiveImage] = useState(0);
     const [activePackage, setActivePackage] = useState(detail.packages[0].id);
     const [openFaq, setOpenFaq] = useState(null);
     const [isReportOpen, setIsReportOpen] = useState(false);
+    const [contactStatus, setContactStatus] = useState("");
     const reportRef = useRef(null);
     const selectedPackage =
         detail.packages.find((pkg) => pkg.id === activePackage) ||
@@ -49,6 +55,24 @@ function GigDetailsPage({ onNavigate }) {
                 (current + direction + detail.gallery.length) %
                 detail.gallery.length,
         );
+    };
+    const startGigConversation = async (message = "") => {
+        setContactStatus("Opening conversation...");
+
+        try {
+            await launchConversation({
+                targetUserId: apiGig?.sellerUserId || detail.seller.userId,
+                targetName: detail.seller.name,
+                targetSlug: slugifySellerName(detail.seller.name),
+                contextType: "gig",
+                contextId: apiGig?.id || detail.id || gigId,
+                message,
+            });
+        } catch (error) {
+            setContactStatus(
+                error.message || "This seller is not available for messaging.",
+            );
+        }
     };
     return (
         <div className="gig-detail-page">
@@ -69,7 +93,11 @@ function GigDetailsPage({ onNavigate }) {
                                 onSelectImage={setActiveImage}
                             />
                             <AboutGig detail={detail} />
-                            <SellerProfile seller={detail.seller} />
+                            <SellerProfile
+                                contactStatus={contactStatus}
+                                onContact={() => startGigConversation()}
+                                seller={detail.seller}
+                            />
                             <PortfolioSection portfolio={detail.portfolio} />
                             <ComparePackages
                                 packages={detail.packages}
@@ -99,6 +127,11 @@ function GigDetailsPage({ onNavigate }) {
                             />
                             <PackageCard
                                 activePackage={activePackage}
+                                onContact={() =>
+                                    startGigConversation(
+                                        `Hi ${detail.seller.name}, I am interested in ${detail.title}.`,
+                                    )
+                                }
                                 onPackageChange={setActivePackage}
                                 packageData={selectedPackage}
                                 packages={detail.packages}
@@ -113,7 +146,10 @@ function GigDetailsPage({ onNavigate }) {
                 />
             </main>
 
-            <MessageBubble seller={detail.seller} />
+            <MessageBubble
+                onContact={() => startGigConversation()}
+                seller={detail.seller}
+            />
             <Footer />
         </div>
     );
@@ -271,6 +307,7 @@ function TopActions({ isReportOpen, onToggleReport, reportRef, reviewCount }) {
 }
 function PackageCard({
     activePackage,
+    onContact,
     onPackageChange,
     packageData,
     packages,
@@ -333,7 +370,11 @@ function PackageCard({
                     {t("pages.gigdetailspage.continue")}{" "}
                     <Icon name="arrowRight" />
                 </button>
-                <button className="package-contact-button" type="button">
+                <button
+                    className="package-contact-button"
+                    type="button"
+                    onClick={onContact}
+                >
                     {" "}
                     {t("pages.gigdetailspage.contactMe")}{" "}
                     <Icon name="chevronDown" />
@@ -397,7 +438,7 @@ function AboutGig({ detail }) {
         </section>
     );
 }
-function SellerProfile({ seller }) {
+function SellerProfile({ contactStatus = "", onContact, seller }) {
     const { t } = useTranslation();
     return (
         <section className="detail-section seller-profile-section">
@@ -427,7 +468,7 @@ function SellerProfile({ seller }) {
                 </div>
             </div>
             <div className="seller-profile-actions">
-                <button type="button">
+                <button type="button" onClick={onContact}>
                     {t("pages.gigdetailspage.contactMe")}
                 </button>
                 <button type="button">
@@ -436,6 +477,9 @@ function SellerProfile({ seller }) {
                 </button>
             </div>
             <div className="seller-profile-card">
+                {contactStatus ? (
+                    <p className="profile-message-status">{contactStatus}</p>
+                ) : null}
                 <dl>
                     <div>
                         <dt>{t("pages.gigdetailspage.from")}</dt>
@@ -1260,12 +1304,14 @@ function DetailTalentWayCard({
         </article>
     );
 }
-function MessageBubble({ seller }) {
+function MessageBubble({ onContact, seller }) {
     const { t } = useTranslation();
     return (
-        <aside
+        <button
             className="seller-message-bubble"
             aria-label={`Message ${seller.name}`}
+            type="button"
+            onClick={onContact}
         >
             <img src={seller.avatar} alt="" />
             <div>
@@ -1277,7 +1323,7 @@ function MessageBubble({ seller }) {
                     {seller.responseTime}
                 </span>
             </div>
-        </aside>
+        </button>
     );
 }
 export default GigDetailsPage;

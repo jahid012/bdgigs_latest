@@ -163,62 +163,162 @@ export const useDashboardStore = create((set, get) => ({
         }
     },
 
-    fetchConversations: async (role = "buyer") => {
+    fetchConversations: async (filter = "all") => {
         try {
-            const threads = await apiRequest(`/api/conversations?role=${role}`);
+            const query = filter && filter !== "all" ? `?filter=${filter}` : "";
+            const threads = normalizeConversations(
+                await apiRequest(`/api/conversations${query}`),
+            );
             const previews = summarizeThreads(threads);
 
-            set(
-                role === "seller"
-                    ? {
-                          sellerMessageThreads: threads,
-                          sellerMessages: previews,
-                      }
-                    : {
-                          buyerMessageThreads: threads,
-                          messages: previews,
-                      },
-            );
+            set({
+                buyerMessageThreads: threads,
+                sellerMessageThreads: threads,
+                messages: previews,
+                sellerMessages: previews,
+            });
 
             return threads;
         } catch (error) {
             set({ error: error.message });
-            return role === "seller"
-                ? get().sellerMessageThreads
-                : get().buyerMessageThreads;
+            return get().buyerMessageThreads;
         }
     },
 
-    sendMessage: async (conversationId, text, role = "buyer") => {
-        const message = await apiRequest(
-            `/api/conversations/${conversationId}/messages`,
-            {
-                body: { text },
-            },
+    fetchConversation: async (conversationId) => {
+        const conversation = normalizeConversation(
+            await apiRequest(`/api/conversations/${conversationId}`),
         );
 
+        set((state) => updateConversationState(state, conversation));
+
+        return conversation;
+    },
+
+    startConversation: async ({
+        targetUserId,
+        targetName,
+        targetSlug,
+        contextType,
+        contextId,
+        message,
+    }) => {
+        const conversation = normalizeConversation(
+            await apiRequest("/api/conversations", {
+                body: {
+                    targetUserId,
+                    targetName,
+                    targetSlug,
+                    contextType,
+                    contextId,
+                    message,
+                    clientId: createClientId(),
+                },
+            }),
+        );
+
+        set((state) => updateConversationState(state, conversation));
+
+        return conversation;
+    },
+
+    sendMessage: async (conversationId, text) => {
+        const clientId = createClientId();
+        const message = normalizeMessage(await apiRequest(
+            `/api/conversations/${conversationId}/messages`,
+            {
+                body: { text, clientId },
+            },
+        ));
+
         set((state) => {
-            const threadKey =
-                role === "seller" ? "sellerMessageThreads" : "buyerMessageThreads";
-            const previewKey = role === "seller" ? "sellerMessages" : "messages";
-            const threads = state[threadKey].map((thread) =>
+            const threads = state.buyerMessageThreads.map((thread) =>
                 thread.id === conversationId
                     ? {
                           ...thread,
                           preview: message.text,
                           time: message.time,
-                          messages: [...thread.messages, message],
+                          messages: upsertById(thread.messages || [], message),
                       }
                     : thread,
             );
+            const previews = summarizeThreads(threads);
 
             return {
-                [threadKey]: threads,
-                [previewKey]: summarizeThreads(threads),
+                buyerMessageThreads: threads,
+                sellerMessageThreads: threads,
+                messages: previews,
+                sellerMessages: previews,
             };
         });
 
         return message;
+    },
+
+    markConversationRead: async (conversationId) => {
+        const conversation = normalizeConversation(
+            await apiRequest(`/api/conversations/${conversationId}/read`, {
+                method: "PATCH",
+            }),
+        );
+
+        set((state) => updateConversationState(state, conversation));
+
+        return conversation;
+    },
+
+    sendTyping: async (conversationId) => {
+        try {
+            await apiRequest(`/api/conversations/${conversationId}/typing`, {
+                body: {},
+            });
+        } catch (error) {
+            set({ error: error.message });
+        }
+    },
+
+    applyRealtimeMessage: (payload) => {
+        const conversation = payload.conversation
+            ? normalizeConversation(payload.conversation)
+            : null;
+        const message = payload.message
+            ? normalizeMessage(payload.message)
+            : null;
+
+        set((state) => {
+            if (conversation) {
+                return updateConversationState(state, conversation);
+            }
+
+            if (!message || !payload.conversationId) {
+                return {};
+            }
+
+            const threads = state.buyerMessageThreads.map((thread) =>
+                thread.id === payload.conversationId
+                    ? {
+                          ...thread,
+                          preview: message.text,
+                          time: message.time,
+                          messages: upsertById(thread.messages || [], message),
+                      }
+                    : thread,
+            );
+            const previews = summarizeThreads(threads);
+
+            return {
+                buyerMessageThreads: threads,
+                sellerMessageThreads: threads,
+                messages: previews,
+                sellerMessages: previews,
+            };
+        });
+    },
+
+    applyRealtimeConversation: (conversation) => {
+        const normalized = normalizeConversation(conversation);
+
+        set((state) => updateConversationState(state, normalized));
     },
 
     fetchNotifications: async () => {
@@ -288,6 +388,82 @@ function summarizeThreads(threads) {
             "",
         time: thread.time,
     }));
+}
+
+function normalizeConversations(conversations) {
+    return (conversations || []).map(normalizeConversation);
+}
+
+function normalizeConversation(conversation) {
+    const messages = (conversation?.messages || []).map(normalizeMessage);
+    const fallbackName =
+        conversation?.counterpart?.name ||
+        conversation?.name ||
+        "Conversation";
+
+    return {
+        id: conversation?.id,
+        initials:
+            conversation?.initials ||
+            conversation?.counterpart?.initials ||
+            fallbackName
+                .split(" ")
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((part) => part[0])
+                .join("")
+                .toUpperCase(),
+        name: fallbackName,
+        role: conversation?.role || "Member",
+        service: conversation?.service || "Conversation",
+        status: conversation?.status || "Open",
+        statusClass: conversation?.statusClass || "status-progress",
+        time: conversation?.time || "",
+        unread: Number(conversation?.unread || 0),
+        priority: conversation?.priority || "",
+        preview:
+            conversation?.preview ||
+            messages[messages.length - 1]?.text ||
+            "",
+        messages,
+        context: conversation?.context || {},
+        counterpart: conversation?.counterpart || null,
+        viewerParticipant: conversation?.viewerParticipant || null,
+        participants: conversation?.participants || [],
+    };
+}
+
+function normalizeMessage(message) {
+    return {
+        id: message?.id || message?.clientId || createClientId(),
+        conversationId: message?.conversationId,
+        senderId: message?.senderId,
+        recipientId: message?.recipientId,
+        clientId: message?.clientId,
+        from: message?.from || "User",
+        text: message?.text || "",
+        time: message?.time || "",
+        sentAt: message?.sentAt,
+        readAt: message?.readAt,
+        own: Boolean(message?.own),
+        attachments: message?.attachments || [],
+    };
+}
+
+function updateConversationState(state, conversation) {
+    const threads = upsertById(state.buyerMessageThreads, conversation);
+    const previews = summarizeThreads(threads);
+
+    return {
+        buyerMessageThreads: threads,
+        sellerMessageThreads: threads,
+        messages: previews,
+        sellerMessages: previews,
+    };
+}
+
+function createClientId() {
+    return `client-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function replaceNotification(notifications, notification) {

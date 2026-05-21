@@ -6,6 +6,7 @@ import {
     orderSupportLinks,
 } from "../data/orderDetailsData.js";
 import { Icon, Rating } from "../components/common/Icons.jsx";
+import { useConversationLauncher } from "../hooks/useConversationLauncher.js";
 import { useTranslation } from "react-i18next";
 const tabs = [
     {
@@ -25,7 +26,25 @@ function OrderDetailsPage({ variant = "buyer" }) {
     const { orderId } = useParams();
     const isSeller = variant === "seller";
     const order = orderDetailRecords[variant] || orderDetailRecords.buyer;
+    const launchConversation = useConversationLauncher();
     const [activeTab, setActiveTab] = useState("details");
+    const [conversationStatus, setConversationStatus] = useState("");
+    const openOrderConversation = async () => {
+        setConversationStatus("Opening conversation...");
+
+        try {
+            await launchConversation({
+                targetName: order.counterpartyName,
+                targetSlug: order.counterpartyHandle?.replace("@", ""),
+                contextType: "order",
+                contextId: orderId || order.orderNumber,
+            });
+        } catch (error) {
+            setConversationStatus(
+                error.message || "This order conversation is unavailable.",
+            );
+        }
+    };
     return (
         <main className="dashboard-content order-details-page">
             <div className="order-details-shell">
@@ -45,7 +64,11 @@ function OrderDetailsPage({ variant = "buyer" }) {
                     ) : null}
                 </section>
 
-                <OrderDetailsSidebar order={order} />
+                <OrderDetailsSidebar
+                    conversationStatus={conversationStatus}
+                    onOpenConversation={openOrderConversation}
+                    order={order}
+                />
             </div>
         </main>
     );
@@ -324,7 +347,11 @@ function ReviewCard({ avatar, heading, message, name }) {
         </article>
     );
 }
-function OrderDetailsSidebar({ order }) {
+function OrderDetailsSidebar({
+    conversationStatus = "",
+    onOpenConversation,
+    order,
+}) {
     const { t } = useTranslation();
     return (
         <aside
@@ -352,10 +379,19 @@ function OrderDetailsSidebar({ order }) {
                         </small>
                     </div>
                 </div>
-                <button className="order-conversation-button" type="button">
+                <button
+                    className="order-conversation-button"
+                    type="button"
+                    onClick={onOpenConversation}
+                >
                     <Icon name="message" />{" "}
                     {t("pages.orderdetailspage.viewConversation")}{" "}
                 </button>
+                {conversationStatus ? (
+                    <p className="profile-message-status">
+                        {conversationStatus}
+                    </p>
+                ) : null}
                 <dl className="order-side-meta">
                     <div>
                         <dt>{t("pages.orderdetailspage.orderedBy")}</dt>

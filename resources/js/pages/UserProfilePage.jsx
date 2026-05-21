@@ -4,6 +4,7 @@ import { Icon } from "../components/common/Icons.jsx";
 import Footer from "../components/layout/Footer.jsx";
 import Header from "../components/layout/Header.jsx";
 import { getUserProfile } from "../data/userProfileData.js";
+import { useConversationLauncher } from "../hooks/useConversationLauncher.js";
 import { useTranslation } from "react-i18next";
 const profileTabs = [
     {
@@ -753,8 +754,10 @@ function ProfileRating({ rating, reviews }) {
 
 function ProfileContactPopup({ profile, onClose }) {
     const { t } = useTranslation();
+    const launchConversation = useConversationLauncher();
     const [messageDraft, setMessageDraft] = useState("");
     const [sendStatus, setSendStatus] = useState("");
+    const [isSending, setIsSending] = useState(false);
     const minimumMessageLength = 40;
     const maxMessageLength = 2500;
     const messageLength = messageDraft.trim().length;
@@ -764,6 +767,32 @@ function ProfileContactPopup({ profile, onClose }) {
         "Can you provide your hourly rates for this work?",
         "Do you think you can deliver an order by this week?",
     ];
+
+    const sendMessage = async () => {
+        if (!canSend || isSending) {
+            return;
+        }
+
+        setIsSending(true);
+        setSendStatus("Opening conversation...");
+
+        try {
+            await launchConversation({
+                targetUserId: profile.userId,
+                targetName: profile.name,
+                targetSlug: profile.slug,
+                contextType: "profile",
+                contextId: profile.slug,
+                message: messageDraft.trim(),
+            });
+            onClose();
+        } catch (error) {
+            setSendStatus(
+                error.message || "This profile is not available for messaging.",
+            );
+            setIsSending(false);
+        }
+    };
 
     return (
         <div className="profile-dialog-layer" role="presentation">
@@ -878,12 +907,8 @@ function ProfileContactPopup({ profile, onClose }) {
                     <button
                         className="profile-message-send"
                         type="button"
-                        disabled={!canSend}
-                        onClick={() => {
-                            if (canSend) {
-                                setSendStatus("Message ready to send.");
-                            }
-                        }}
+                        disabled={!canSend || isSending}
+                        onClick={sendMessage}
                     >
                         <Icon name="send" /> Send message
                     </button>
@@ -1093,9 +1118,11 @@ function ProfileAboutSheet({
 
 function ProfileMessageBubble({ profile }) {
     const { t } = useTranslation();
+    const launchConversation = useConversationLauncher();
     const [isComposerOpen, setIsComposerOpen] = useState(false);
     const [messageDraft, setMessageDraft] = useState("Hi,\nThis is my message.");
     const [sendStatus, setSendStatus] = useState("");
+    const [isSending, setIsSending] = useState(false);
     const minimumMessageLength = 40;
     const maxMessageLength = 2500;
     const messageLength = messageDraft.trim().length;
@@ -1127,12 +1154,29 @@ function ProfileMessageBubble({ profile }) {
         setSendStatus("");
     };
 
-    const sendMessage = () => {
-        if (!canSend) {
+    const sendMessage = async () => {
+        if (!canSend || isSending) {
             return;
         }
 
-        setSendStatus("Message ready to send.");
+        setIsSending(true);
+        setSendStatus("Opening conversation...");
+
+        try {
+            await launchConversation({
+                targetUserId: profile.userId,
+                targetName: profile.name,
+                targetSlug: profile.slug,
+                contextType: "profile",
+                contextId: profile.slug,
+                message: messageDraft.trim(),
+            });
+        } catch (error) {
+            setSendStatus(
+                error.message || "This profile is not available for messaging.",
+            );
+            setIsSending(false);
+        }
     };
 
     if (isComposerOpen) {
@@ -1220,7 +1264,7 @@ function ProfileMessageBubble({ profile }) {
                     <button
                         className="profile-message-send"
                         type="button"
-                        disabled={!canSend}
+                        disabled={!canSend || isSending}
                         onClick={sendMessage}
                     >
                         <Icon name="send" /> Send message

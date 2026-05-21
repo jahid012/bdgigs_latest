@@ -13,9 +13,10 @@ const getProgress = (status) => {
     };
     return progressMap[status] || 40;
 };
-const getOrderValue = (value) => Number(value.replace(/[^0-9.]/g, "")) || 0;
+const getOrderValue = (value) =>
+    Number(String(value ?? "").replace(/[^0-9.]/g, "")) || 0;
 const getOrderDetailPath = (order, isSeller) => {
-    const orderSlug = order.id.replace(/^#/, "");
+    const orderSlug = String(order?.id ?? "").replace(/^#/, "");
     return `${isSeller ? "/dashboard/seller/orders" : "/dashboard/orders"}/${orderSlug}`;
 };
 function OrdersWorkspace({ variant = "buyer" }) {
@@ -25,26 +26,27 @@ function OrdersWorkspace({ variant = "buyer" }) {
         isSeller ? state.sellerOrders : state.orders,
     );
     const fetchOrders = useDashboardStore((state) => state.fetchOrders);
+    const orders = rawOrders || [];
 
     useEffect(() => {
         fetchOrders(isSeller ? "seller" : "buyer");
     }, [fetchOrders, isSeller]);
-    const activeOrders = rawOrders.filter(
+    const activeOrders = orders.filter(
         (order) => order.status === "In Progress",
     ).length;
-    const deliveredOrders = rawOrders.filter(
+    const deliveredOrders = orders.filter(
         (order) => order.status === "Delivered",
     ).length;
-    const completedOrders = rawOrders.filter(
+    const completedOrders = orders.filter(
         (order) => order.status === "Completed",
     ).length;
     const amountKey = isSeller ? "earnings" : "price";
     const partyKey = isSeller ? "buyer" : "seller";
-    const totalValue = rawOrders.reduce(
+    const totalValue = orders.reduce(
         (total, order) => total + getOrderValue(order[amountKey]),
         0,
     );
-    const focusOrder = rawOrders[0];
+    const focusOrder = orders[0] || null;
     return (
         <main className="dashboard-content orders-page">
             <DashboardPageHeader
@@ -225,7 +227,7 @@ function OrdersWorkspace({ variant = "buyer" }) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {rawOrders.map((order) => (
+                                {orders.map((order) => (
                                     <tr key={order.id}>
                                         <td data-label="Order ID">
                                             <Link
@@ -287,6 +289,15 @@ function OrdersWorkspace({ variant = "buyer" }) {
                                         </td>
                                     </tr>
                                 ))}
+                                {orders.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="7">
+                                            <p className="messages-empty">
+                                                No orders are available yet.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                ) : null}
                             </tbody>
                         </table>
                     </div>
@@ -298,70 +309,89 @@ function OrdersWorkspace({ variant = "buyer" }) {
                         "components.dashboard.ordersworkspace.focusedOrderDetails",
                     )}
                 >
-                    <div className="card-heading">
-                        <div>
+                    {focusOrder ? (
+                        <>
+                            <div className="card-heading">
+                                <div>
+                                    <span className="card-kicker">
+                                        {t(
+                                            "components.dashboard.ordersworkspace.priorityOrder",
+                                        )}
+                                    </span>
+                                    <h2>{focusOrder.id}</h2>
+                                </div>
+                                <span
+                                    className={`status-badge ${focusOrder.statusClass}`}
+                                >
+                                    {focusOrder.status}
+                                </span>
+                            </div>
+                            <div className="order-focus-body">
+                                <h3>{focusOrder.service}</h3>
+                                <p>
+                                    {isSeller ? "Buyer" : "Seller"}:{" "}
+                                    <strong>{focusOrder[partyKey]}</strong>
+                                </p>
+                                <div className="order-focus-meta">
+                                    <span>
+                                        <small>
+                                            {t(
+                                                "components.dashboard.ordersworkspace.dueDate2",
+                                            )}
+                                        </small>
+                                        <strong>{focusOrder.dueDate}</strong>
+                                    </span>
+                                    <span>
+                                        <small>
+                                            {isSeller ? "Earnings" : "Price"}
+                                        </small>
+                                        <strong>{focusOrder[amountKey]}</strong>
+                                    </span>
+                                </div>
+                                <div>
+                                    <div className="order-focus-progress">
+                                        <span>
+                                            {t(
+                                                "components.dashboard.ordersworkspace.progress",
+                                            )}
+                                        </span>
+                                        <strong>
+                                            {getProgress(focusOrder.status)}%
+                                        </strong>
+                                    </div>
+                                    <span className="order-progress large">
+                                        <span
+                                            style={{
+                                                "--progress": `${getProgress(focusOrder.status)}%`,
+                                            }}
+                                        ></span>
+                                    </span>
+                                </div>
+                            </div>
+                            <Link
+                                className="order-open-link"
+                                to={getOrderDetailPath(focusOrder, isSeller)}
+                            >
+                                {" "}
+                                {t(
+                                    "components.dashboard.ordersworkspace.openOrderDetails",
+                                )}{" "}
+                            </Link>
+                        </>
+                    ) : (
+                        <div className="order-focus-body">
                             <span className="card-kicker">
                                 {t(
                                     "components.dashboard.ordersworkspace.priorityOrder",
                                 )}
                             </span>
-                            <h2>{focusOrder.id}</h2>
+                            <h2>No focused order</h2>
+                            <p>
+                                New orders will appear here once a buyer and
+                                seller start work.
+                            </p>
                         </div>
-                        <span
-                            className={`status-badge ${focusOrder.statusClass}`}
-                        >
-                            {focusOrder.status}
-                        </span>
-                    </div>
-                    <div className="order-focus-body">
-                        <h3>{focusOrder.service}</h3>
-                        <p>
-                            {isSeller ? "Buyer" : "Seller"}:{" "}
-                            <strong>{focusOrder[partyKey]}</strong>
-                        </p>
-                        <div className="order-focus-meta">
-                            <span>
-                                <small>
-                                    {t(
-                                        "components.dashboard.ordersworkspace.dueDate2",
-                                    )}
-                                </small>
-                                <strong>{focusOrder.dueDate}</strong>
-                            </span>
-                            <span>
-                                <small>{isSeller ? "Earnings" : "Price"}</small>
-                                <strong>{focusOrder[amountKey]}</strong>
-                            </span>
-                        </div>
-                        <div>
-                            <div className="order-focus-progress">
-                                <span>
-                                    {t(
-                                        "components.dashboard.ordersworkspace.progress",
-                                    )}
-                                </span>
-                                <strong>
-                                    {getProgress(focusOrder.status)}%
-                                </strong>
-                            </div>
-                            <span className="order-progress large">
-                                <span
-                                    style={{
-                                        "--progress": `${getProgress(focusOrder.status)}%`,
-                                    }}
-                                ></span>
-                            </span>
-                        </div>
-                    </div>
-                    <Link
-                        className="order-open-link"
-                        to={getOrderDetailPath(focusOrder, isSeller)}
-                    >
-                        {" "}
-                        {t(
-                            "components.dashboard.ordersworkspace.openOrderDetails",
-                        )}{" "}
-                    </Link>
+                    )}
                     <div className="order-next-steps">
                         <h3>
                             {t(

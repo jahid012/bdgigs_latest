@@ -40,7 +40,7 @@ function DashboardPage({
     useEffect(() => {
         hydrateSession();
         fetchNotifications();
-        fetchConversations(isSeller ? "seller" : "buyer");
+        fetchConversations();
     }, [fetchConversations, fetchNotifications, hydrateSession, isSeller]);
 
     return (
@@ -79,11 +79,7 @@ function DashboardPage({
                         title={dashboardTitle}
                         searchPlaceholder={dashboardSearchPlaceholder}
                         messagesActive={messagesActive}
-                        onMessagesOpen={() =>
-                            onNavigate(
-                                isSeller ? "seller-messages" : "messages",
-                            )
-                        }
+                        onMessagesOpen={() => onNavigate("messages")}
                         messageItems={messageItems}
                         messageActionLabel="View all messages"
                         notificationItems={notificationItems}

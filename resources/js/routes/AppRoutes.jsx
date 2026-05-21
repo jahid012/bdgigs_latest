@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import DashboardPage from "../pages/DashboardPage.jsx";
+import { usePendingConversationResume } from "../hooks/useConversationLauncher.js";
+import { useRealtimeMessaging } from "../realtime/useRealtimeMessaging.js";
 import { useSessionStore } from "../stores/useSessionStore.js";
 import {
     DASHBOARD_ROUTES,
@@ -15,6 +17,8 @@ function AppRoutes() {
     const navigate = usePageNavigation();
 
     useRouteEffects();
+    usePendingConversationResume();
+    useRealtimeMessaging();
 
     return (
         <Routes>
@@ -89,7 +93,11 @@ function RequireAuth({ children }) {
     if (!hasHydrated) {
         return (
             <main className="dashboard-auth-loading">
-                <span>Checking your session...</span>
+                <span
+                    className="dashboard-auth-spinner"
+                    role="progressbar"
+                    aria-label="Checking your session"
+                ></span>
             </main>
         );
     }

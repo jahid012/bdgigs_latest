@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Conversation extends Model
 {
@@ -13,9 +14,12 @@ class Conversation extends Model
 
     protected $fillable = [
         'public_id',
+        'created_by_id',
         'buyer_id',
         'seller_id',
         'gig_id',
+        'context_type',
+        'context_id',
         'subject',
         'buyer_name',
         'seller_name',
@@ -24,6 +28,7 @@ class Conversation extends Model
         'priority',
         'buyer_unread_count',
         'seller_unread_count',
+        'last_message_at',
         'metadata',
     ];
 
@@ -32,6 +37,7 @@ class Conversation extends Model
         return [
             'buyer_unread_count' => 'integer',
             'seller_unread_count' => 'integer',
+            'last_message_at' => 'datetime',
             'metadata' => 'array',
         ];
     }
@@ -51,6 +57,11 @@ class Conversation extends Model
         return $this->belongsTo(User::class, 'seller_id');
     }
 
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_id');
+    }
+
     public function gig(): BelongsTo
     {
         return $this->belongsTo(Gig::class);
@@ -59,5 +70,30 @@ class Conversation extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class)->oldest('sent_at')->oldest();
+    }
+
+    public function participants(): HasMany
+    {
+        return $this->hasMany(ConversationParticipant::class);
+    }
+
+    public function participantUsers(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            User::class,
+            ConversationParticipant::class,
+            'conversation_id',
+            'id',
+            'id',
+            'user_id',
+        );
+    }
+
+    public function participantFor(User|int $user): ?ConversationParticipant
+    {
+        $userId = $user instanceof User ? $user->id : $user;
+
+        return $this->participants->firstWhere('user_id', $userId)
+            ?: $this->participants()->where('user_id', $userId)->first();
     }
 }

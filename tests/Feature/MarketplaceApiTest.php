@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Events\ConversationUpdated;
 use App\Events\MessageSent;
 use App\Events\NotificationCreated;
 use App\Models\Conversation;
@@ -12,6 +13,7 @@ use Database\Seeders\MarketplaceDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class MarketplaceApiTest extends TestCase
@@ -25,9 +27,11 @@ class MarketplaceApiTest extends TestCase
         parent::setUp();
 
         Event::fake([
+            ConversationUpdated::class,
             MessageSent::class,
             NotificationCreated::class,
         ]);
+        Queue::fake();
 
         $this->seed(MarketplaceDemoSeeder::class);
         $this->user = User::where('email', 'test@example.com')->firstOrFail();
@@ -158,7 +162,7 @@ class MarketplaceApiTest extends TestCase
             ->postJson("/api/conversations/{$conversation->public_id}/messages", [
                 'text' => 'I uploaded the next milestone.',
             ])
-            ->assertCreated()
+            ->assertOk()
             ->assertJsonPath('data.text', 'I uploaded the next milestone.');
 
         $outsider = User::create([
@@ -170,6 +174,105 @@ class MarketplaceApiTest extends TestCase
         $this->actingAs($outsider)
             ->getJson("/api/conversations/{$conversation->public_id}")
             ->assertForbidden();
+    }
+
+    public function test_user_can_start_gig_and_order_conversations_without_duplicates(): void
+    {
+        $gig = Gig::where('slug', 'wordpress-redesign')->firstOrFail();
+
+        $created = $this->actingAs($this->user)
+            ->postJson('/api/conversations', [
+                'targetUserId' => $gig->seller_id,
+                'contextType' => 'gig',
+                'contextId' => $gig->slug,
+                'message' => 'Hi, I would like to discuss this WordPress service.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.context.type', 'gig')
+            ->json('data');
+
+        $this->assertDatabaseHas('conversation_participants', [
+            'user_id' => $this->user->id,
+        ]);
+        $this->assertDatabaseHas('messages', [
+            'body' => 'Hi, I would like to discuss this WordPress service.',
+        ]);
+
+        $this->actingAs($this->user)
+            ->postJson('/api/conversations', [
+                'targetUserId' => $gig->seller_id,
+                'contextType' => 'gig',
+                'contextId' => $gig->slug,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.id', $created['id']);
+
+        $this->actingAs($this->user)
+            ->postJson('/api/conversations', [
+                'contextType' => 'order',
+                'contextId' => 'SH-1048',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.context.type', 'order');
+    }
+
+    public function test_message_send_increments_unread_and_read_clears_it(): void
+    {
+        $conversation = Conversation::where('public_id', 'seller-thread-1')->firstOrFail();
+        $counterpart = User::where('email', 'cloudpeak@bdgigs.test')->firstOrFail();
+
+        $this->actingAs($counterpart)
+            ->postJson("/api/conversations/{$conversation->public_id}/messages", [
+                'text' => 'Please check this unread note.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.text', 'Please check this unread note.');
+
+        $this->assertGreaterThan(
+            0,
+            $conversation->participants()
+                ->where('user_id', $this->user->id)
+                ->firstOrFail()
+                ->unread_count,
+        );
+
+        $this->actingAs($this->user)
+            ->patchJson("/api/conversations/{$conversation->public_id}/read")
+            ->assertOk()
+            ->assertJsonPath('data.viewerParticipant.unreadCount', 0);
+
+        $this->assertSame(
+            0,
+            $conversation->participants()
+                ->where('user_id', $this->user->id)
+                ->firstOrFail()
+                ->unread_count,
+        );
+    }
+
+    public function test_presence_heartbeat_and_push_subscription_are_saved(): void
+    {
+        $this->actingAs($this->user)
+            ->postJson('/api/push-subscriptions', [
+                'token' => 'browser-token-1',
+                'platform' => 'web',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.platform', 'web');
+
+        $this->actingAs($this->user)
+            ->postJson('/api/presence/heartbeat', [
+                'token' => 'browser-token-1',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.online', true);
+
+        $this->assertDatabaseHas('push_subscriptions', [
+            'user_id' => $this->user->id,
+            'token' => 'browser-token-1',
+            'revoked_at' => null,
+        ]);
+        $this->assertNotNull($this->user->fresh()->last_seen_at);
     }
 
     public function test_notifications_can_be_marked_as_read(): void

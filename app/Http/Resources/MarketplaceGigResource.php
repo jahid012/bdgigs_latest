@@ -13,6 +13,7 @@ class MarketplaceGigResource extends JsonResource
             'id' => $this->slug,
             'title' => $this->title,
             'seller' => $this->seller_name,
+            'sellerUserId' => $this->seller_id,
             'avatar' => $this->seller_avatar,
             'level' => $this->seller_level,
             'badge' => $this->badge,

@@ -249,6 +249,7 @@ export function createDetailFromListingGig(gig) {
             rating: gig.rating,
             reviews: gig.reviews,
             avatar: gig.avatar,
+            userId: gig.sellerUserId,
         },
         gallery: [
             gig.image,

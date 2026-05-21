@@ -2,24 +2,23 @@
 
 namespace App\Events;
 
-use App\Http\Resources\MessageResource;
-use App\Models\Message;
+use App\Models\Conversation;
+use App\Models\User;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class MessageSent implements ShouldBroadcastNow
+class UserTyping implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public function __construct(
-        public Message $message,
+        public Conversation $conversation,
+        public User $user,
         public int $recipientId,
-        public array $conversation = [],
-    )
-    {
+    ) {
     }
 
     public function broadcastOn(): PrivateChannel
@@ -29,15 +28,17 @@ class MessageSent implements ShouldBroadcastNow
 
     public function broadcastAs(): string
     {
-        return 'message.sent';
+        return 'user.typing';
     }
 
     public function broadcastWith(): array
     {
         return [
-            'conversationId' => $this->message->conversation->public_id,
-            'message' => MessageResource::make($this->message)->resolve(),
-            'conversation' => $this->conversation,
+            'conversationId' => $this->conversation->public_id,
+            'user' => [
+                'id' => $this->user->id,
+                'name' => $this->user->name,
+            ],
         ];
     }
 }

@@ -2,83 +2,524 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\ConversationUpdated;
 use App\Events\MessageSent;
+use App\Events\MessageRead;
+use App\Events\UserTyping;
+use App\Jobs\SendUnreadMessageReminder;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ConversationResource;
 use App\Http\Resources\MessageResource;
 use App\Models\Conversation;
+use App\Models\ConversationParticipant;
+use App\Models\Gig;
+use App\Models\Message;
+use App\Models\Order;
+use App\Models\User;
+use App\Services\OfflinePushNotifier;
 use App\Support\MarketplaceNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class ConversationController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
-        $role = $request->query('role') === 'seller' ? 'seller' : 'buyer';
-        $column = $role === 'seller' ? 'seller_id' : 'buyer_id';
+        $filter = $request->query('filter', 'all');
 
         return ConversationResource::collection(
             Conversation::query()
-                ->with('messages')
-                ->where($column, $request->user()->id)
-                ->latest('updated_at')
+                ->with([
+                    'gig',
+                    'messages.attachments',
+                    'participants.user',
+                ])
+                ->whereHas('participants', function ($query) use ($request, $filter) {
+                    $query->where('user_id', $request->user()->id);
+
+                    if ($filter === 'archived') {
+                        $query->whereNotNull('archived_at');
+                    } else {
+                        $query->whereNull('archived_at');
+                    }
+
+                    if (in_array($filter, ['buying', 'selling', 'order'], true)) {
+                        $query->where('context_role', $filter === 'order' ? 'order' : $filter);
+                    }
+                })
+                ->latest('last_message_at')
+                ->latest()
                 ->get()
         );
+    }
+
+    public function store(
+        Request $request,
+        MarketplaceNotifier $notifier,
+        OfflinePushNotifier $pushNotifier
+    ): ConversationResource {
+        $payload = $request->validate([
+            'targetUserId' => ['nullable', 'integer', 'exists:users,id'],
+            'targetName' => ['nullable', 'string', 'max:120'],
+            'targetSlug' => ['nullable', 'string', 'max:160'],
+            'contextType' => ['required', 'string', Rule::in(['profile', 'gig', 'order'])],
+            'contextId' => ['nullable', 'string', 'max:160'],
+            'message' => ['nullable', 'string', 'max:4000'],
+            'clientId' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        [$targetUser, $context] = $this->resolveConversationTarget($request->user(), $payload);
+
+        abort_if($targetUser->id === $request->user()->id, 422, 'You cannot start a conversation with yourself.');
+
+        $conversation = $this->findOrCreateConversation(
+            $request->user(),
+            $targetUser,
+            $payload['contextType'],
+            $payload['contextId'] ?? null,
+            $context,
+        );
+
+        if (trim((string) ($payload['message'] ?? '')) !== '') {
+            $this->createMessage(
+                $request,
+                $conversation,
+                $payload['message'],
+                $notifier,
+                $pushNotifier,
+                $payload['clientId'] ?? null,
+            );
+        }
+
+        return ConversationResource::make($conversation->fresh([
+            'gig',
+            'messages.attachments',
+            'participants.user',
+        ]));
     }
 
     public function show(Request $request, Conversation $conversation): ConversationResource
     {
         $this->authorizeParticipant($request, $conversation);
 
-        return ConversationResource::make($conversation->load('messages'));
+        return ConversationResource::make($conversation->load([
+            'gig',
+            'messages.attachments',
+            'participants.user',
+        ]));
+    }
+
+    public function messages(Request $request, Conversation $conversation): AnonymousResourceCollection
+    {
+        $this->authorizeParticipant($request, $conversation);
+
+        $limit = min(max((int) $request->query('limit', 50), 1), 100);
+        $before = (int) $request->query('before', 0);
+        $messages = $conversation->messages()
+            ->with('attachments')
+            ->when($before > 0, fn ($query) => $query->where('id', '<', $before))
+            ->latest('id')
+            ->take($limit)
+            ->get()
+            ->sortBy('id')
+            ->values();
+
+        return MessageResource::collection($messages);
     }
 
     public function storeMessage(
         Request $request,
         Conversation $conversation,
-        MarketplaceNotifier $notifier
+        MarketplaceNotifier $notifier,
+        OfflinePushNotifier $pushNotifier
     ): MessageResource {
         $this->authorizeParticipant($request, $conversation);
 
         $payload = $request->validate([
             'text' => ['required', 'string', 'max:4000'],
+            'clientId' => ['nullable', 'string', 'max:120'],
         ]);
 
-        $message = $conversation->messages()->create([
-            'sender_id' => $request->user()->id,
-            'sender_name' => $request->user()->name,
-            'body' => $payload['text'],
-            'sent_at' => now(),
-        ]);
-
-        $recipient = $conversation->buyer_id === $request->user()->id
-            ? $conversation->seller
-            : $conversation->buyer;
-
-        if ($recipient) {
-            $notifier->notify(
-                $recipient,
-                'Message',
-                'New message',
-                "{$request->user()->name} replied about {$conversation->subject}.",
-                '/dashboard/messages',
-                ['conversationId' => $conversation->public_id],
-            );
-
-            event(new MessageSent($message->load('conversation'), $recipient->id));
-        }
-
-        $conversation->touch();
+        $message = $this->createMessage(
+            $request,
+            $conversation,
+            $payload['text'],
+            $notifier,
+            $pushNotifier,
+            $payload['clientId'] ?? null,
+        );
 
         return MessageResource::make($message);
+    }
+
+    public function markRead(Request $request, Conversation $conversation): ConversationResource
+    {
+        $this->authorizeParticipant($request, $conversation);
+
+        $participant = $conversation->participants()
+            ->where('user_id', $request->user()->id)
+            ->firstOrFail();
+
+        $participant->forceFill([
+            'unread_count' => 0,
+            'last_read_at' => now(),
+            'last_seen_at' => now(),
+            'last_email_reminded_at' => null,
+        ])->save();
+
+        Message::where('conversation_id', $conversation->id)
+            ->where('recipient_id', $request->user()->id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        $request->user()->forceFill(['last_seen_at' => now()])->save();
+
+        $freshConversation = $conversation->fresh([
+            'gig',
+            'messages.attachments',
+            'participants.user',
+        ]);
+
+        $freshConversation->participants
+            ->where('user_id', '!=', $request->user()->id)
+            ->each(function (ConversationParticipant $participant) use ($freshConversation, $request) {
+                if (! $participant->user) {
+                    return;
+                }
+
+                event(new MessageRead(
+                    $freshConversation,
+                    $request->user()->id,
+                    $participant->user_id,
+                    $this->conversationPayloadForUser($freshConversation, $participant->user),
+                ));
+
+                event(new ConversationUpdated(
+                    $freshConversation,
+                    $participant->user_id,
+                    $this->conversationPayloadForUser($freshConversation, $participant->user),
+                ));
+            });
+
+        $this->syncLegacyUnreadCounts($conversation);
+
+        return ConversationResource::make($conversation->fresh([
+            'gig',
+            'messages.attachments',
+            'participants.user',
+        ]));
+    }
+
+    public function typing(Request $request, Conversation $conversation): array
+    {
+        $this->authorizeParticipant($request, $conversation);
+
+        $participant = $conversation->participants()
+            ->where('user_id', $request->user()->id)
+            ->firstOrFail();
+
+        $participant->forceFill([
+            'last_typing_at' => now(),
+            'last_seen_at' => now(),
+        ])->save();
+
+        $conversation->participants()
+            ->where('user_id', '!=', $request->user()->id)
+            ->pluck('user_id')
+            ->each(fn (int $recipientId) => event(new UserTyping(
+                $conversation,
+                $request->user(),
+                $recipientId,
+            )));
+
+        return ['data' => ['typing' => true]];
     }
 
     private function authorizeParticipant(Request $request, Conversation $conversation): void
     {
         abort_unless(
-            in_array($request->user()->id, [$conversation->buyer_id, $conversation->seller_id], true),
+            $conversation->participants()
+                ->where('user_id', $request->user()->id)
+                ->exists()
+                || in_array($request->user()->id, [$conversation->buyer_id, $conversation->seller_id], true),
             403
         );
+    }
+
+    private function createMessage(
+        Request $request,
+        Conversation $conversation,
+        string $body,
+        MarketplaceNotifier $notifier,
+        OfflinePushNotifier $pushNotifier,
+        ?string $clientId = null,
+    ): Message {
+        $conversation->loadMissing('participants.user');
+        $sender = $request->user();
+        $recipientParticipants = $conversation->participants
+            ->where('user_id', '!=', $sender->id)
+            ->values();
+        $primaryRecipient = $recipientParticipants->first()?->user;
+
+        if ($clientId) {
+            $existing = Message::where('conversation_id', $conversation->id)
+                ->where('sender_id', $sender->id)
+                ->where('client_id', $clientId)
+                ->first();
+
+            if ($existing) {
+                return $existing->load(['conversation', 'attachments']);
+            }
+        }
+
+        $message = $conversation->messages()->create([
+            'sender_id' => $sender->id,
+            'recipient_id' => $primaryRecipient?->id,
+            'sender_name' => $sender->name,
+            'body' => $body,
+            'client_id' => $clientId,
+            'sent_at' => now(),
+        ]);
+
+        $conversation->forceFill([
+            'last_message_at' => $message->sent_at,
+        ])->save();
+
+        $conversation->participants()
+            ->where('user_id', $sender->id)
+            ->update([
+                'last_read_at' => now(),
+                'last_seen_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+        $sender->forceFill(['last_seen_at' => now()])->save();
+
+        foreach ($recipientParticipants as $participant) {
+            $participant->increment('unread_count');
+
+            $recipient = $participant->user;
+
+            if (! $recipient) {
+                continue;
+            }
+
+            $notifier->notify(
+                $recipient,
+                'Message',
+                'New message',
+                "{$sender->name} replied about {$conversation->subject}.",
+                '/dashboard/messages?conversation='.$conversation->public_id,
+                ['conversationId' => $conversation->public_id],
+            );
+
+            $pushNotifier->notifyOfflineUser(
+                $recipient,
+                'New message from '.$sender->name,
+                Str::limit($body, 120),
+                [
+                    'conversationId' => $conversation->public_id,
+                    'url' => '/dashboard/messages?conversation='.$conversation->public_id,
+                ],
+            );
+
+            SendUnreadMessageReminder::dispatch($message->id, $recipient->id)
+                ->delay(now()->addMinutes(3));
+
+            $freshConversation = $conversation->fresh([
+                'gig',
+                'messages.attachments',
+                'participants.user',
+            ]);
+
+            event(new MessageSent(
+                $message->load(['conversation', 'attachments']),
+                $recipient->id,
+                $this->conversationPayloadForUser($freshConversation, $recipient),
+            ));
+
+            event(new ConversationUpdated(
+                $freshConversation,
+                $recipient->id,
+                $this->conversationPayloadForUser($freshConversation, $recipient),
+            ));
+        }
+
+        $this->syncLegacyUnreadCounts($conversation);
+
+        return $message->load(['conversation', 'attachments']);
+    }
+
+    private function findOrCreateConversation(
+        User $currentUser,
+        User $targetUser,
+        string $contextType,
+        ?string $contextId,
+        array $context,
+    ): Conversation {
+        $conversation = Conversation::query()
+            ->where('context_type', $contextType)
+            ->where('context_id', $contextId)
+            ->whereHas('participants', fn ($query) => $query->where('user_id', $currentUser->id))
+            ->whereHas('participants', fn ($query) => $query->where('user_id', $targetUser->id))
+            ->first();
+
+        if (! $conversation) {
+            $conversation = Conversation::create([
+                'public_id' => 'thread-'.Str::uuid(),
+                'created_by_id' => $currentUser->id,
+                'buyer_id' => $context['legacyBuyerId'] ?? $currentUser->id,
+                'seller_id' => $context['legacySellerId'] ?? $targetUser->id,
+                'gig_id' => $context['gigId'] ?? null,
+                'context_type' => $contextType,
+                'context_id' => $contextId,
+                'subject' => $context['subject'],
+                'buyer_name' => $context['buyerName'] ?? $currentUser->name,
+                'seller_name' => $context['sellerName'] ?? $targetUser->name,
+                'status' => $context['status'] ?? 'Open',
+                'status_class' => $context['statusClass'] ?? 'status-progress',
+                'priority' => null,
+                'metadata' => $context['metadata'] ?? [],
+                'last_message_at' => now(),
+            ]);
+        }
+
+        foreach ([
+            [$currentUser, $context['currentRole'] ?? 'member'],
+            [$targetUser, $context['targetRole'] ?? 'member'],
+        ] as [$user, $role]) {
+            ConversationParticipant::updateOrCreate(
+                [
+                    'conversation_id' => $conversation->id,
+                    'user_id' => $user->id,
+                ],
+                [
+                    'context_role' => $role,
+                ],
+            );
+        }
+
+        return $conversation->fresh(['participants.user', 'messages.attachments', 'gig']);
+    }
+
+    private function resolveConversationTarget(User $currentUser, array $payload): array
+    {
+        $contextType = $payload['contextType'];
+        $contextId = $payload['contextId'] ?? null;
+
+        if ($contextType === 'gig' && $contextId) {
+            $gig = Gig::where('slug', $contextId)->orWhere('id', $contextId)->firstOrFail();
+            $target = $payload['targetUserId'] ?? $gig->seller_id;
+            $targetUser = User::findOrFail($target);
+
+            return [
+                $targetUser,
+                [
+                    'gigId' => $gig->id,
+                    'subject' => $gig->title,
+                    'legacyBuyerId' => $currentUser->id,
+                    'legacySellerId' => $targetUser->id,
+                    'buyerName' => $currentUser->name,
+                    'sellerName' => $targetUser->name,
+                    'currentRole' => 'buying',
+                    'targetRole' => 'selling',
+                    'metadata' => [
+                        'gigSlug' => $gig->slug,
+                        'gigTitle' => $gig->title,
+                    ],
+                ],
+            ];
+        }
+
+        if ($contextType === 'order' && $contextId) {
+            $orderCode = ltrim($contextId, '#');
+            $order = Order::where('code', $orderCode)->orWhere('id', $contextId)->firstOrFail();
+            abort_unless(in_array($currentUser->id, [$order->buyer_id, $order->seller_id], true), 403);
+            $targetUserId = $order->buyer_id === $currentUser->id ? $order->seller_id : $order->buyer_id;
+            $targetUser = User::findOrFail($payload['targetUserId'] ?? $targetUserId);
+
+            return [
+                $targetUser,
+                [
+                    'gigId' => $order->gig_id,
+                    'subject' => $order->service,
+                    'legacyBuyerId' => $order->buyer_id,
+                    'legacySellerId' => $order->seller_id,
+                    'buyerName' => $order->buyer_name ?: $order->buyer?->name,
+                    'sellerName' => $order->seller_name ?: $order->seller?->name,
+                    'currentRole' => 'order',
+                    'targetRole' => 'order',
+                    'status' => $order->status,
+                    'statusClass' => $order->status_class,
+                    'metadata' => [
+                        'orderCode' => $order->code,
+                    ],
+                ],
+            ];
+        }
+
+        $targetUser = ! empty($payload['targetUserId'])
+            ? User::findOrFail($payload['targetUserId'])
+            : $this->resolveProfileUser($payload);
+
+        return [
+            $targetUser,
+            [
+                'subject' => 'Conversation with '.$targetUser->name,
+                'legacyBuyerId' => $currentUser->id,
+                'legacySellerId' => $targetUser->id,
+                'buyerName' => $currentUser->name,
+                'sellerName' => $targetUser->name,
+                'currentRole' => 'buying',
+                'targetRole' => 'selling',
+                'metadata' => [
+                    'profileSlug' => $payload['targetSlug'] ?? null,
+                    'targetName' => $payload['targetName'] ?? $targetUser->name,
+                ],
+            ],
+        ];
+    }
+
+    private function resolveProfileUser(array $payload): User
+    {
+        if (! empty($payload['targetName'])) {
+            $user = User::where('name', $payload['targetName'])->first();
+
+            if ($user) {
+                return $user;
+            }
+        }
+
+        $slug = $payload['targetSlug'] ?? null;
+
+        if ($slug) {
+            $user = User::all()->first(fn (User $user) => Str::slug($user->name) === $slug);
+
+            if ($user) {
+                return $user;
+            }
+        }
+
+        abort(422, 'This profile is not available for messaging yet.');
+    }
+
+    private function syncLegacyUnreadCounts(Conversation $conversation): void
+    {
+        $conversation->load('participants');
+
+        $conversation->forceFill([
+            'buyer_unread_count' => $conversation->participants->firstWhere('user_id', $conversation->buyer_id)?->unread_count ?? 0,
+            'seller_unread_count' => $conversation->participants->firstWhere('user_id', $conversation->seller_id)?->unread_count ?? 0,
+        ])->save();
+    }
+
+    private function conversationPayloadForUser(Conversation $conversation, User $user): array
+    {
+        $request = request()->duplicate();
+        $request->setUserResolver(fn () => $user);
+
+        return ConversationResource::make($conversation)->resolve($request);
     }
 }

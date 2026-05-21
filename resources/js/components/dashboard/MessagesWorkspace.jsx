@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useDismissOnInteractOutside } from "../../hooks/useDismissOnInteractOutside.js";
 import { Icon } from "../common/Icons.jsx";
 import { useTranslation } from "react-i18next";
@@ -8,8 +9,17 @@ const relatedServiceImages = [
     "/assets/img/gig_images/8.png",
     "/assets/img/gig_images/11.png",
 ];
+const inboxFilters = [
+    { id: "all", label: "All messages" },
+    { id: "buying", label: "Buying" },
+    { id: "selling", label: "Selling" },
+    { id: "order", label: "Order threads" },
+    { id: "archived", label: "Archived" },
+];
+
 function MessagesWorkspace({ variant = "buyer" }) {
     const { t } = useTranslation();
+    const [searchParams] = useSearchParams();
     const isSeller = variant === "seller";
     const threads = useDashboardStore((state) =>
         isSeller ? state.sellerMessageThreads : state.buyerMessageThreads,
@@ -17,8 +27,17 @@ function MessagesWorkspace({ variant = "buyer" }) {
     const fetchConversations = useDashboardStore(
         (state) => state.fetchConversations,
     );
+    const fetchConversation = useDashboardStore(
+        (state) => state.fetchConversation,
+    );
+    const markConversationRead = useDashboardStore(
+        (state) => state.markConversationRead,
+    );
     const sendMessage = useDashboardStore((state) => state.sendMessage);
+    const sendTyping = useDashboardStore((state) => state.sendTyping);
     const [activeThreadIds, setActiveThreadIds] = useState({});
+    const [conversationFilter, setConversationFilter] = useState("all");
+    const [isInboxFilterOpen, setIsInboxFilterOpen] = useState(false);
     const [isInboxSearchOpen, setIsInboxSearchOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [conversationMenuOpen, setConversationMenuOpen] = useState(false);
@@ -26,15 +45,22 @@ function MessagesWorkspace({ variant = "buyer" }) {
     const [draft, setDraft] = useState("");
     const searchInputRef = useRef(null);
     const textareaRef = useRef(null);
+    const lastTypingSentAtRef = useRef(0);
     const workspaceRef = useRef(null);
-    const activeThreadId = activeThreadIds[variant] || threads[0]?.id;
+    const requestedConversationId = searchParams.get("conversation");
+    const activeThreadId =
+        activeThreadIds[variant] || requestedConversationId || threads[0]?.id;
+    const activeFilter =
+        inboxFilters.find((filter) => filter.id === conversationFilter) ||
+        inboxFilters[0];
     const closeMenus = useCallback(() => {
+        setIsInboxFilterOpen(false);
         setConversationMenuOpen(false);
         setOpenMessageMenu(null);
     }, []);
     useDismissOnInteractOutside(
         workspaceRef,
-        conversationMenuOpen || openMessageMenu !== null,
+        isInboxFilterOpen || conversationMenuOpen || openMessageMenu !== null,
         closeMenus,
     );
     useEffect(() => {
@@ -44,8 +70,19 @@ function MessagesWorkspace({ variant = "buyer" }) {
     }, [isInboxSearchOpen]);
 
     useEffect(() => {
-        fetchConversations(variant);
-    }, [fetchConversations, variant]);
+        fetchConversations(conversationFilter);
+    }, [conversationFilter, fetchConversations]);
+
+    useEffect(() => {
+        if (
+            !requestedConversationId ||
+            threads.some((thread) => thread.id === requestedConversationId)
+        ) {
+            return;
+        }
+
+        fetchConversation(requestedConversationId).catch(() => {});
+    }, [fetchConversation, requestedConversationId, threads]);
 
     useEffect(() => {
         if (!textareaRef.current) return;
@@ -53,11 +90,30 @@ function MessagesWorkspace({ variant = "buyer" }) {
         textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
     }, [draft, activeThreadId]);
     const activeThread = useMemo(
-        () =>
-            threads.find((thread) => thread.id === activeThreadId) ||
-            threads[0],
+        () => threads.find((thread) => thread.id === activeThreadId) || null,
         [activeThreadId, threads],
     );
+    const displayThread = activeThread || {
+        id: "",
+        initials: "?",
+        name: "No conversation selected",
+        role: "",
+        service: "Select a conversation to start messaging.",
+        status: "Open",
+        statusClass: "status-progress",
+        time: "",
+        priority: "",
+        preview: "",
+        messages: [],
+    };
+
+    useEffect(() => {
+        if (!activeThread?.id) {
+            return;
+        }
+
+        markConversationRead(activeThread.id).catch(() => {});
+    }, [activeThread?.id, markConversationRead]);
     const filteredThreads = useMemo(() => {
         const query = searchTerm.trim().toLowerCase();
         if (!query) return threads;
@@ -76,14 +132,14 @@ function MessagesWorkspace({ variant = "buyer" }) {
         });
     }, [searchTerm, threads]);
     const activeMessages = useMemo(
-        () => activeThread.messages,
+        () => activeThread?.messages ?? [],
         [activeThread],
     );
     const relatedServices = useMemo(
         () => [
             {
-                title: activeThread.service,
-                seller: activeThread.name,
+                title: displayThread.service,
+                seller: displayThread.name,
                 rating: "4.9",
                 price: isSeller ? "$480" : "$75",
                 image: relatedServiceImages[0],
@@ -107,15 +163,15 @@ function MessagesWorkspace({ variant = "buyer" }) {
                 image: relatedServiceImages[2],
             },
         ],
-        [activeThread.name, activeThread.service, isSeller],
+        [displayThread.name, displayThread.service, isSeller],
     );
     const handleSendMessage = async () => {
         const text = draft.trim();
-        if (!text) return;
+        if (!text || !activeThread?.id) return;
         setDraft("");
 
         try {
-            await sendMessage(activeThread.id, text, variant);
+            await sendMessage(activeThread.id, text);
         } catch {
             setDraft(text);
         }
@@ -145,19 +201,43 @@ function MessagesWorkspace({ variant = "buyer" }) {
                     )}
                 >
                     <div className="messages-inbox-toolbar">
-                        <button
-                            className="inbox-title-button"
-                            type="button"
-                            aria-label={t(
-                                "components.dashboard.messagesworkspace.filterAllMessages",
-                            )}
-                        >
-                            {" "}
-                            {t(
-                                "components.dashboard.messagesworkspace.allMessages",
-                            )}{" "}
-                            <Icon name="chevronDown" />
-                        </button>
+                        <div className="conversation-menu-wrap">
+                            <button
+                                className="inbox-title-button"
+                                type="button"
+                                aria-expanded={isInboxFilterOpen}
+                                aria-label={t(
+                                    "components.dashboard.messagesworkspace.filterAllMessages",
+                                )}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    setIsInboxFilterOpen(
+                                        (isOpen) => !isOpen,
+                                    );
+                                }}
+                            >
+                                {activeFilter.label} <Icon name="chevronDown" />
+                            </button>
+                            <div
+                                className={`message-action-menu conversation-more-menu${isInboxFilterOpen ? " is-open" : ""}`}
+                                role="menu"
+                            >
+                                {inboxFilters.map((filter) => (
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        key={filter.id}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            setConversationFilter(filter.id);
+                                            setIsInboxFilterOpen(false);
+                                        }}
+                                    >
+                                        {filter.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                         <button
                             className={`inbox-search-toggle${isInboxSearchOpen ? " active" : ""}`}
                             type="button"
@@ -222,7 +302,7 @@ function MessagesWorkspace({ variant = "buyer" }) {
                         {filteredThreads.length > 0 ? (
                             filteredThreads.map((thread) => (
                                 <button
-                                    className={`message-thread${thread.id === activeThread.id ? " active" : ""}`}
+                                    className={`message-thread${thread.id === displayThread.id ? " active" : ""}`}
                                     type="button"
                                     key={thread.id}
                                     onClick={() =>
@@ -269,14 +349,14 @@ function MessagesWorkspace({ variant = "buyer" }) {
                     <header className="conversation-header">
                         <div className="conversation-person">
                             <span className="avatar">
-                                {activeThread.initials}
+                                {displayThread.initials}
                             </span>
                             <div>
                                 <h1 id="activeConversationTitle">
-                                    {activeThread.name}{" "}
+                                    {displayThread.name}{" "}
                                     <span>
                                         @
-                                        {activeThread.name
+                                        {displayThread.name
                                             .toLowerCase()
                                             .replace(/[^a-z0-9]/g, "")}
                                     </span>
@@ -285,7 +365,7 @@ function MessagesWorkspace({ variant = "buyer" }) {
                                     {t(
                                         "components.dashboard.messagesworkspace.lastSeen",
                                     )}{" "}
-                                    {activeThread.time}{" "}
+                                    {displayThread.time}{" "}
                                     {t(
                                         "components.dashboard.messagesworkspace.localTime429Am",
                                     )}
@@ -380,13 +460,19 @@ function MessagesWorkspace({ variant = "buyer" }) {
 
                     <div
                         className="conversation-messages"
-                        aria-label={`Conversation with ${activeThread.name}`}
+                        aria-label={`Conversation with ${displayThread.name}`}
                     >
                         <div className="conversation-date">
                             {t("components.dashboard.messagesworkspace.today")}
                         </div>
+                        {activeMessages.length === 0 ? (
+                            <p className="messages-empty">
+                                Select a conversation or send the first message
+                                to begin.
+                            </p>
+                        ) : null}
                         {activeMessages.map((message, index) => {
-                            const messageKey = `${activeThread.id}-${message.from}-${message.time}-${index}`;
+                            const messageKey = `${displayThread.id || "empty"}-${message.from}-${message.time}-${index}`;
                             return (
                                 <article
                                     className={`conversation-bubble${message.own ? " own" : ""}`}
@@ -486,7 +572,20 @@ function MessagesWorkspace({ variant = "buyer" }) {
                             placeholder={t(
                                 "components.dashboard.messagesworkspace.writeAMessage",
                             )}
-                            onChange={(event) => setDraft(event.target.value)}
+                            disabled={!activeThread}
+                            onChange={(event) => {
+                                setDraft(event.target.value);
+
+                                const now = Date.now();
+
+                                if (
+                                    activeThread?.id &&
+                                    now - lastTypingSentAtRef.current > 2000
+                                ) {
+                                    lastTypingSentAtRef.current = now;
+                                    sendTyping(activeThread.id);
+                                }
+                            }}
                             onKeyDown={handleComposerKeyDown}
                         />
                         <div className="composer-footer">
@@ -524,7 +623,7 @@ function MessagesWorkspace({ variant = "buyer" }) {
                                 aria-label={t(
                                     "components.dashboard.messagesworkspace.sendMessage",
                                 )}
-                                disabled={!draft.trim()}
+                                disabled={!draft.trim() || !activeThread}
                             >
                                 <Icon name="send" />
                             </button>
@@ -554,13 +653,13 @@ function MessagesWorkspace({ variant = "buyer" }) {
                         </div>
                         <div className="details-order">
                             <span
-                                className={`status-badge ${activeThread.statusClass}`}
+                                className={`status-badge ${displayThread.statusClass}`}
                             >
-                                {activeThread.status}
+                                {displayThread.status}
                             </span>
-                            <strong>{activeThread.service}</strong>
+                            <strong>{displayThread.service}</strong>
                             <small>
-                                {activeThread.priority}{" "}
+                                {displayThread.priority}{" "}
                                 {t(
                                     "components.dashboard.messagesworkspace.dueThisWeek",
                                 )}
@@ -571,7 +670,7 @@ function MessagesWorkspace({ variant = "buyer" }) {
                     <section className="details-card">
                         <h2>
                             {t("components.dashboard.messagesworkspace.about")}{" "}
-                            {activeThread.name}
+                            {displayThread.name}
                         </h2>
                         <dl className="details-list">
                             <div>
