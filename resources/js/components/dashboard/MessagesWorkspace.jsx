@@ -4,11 +4,6 @@ import { useDismissOnInteractOutside } from "../../hooks/useDismissOnInteractOut
 import { Icon } from "../common/Icons.jsx";
 import { useTranslation } from "react-i18next";
 import { useDashboardStore } from "../../stores/useDashboardStore.js";
-const relatedServiceImages = [
-    "/assets/img/gig_images/6.png",
-    "/assets/img/gig_images/8.png",
-    "/assets/img/gig_images/11.png",
-];
 const inboxFilters = [
     { id: "all", label: "All messages" },
     { id: "buying", label: "Buying" },
@@ -35,6 +30,11 @@ function MessagesWorkspace({ variant = "buyer" }) {
     );
     const sendMessage = useDashboardStore((state) => state.sendMessage);
     const sendTyping = useDashboardStore((state) => state.sendTyping);
+    const fetchSavedMessages = useDashboardStore(
+        (state) => state.fetchSavedMessages,
+    );
+    const saveMessage = useDashboardStore((state) => state.saveMessage);
+    const unsaveMessage = useDashboardStore((state) => state.unsaveMessage);
     const [activeThreadIds, setActiveThreadIds] = useState({});
     const [conversationFilter, setConversationFilter] = useState("all");
     const [isInboxFilterOpen, setIsInboxFilterOpen] = useState(false);
@@ -42,14 +42,16 @@ function MessagesWorkspace({ variant = "buyer" }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [conversationMenuOpen, setConversationMenuOpen] = useState(false);
     const [openMessageMenu, setOpenMessageMenu] = useState(null);
+    const [activeConversationView, setActiveConversationView] =
+        useState("messages");
+    const [savedMessages, setSavedMessages] = useState([]);
     const [draft, setDraft] = useState("");
     const searchInputRef = useRef(null);
     const textareaRef = useRef(null);
     const lastTypingSentAtRef = useRef(0);
     const workspaceRef = useRef(null);
     const requestedConversationId = searchParams.get("conversation");
-    const activeThreadId =
-        activeThreadIds[variant] || requestedConversationId || threads[0]?.id;
+    const activeThreadId = activeThreadIds[variant] || requestedConversationId;
     const activeFilter =
         inboxFilters.find((filter) => filter.id === conversationFilter) ||
         inboxFilters[0];
@@ -93,19 +95,7 @@ function MessagesWorkspace({ variant = "buyer" }) {
         () => threads.find((thread) => thread.id === activeThreadId) || null,
         [activeThreadId, threads],
     );
-    const displayThread = activeThread || {
-        id: "",
-        initials: "?",
-        name: "No conversation selected",
-        role: "",
-        service: "Select a conversation to start messaging.",
-        status: "Open",
-        statusClass: "status-progress",
-        time: "",
-        priority: "",
-        preview: "",
-        messages: [],
-    };
+    const displayThread = activeThread;
 
     useEffect(() => {
         if (!activeThread?.id) {
@@ -114,6 +104,16 @@ function MessagesWorkspace({ variant = "buyer" }) {
 
         markConversationRead(activeThread.id).catch(() => {});
     }, [activeThread?.id, markConversationRead]);
+    useEffect(() => {
+        if (activeConversationView !== "saved" || !activeThread?.id) {
+            setSavedMessages([]);
+            return;
+        }
+
+        fetchSavedMessages(activeThread.id)
+            .then(setSavedMessages)
+            .catch(() => setSavedMessages([]));
+    }, [activeConversationView, activeThread?.id, fetchSavedMessages]);
     const filteredThreads = useMemo(() => {
         const query = searchTerm.trim().toLowerCase();
         if (!query) return threads;
@@ -131,40 +131,13 @@ function MessagesWorkspace({ variant = "buyer" }) {
             return searchable.includes(query);
         });
     }, [searchTerm, threads]);
-    const activeMessages = useMemo(
-        () => activeThread?.messages ?? [],
-        [activeThread],
-    );
-    const relatedServices = useMemo(
-        () => [
-            {
-                title: displayThread.service,
-                seller: displayThread.name,
-                rating: "4.9",
-                price: isSeller ? "$480" : "$75",
-                image: relatedServiceImages[0],
-            },
-            {
-                title: isSeller
-                    ? "Conversion-focused dashboard design"
-                    : "Responsive marketplace homepage",
-                seller: isSeller ? "bdgigs Pro" : "Marco L.",
-                rating: "5.0",
-                price: isSeller ? "$360" : "$120",
-                image: relatedServiceImages[1],
-            },
-            {
-                title: isSeller
-                    ? "Premium brand system starter pack"
-                    : "Product UX audit with notes",
-                seller: isSeller ? "Design Partner" : "Elena V.",
-                rating: "4.8",
-                price: isSeller ? "$210" : "$95",
-                image: relatedServiceImages[2],
-            },
-        ],
-        [displayThread.name, displayThread.service, isSeller],
-    );
+    const activeMessages = useMemo(() => {
+        if (activeConversationView === "saved") {
+            return savedMessages;
+        }
+
+        return activeThread?.messages ?? [];
+    }, [activeConversationView, activeThread, savedMessages]);
     const handleSendMessage = async () => {
         const text = draft.trim();
         if (!text || !activeThread?.id) return;
@@ -302,7 +275,7 @@ function MessagesWorkspace({ variant = "buyer" }) {
                         {filteredThreads.length > 0 ? (
                             filteredThreads.map((thread) => (
                                 <button
-                                    className={`message-thread${thread.id === displayThread.id ? " active" : ""}`}
+                                    className={`message-thread${thread.id === displayThread?.id ? " active" : ""}`}
                                     type="button"
                                     key={thread.id}
                                     onClick={() =>
@@ -346,6 +319,8 @@ function MessagesWorkspace({ variant = "buyer" }) {
                     className="conversation-panel"
                     aria-labelledby="activeConversationTitle"
                 >
+                    {displayThread ? (
+                        <>
                     <header className="conversation-header">
                         <div className="conversation-person">
                             <span className="avatar">
@@ -447,13 +422,31 @@ function MessagesWorkspace({ variant = "buyer" }) {
                             "components.dashboard.messagesworkspace.conversationViews",
                         )}
                     >
-                        <button className="active" type="button">
+                        <button
+                            className={
+                                activeConversationView === "messages"
+                                    ? "active"
+                                    : ""
+                            }
+                            type="button"
+                            aria-pressed={activeConversationView === "messages"}
+                            onClick={() => setActiveConversationView("messages")}
+                        >
                             {" "}
                             {t(
                                 "components.dashboard.messagesworkspace.messages",
                             )}{" "}
                         </button>
-                        <button type="button">
+                        <button
+                            className={
+                                activeConversationView === "saved"
+                                    ? "active"
+                                    : ""
+                            }
+                            type="button"
+                            aria-pressed={activeConversationView === "saved"}
+                            onClick={() => setActiveConversationView("saved")}
+                        >
                             {t("components.dashboard.messagesworkspace.saved")}
                         </button>
                     </div>
@@ -463,12 +456,17 @@ function MessagesWorkspace({ variant = "buyer" }) {
                         aria-label={`Conversation with ${displayThread.name}`}
                     >
                         <div className="conversation-date">
-                            {t("components.dashboard.messagesworkspace.today")}
+                            {activeConversationView === "saved"
+                                ? "Saved"
+                                : t(
+                                      "components.dashboard.messagesworkspace.today",
+                                  )}
                         </div>
                         {activeMessages.length === 0 ? (
                             <p className="messages-empty">
-                                Select a conversation or send the first message
-                                to begin.
+                                {activeConversationView === "saved"
+                                    ? "Saved messages from this thread will appear here."
+                                    : "Send the first message to begin."}
                             </p>
                         ) : null}
                         {activeMessages.map((message, index) => {
@@ -524,11 +522,51 @@ function MessagesWorkspace({ variant = "buyer" }) {
                                                 <button
                                                     type="button"
                                                     role="menuitem"
+                                                    onClick={async () => {
+                                                        if (message.saved) {
+                                                            await unsaveMessage(
+                                                                message.id,
+                                                            );
+                                                            setSavedMessages(
+                                                                (current) =>
+                                                                    current.filter(
+                                                                        (
+                                                                            item,
+                                                                        ) =>
+                                                                            item.id !==
+                                                                            message.id,
+                                                                    ),
+                                                            );
+                                                        } else {
+                                                            const saved =
+                                                                await saveMessage(
+                                                                    message.id,
+                                                                );
+                                                            setSavedMessages(
+                                                                (current) =>
+                                                                    current.some(
+                                                                        (
+                                                                            item,
+                                                                        ) =>
+                                                                            item.id ===
+                                                                            saved.id,
+                                                                    )
+                                                                        ? current
+                                                                        : [
+                                                                              ...current,
+                                                                              saved,
+                                                                          ],
+                                                            );
+                                                        }
+                                                        setOpenMessageMenu(
+                                                            null,
+                                                        );
+                                                    }}
                                                 >
-                                                    <Icon name="archive" />{" "}
-                                                    {t(
-                                                        "components.dashboard.messagesworkspace.moveToArchive",
-                                                    )}{" "}
+                                                    <Icon name="star" />{" "}
+                                                    {message.saved
+                                                        ? "Remove from saved"
+                                                        : "Save message"}{" "}
                                                 </button>
                                                 <button
                                                     className="danger"
@@ -549,6 +587,7 @@ function MessagesWorkspace({ variant = "buyer" }) {
                         })}
                     </div>
 
+                    {activeConversationView === "messages" ? (
                     <form
                         className="conversation-composer"
                         onClick={(event) => event.stopPropagation()}
@@ -629,6 +668,11 @@ function MessagesWorkspace({ variant = "buyer" }) {
                             </button>
                         </div>
                     </form>
+                    ) : null}
+                        </>
+                    ) : (
+                        <NoConversationSelected />
+                    )}
                 </article>
 
                 <aside
@@ -637,6 +681,8 @@ function MessagesWorkspace({ variant = "buyer" }) {
                         "components.dashboard.messagesworkspace.conversationDetails",
                     )}
                 >
+                    {displayThread ? (
+                        <>
                     <section className="details-card">
                         <div className="details-heading">
                             <h2>
@@ -648,23 +694,27 @@ function MessagesWorkspace({ variant = "buyer" }) {
                                 {t(
                                     "components.dashboard.messagesworkspace.total",
                                 )}
-                                {threads.length})
+                                {displayThread.context?.order ? "1" : "0"})
                             </a>
                         </div>
+                        {displayThread.context?.order ? (
                         <div className="details-order">
                             <span
-                                className={`status-badge ${displayThread.statusClass}`}
+                                className={`status-badge ${displayThread.context.order.statusClass}`}
                             >
-                                {displayThread.status}
+                                {displayThread.context.order.status}
                             </span>
-                            <strong>{displayThread.service}</strong>
+                            <strong>{displayThread.context.order.service}</strong>
                             <small>
-                                {displayThread.priority}{" "}
-                                {t(
-                                    "components.dashboard.messagesworkspace.dueThisWeek",
-                                )}
+                                {displayThread.context.order.dueDate ||
+                                    "No delivery date"}
                             </small>
                         </div>
+                        ) : (
+                            <p className="messages-empty">
+                                No order is attached to this conversation.
+                            </p>
+                        )}
                     </section>
 
                     <section className="details-card">
@@ -679,9 +729,7 @@ function MessagesWorkspace({ variant = "buyer" }) {
                                         "components.dashboard.messagesworkspace.from",
                                     )}
                                 </dt>
-                                <dd>
-                                    {isSeller ? "United States" : "Pakistan"}
-                                </dd>
+                                <dd>{displayThread.counterpart?.country || "Not shared"}</dd>
                             </div>
                             <div>
                                 <dt>
@@ -689,41 +737,19 @@ function MessagesWorkspace({ variant = "buyer" }) {
                                         "components.dashboard.messagesworkspace.onBdgigsSince",
                                     )}
                                 </dt>
-                                <dd>
-                                    {t(
-                                        "components.dashboard.messagesworkspace.jan2023",
-                                    )}
-                                </dd>
+                                <dd>{formatJoined(displayThread.counterpart?.joinedAt)}</dd>
                             </div>
                             <div>
-                                <dt>
-                                    {isSeller ? "Buyer type" : "Seller level"}
-                                </dt>
-                                <dd>{isSeller ? "Business" : "Level 2"}</dd>
+                                <dt>Conversation role</dt>
+                                <dd>{displayThread.role || "Member"}</dd>
                             </div>
                             <div>
-                                <dt>
-                                    {t(
-                                        "components.dashboard.messagesworkspace.responseRate",
-                                    )}
-                                </dt>
-                                <dd>
-                                    {t(
-                                        "components.dashboard.messagesworkspace.1h",
-                                    )}
-                                </dd>
+                                <dt>Status</dt>
+                                <dd>{displayThread.status || "Open"}</dd>
                             </div>
                             <div>
-                                <dt>
-                                    {t(
-                                        "components.dashboard.messagesworkspace.rating",
-                                    )}
-                                </dt>
-                                <dd>
-                                    {t(
-                                        "components.dashboard.messagesworkspace.4985",
-                                    )}
-                                </dd>
+                                <dt>Online</dt>
+                                <dd>{displayThread.counterpart?.online ? "Now" : "Offline"}</dd>
                             </div>
                         </dl>
                     </section>
@@ -742,42 +768,31 @@ function MessagesWorkspace({ variant = "buyer" }) {
                             </a>
                         </div>
                         <div className="attachment-list">
-                            <a href="#files" className="attachment-item">
-                                <img
-                                    src="/assets/img/gig_images/2.png"
-                                    alt=""
-                                />
-                                <span>
-                                    <strong>
-                                        {t(
-                                            "components.dashboard.messagesworkspace.designReferencePng",
-                                        )}
-                                    </strong>
-                                    <small>
-                                        {t(
-                                            "components.dashboard.messagesworkspace.image24Mb",
-                                        )}
-                                    </small>
-                                </span>
-                            </a>
-                            <a href="#files" className="attachment-item">
-                                <img
-                                    src="/assets/img/gig_images/3.png"
-                                    alt=""
-                                />
-                                <span>
-                                    <strong>
-                                        {t(
-                                            "components.dashboard.messagesworkspace.revisionNotesJpg",
-                                        )}
-                                    </strong>
-                                    <small>
-                                        {t(
-                                            "components.dashboard.messagesworkspace.image18Mb",
-                                        )}
-                                    </small>
-                                </span>
-                            </a>
+                            {(displayThread.attachments || []).map(
+                                (attachment) => (
+                                    <a
+                                        href={attachment.url || "#files"}
+                                        className="attachment-item"
+                                        key={attachment.id}
+                                    >
+                                        <span>
+                                            <strong>
+                                                {attachment.name ||
+                                                    attachment.originalName}
+                                            </strong>
+                                            <small>
+                                                {attachment.mimeType ||
+                                                    "Attachment"}
+                                            </small>
+                                        </span>
+                                    </a>
+                                ),
+                            )}
+                            {displayThread.attachments?.length === 0 ? (
+                                <p className="messages-empty">
+                                    No files have been attached yet.
+                                </p>
+                            ) : null}
                         </div>
                     </section>
 
@@ -795,27 +810,82 @@ function MessagesWorkspace({ variant = "buyer" }) {
                             </a>
                         </div>
                         <div className="related-service-list">
-                            {relatedServices.map((service) => (
+                            {displayThread.context?.gig ? (
                                 <a
                                     className="related-service-item"
-                                    href="#services"
-                                    key={`${service.title}-${service.price}`}
+                                    href={`/gigs/${displayThread.context.gig.id}`}
                                 >
-                                    <img src={service.image} alt="" />
+                                    {displayThread.context.gig.image ? (
+                                        <img
+                                            src={displayThread.context.gig.image}
+                                            alt=""
+                                        />
+                                    ) : null}
                                     <span>
-                                        <strong>{service.title}</strong>
-                                        <small>
-                                            {service.seller} - {service.rating}
-                                        </small>
+                                        <strong>
+                                            {displayThread.context.gig.title}
+                                        </strong>
+                                        <small>Conversation gig context</small>
                                     </span>
-                                    <em>{service.price}</em>
+                                    <em>{displayThread.context.gig.price}</em>
                                 </a>
-                            ))}
+                            ) : (
+                                <p className="messages-empty">
+                                    No related service is attached.
+                                </p>
+                            )}
                         </div>
                     </section>
+                        </>
+                    ) : (
+                        <section className="details-card messages-details-empty">
+                            <h2>Conversation details</h2>
+                            <p>Select a thread to see order context, files, and participant details.</p>
+                        </section>
+                    )}
                 </aside>
             </section>
         </main>
     );
+}
+
+function NoConversationSelected() {
+    return (
+        <section className="conversation-empty-graphic">
+            <svg viewBox="0 0 320 220" aria-hidden="true">
+                <path
+                    d="M55 48c0-13 11-24 24-24h162c13 0 24 11 24 24v91c0 13-11 24-24 24h-76l-38 30v-30H79c-13 0-24-11-24-24V48Z"
+                    fill="currentColor"
+                    opacity="0.08"
+                />
+                <path
+                    d="M82 68h120M82 96h88M82 124h62"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeWidth="10"
+                    opacity="0.24"
+                />
+                <circle cx="239" cy="58" r="25" fill="currentColor" opacity="0.12" />
+                <path
+                    d="m228 58 8 8 15-18"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="7"
+                />
+            </svg>
+            <h1 id="activeConversationTitle">No message selected</h1>
+            <p>Choose a conversation from the inbox to read updates and reply.</p>
+        </section>
+    );
+}
+
+function formatJoined(value) {
+    if (!value) return "Not shared";
+
+    return new Intl.DateTimeFormat("en", {
+        month: "short",
+        year: "numeric",
+    }).format(new Date(value));
 }
 export default MessagesWorkspace;

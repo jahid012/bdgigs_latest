@@ -79,7 +79,7 @@ function HowItWorks({ onNavigate }) {
                                 "components.home.howitworks.makeItAllHappenWithFreelancers",
                             )}
                         </h2>
-                        <a href="/register">
+                        <a href="/?auth=register">
                             {t("components.home.howitworks.joinNow")}
                         </a>
                     </div>

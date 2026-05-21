@@ -4,6 +4,7 @@ import { Icon, Rating } from "../components/common/Icons.jsx";
 import { useTranslation } from "react-i18next";
 import { useDashboardStore } from "../stores/useDashboardStore.js";
 import { useEffect } from "react";
+import { useSessionStore } from "../stores/useSessionStore.js";
 function SellerStatsGrid() {
     const { t } = useTranslation();
     const sellerStats = useDashboardStore((state) => state.sellerStats);
@@ -81,6 +82,15 @@ function SellerOrders({ onNavigate }) {
                                 <td data-label="Earnings">{order.earnings}</td>
                             </tr>
                         ))}
+                        {sellerOrders.length === 0 ? (
+                            <tr>
+                                <td colSpan="6">
+                                    <p className="messages-empty">
+                                        No seller orders yet.
+                                    </p>
+                                </td>
+                            </tr>
+                        ) : null}
                     </tbody>
                 </table>
             </div>
@@ -90,7 +100,8 @@ function SellerOrders({ onNavigate }) {
 function SellerChartCard({ onNavigate }) {
     const { t } = useTranslation();
     const sellerChartData = useDashboardStore((state) => state.sellerChartData);
-    const topValue = Math.max(...sellerChartData.map((bar) => bar.value));
+    const topValue = Math.max(0, ...sellerChartData.map((bar) => bar.value));
+    const total = sellerChartData.reduce((sum, bar) => sum + bar.value, 0);
     return (
         <article className="card dashboard-card chart-card seller-chart-card">
             <div className="card-heading">
@@ -113,7 +124,7 @@ function SellerChartCard({ onNavigate }) {
             </div>
             <div className="chart-summary">
                 <div>
-                    <strong>{t("pages.sellerdashboardpage.5420")}</strong>
+                    <strong>${total.toLocaleString()}</strong>
                     <span>
                         {t("pages.sellerdashboardpage.earnedThisMonth")}
                     </span>
@@ -183,6 +194,11 @@ function SellerMessagesPreview({ onNavigate }) {
                         </div>
                     </article>
                 ))}
+                {sellerMessages.length === 0 ? (
+                    <p className="messages-empty">
+                        Buyer messages will appear after a conversation starts.
+                    </p>
+                ) : null}
             </div>
         </article>
     );
@@ -233,6 +249,11 @@ function SellerPipelineCard({ onNavigate }) {
                         </div>
                     </article>
                 ))}
+                {sellerPipeline.length === 0 ? (
+                    <p className="messages-empty">
+                        Active delivery milestones will appear here.
+                    </p>
+                ) : null}
             </div>
         </article>
     );
@@ -304,6 +325,11 @@ function SellerServices({ onNavigate }) {
                         </div>
                     </article>
                 ))}
+                {sellerServices.length === 0 ? (
+                    <p className="messages-empty">
+                        Create a gig to start building your service catalog.
+                    </p>
+                ) : null}
             </div>
         </article>
     );
@@ -313,26 +339,21 @@ function SellerDashboardPage({ onNavigate }) {
     const sellerDashboardHighlights = useDashboardStore(
         (state) => state.sellerDashboardHighlights,
     );
-    const fetchOrders = useDashboardStore((state) => state.fetchOrders);
-    const fetchConversations = useDashboardStore(
-        (state) => state.fetchConversations,
+    const fetchDashboardSummary = useDashboardStore(
+        (state) => state.fetchDashboardSummary,
     );
-    const fetchSellerServices = useDashboardStore(
-        (state) => state.fetchSellerServices,
-    );
+    const currentUser = useSessionStore((state) => state.currentUser);
 
     useEffect(() => {
-        fetchOrders("seller");
-        fetchConversations("seller");
-        fetchSellerServices();
-    }, [fetchConversations, fetchOrders, fetchSellerServices]);
+        fetchDashboardSummary("seller");
+    }, [fetchDashboardSummary]);
 
     return (
         <main className="dashboard-content marketplace-dashboard-content">
             <DashboardPageHeader
                 className="dashboard-overview-hero seller-overview-hero"
                 eyebrow="Seller workspace"
-                title={t("pages.sellerdashboardpage.welcomeBackJahid")}
+                title={`Welcome back, ${currentUser?.name || "there"}`}
                 titleId="sellerDashboardTitle"
                 description="Monitor active orders, protect delivery momentum, and optimize your best-selling services from one focused seller hub."
                 stats={sellerDashboardHighlights}

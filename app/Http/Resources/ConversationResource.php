@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Str;
+use App\Models\Order;
 
 class ConversationResource extends JsonResource
 {
@@ -19,6 +20,12 @@ class ConversationResource extends JsonResource
         $legacyName = $this->seller_id === $userId ? $this->buyer_name : $this->seller_name;
         $name = $counterpartUser?->name ?: $legacyName ?: 'Conversation';
         $lastMessage = $this->messages->last();
+        $order = $this->context_type === 'order' && $this->context_id
+            ? Order::where('code', ltrim($this->context_id, '#'))->first()
+            : null;
+        $attachments = $this->messages
+            ->flatMap(fn ($message) => $message->relationLoaded('attachments') ? $message->attachments : [])
+            ->values();
 
         return [
             'id' => $this->public_id,
@@ -37,11 +44,29 @@ class ConversationResource extends JsonResource
                 'id' => $this->context_id,
                 'gigId' => $this->gig?->slug,
                 'orderId' => $this->metadata['orderCode'] ?? null,
+                'gig' => $this->gig ? [
+                    'id' => $this->gig->slug,
+                    'title' => $this->gig->title,
+                    'image' => $this->gig->image,
+                    'price' => '$'.number_format($this->gig->price_cents / 100, 0),
+                ] : null,
+                'order' => $order ? [
+                    'id' => '#'.$order->code,
+                    'service' => $order->service,
+                    'status' => $order->status,
+                    'statusClass' => $order->status_class,
+                    'dueDate' => $order->due_date?->format('M j, Y'),
+                    'price' => '$'.number_format($order->price_cents / 100, 0),
+                ] : null,
             ],
             'counterpart' => [
                 'id' => $counterpartUser?->id,
                 'name' => $name,
                 'initials' => initials($name),
+                'username' => $counterpartUser?->username,
+                'avatar' => $counterpartUser?->avatar,
+                'country' => $counterpartUser?->country,
+                'joinedAt' => $counterpartUser?->created_at?->toISOString(),
                 'online' => $counterpartUser?->last_seen_at?->greaterThan(now()->subSeconds(90)) ?? false,
                 'lastSeenAt' => $counterpartUser?->last_seen_at?->toISOString(),
             ],
@@ -62,6 +87,7 @@ class ConversationResource extends JsonResource
                 'lastSeenAt' => $participant->last_seen_at?->toISOString(),
             ])->values(),
             'messages' => MessageResource::collection($this->whenLoaded('messages', $this->messages ?? collect())),
+            'attachments' => MessageAttachmentResource::collection($attachments),
         ];
     }
 }

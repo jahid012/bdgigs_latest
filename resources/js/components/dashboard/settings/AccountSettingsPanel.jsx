@@ -1,20 +1,22 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import {
-    connectedDevice,
     notificationRows,
     personalInfoRows,
-    securityRows,
     settingsHubCards,
     settingsPageTitles,
     settingsProfiles,
 } from "../../../data/settingsPageData.js";
 import { Icon } from "../../common/Icons.jsx";
 import { useTranslation } from "react-i18next";
+import { apiRequest } from "../../../api/apiClient.js";
+import { useSessionStore } from "../../../stores/useSessionStore.js";
+
 function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
     const { t } = useTranslation();
     const { settingsPage } = useParams();
-    const profile = settingsProfiles[variant] || settingsProfiles.buyer;
+    const profileCopy = settingsProfiles[variant] || settingsProfiles.buyer;
+    const setCurrentUser = useSessionStore((state) => state.setCurrentUser);
     const basePath =
         variant === "seller"
             ? "/dashboard/seller/settings"
@@ -24,8 +26,32 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
     const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
     const [realTimeEnabled, setRealTimeEnabled] = useState(true);
     const [soundEnabled, setSoundEnabled] = useState(true);
+    const [account, setAccount] = useState({
+        name: "",
+        email: "",
+        username: "",
+        country: "",
+        visibility: "",
+        verificationStatus: "",
+    });
+    const [sessions, setSessions] = useState([]);
+    const [identity, setIdentity] = useState(null);
+    const [twoFactorSetup, setTwoFactorSetup] = useState({
+        qrSvg: "",
+        recoveryCodes: [],
+        confirmationCode: "",
+    });
     const [notificationPrefs, setNotificationPrefs] = useState(() =>
         buildNotificationState(notificationRows[variant]),
+    );
+    const profile = useMemo(
+        () => ({
+            ...profileCopy,
+            ...account,
+            email: account.email || profileCopy.email,
+            name: account.name || profileCopy.name,
+        }),
+        [account, profileCopy],
     );
     const personalRows = useMemo(
         () =>
@@ -35,6 +61,28 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
             })),
         [profile],
     );
+
+    useEffect(() => {
+        apiRequest("/api/user/settings")
+            .then((settings) => {
+                setAccount(settings.account || {});
+                setSessions(settings.sessions || []);
+                setIdentity(settings.identity || null);
+                setTwoFactorEnabled(Boolean(settings.account?.twoFactorEnabled));
+                setNotificationPrefs({
+                    ...buildNotificationState(notificationRows[variant]),
+                    ...(settings.notifications?.preferences || {}),
+                });
+                setRealTimeEnabled(
+                    settings.notifications?.realtimeEnabled ?? true,
+                );
+                setSoundEnabled(settings.notifications?.soundEnabled ?? true);
+            })
+            .catch((error) =>
+                setNotice(error.message || "Unable to load account settings."),
+            );
+    }, [variant]);
+
     const handleNotificationChange = (rowId, channel) => {
         setNotificationPrefs((current) => ({
             ...current,
@@ -47,6 +95,151 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
     const openProfile = (event) => {
         event.preventDefault();
         onNavigate(profile.profilePage);
+    };
+    const saveNotifications = async () => {
+        try {
+            const preferences = await apiRequest(
+                "/api/user/settings/notifications",
+                {
+                    method: "PATCH",
+                    body: {
+                        preferences: notificationPrefs,
+                        realtimeEnabled: realTimeEnabled,
+                        soundEnabled,
+                    },
+                },
+            );
+            setNotificationPrefs(preferences.preferences || {});
+            setRealTimeEnabled(preferences.realtimeEnabled);
+            setSoundEnabled(preferences.soundEnabled);
+            setNotice("Notification preferences updated.");
+        } catch (error) {
+            setNotice(
+                error.message || "Notification preferences could not be saved.",
+            );
+        }
+    };
+    const updatePassword = async (passwords) => {
+        try {
+            await apiRequest("/api/user/settings/password", {
+                method: "PATCH",
+                body: passwords,
+            });
+            setNotice("Password updated.");
+        } catch (error) {
+            setNotice(error.message || "Password could not be updated.");
+        }
+    };
+    const startTwoFactor = async () => {
+        try {
+            await apiRequest("/user/two-factor-authentication", {
+                method: "POST",
+                body: {},
+            });
+            const [qrCode, recoveryCodes] = await Promise.all([
+                apiRequest("/user/two-factor-qr-code"),
+                apiRequest("/user/two-factor-recovery-codes"),
+            ]);
+            setTwoFactorSetup((current) => ({
+                ...current,
+                qrSvg: qrCode.svg || "",
+                recoveryCodes: recoveryCodes || [],
+            }));
+            setNotice("Scan the QR code and confirm with an authenticator code.");
+        } catch (error) {
+            setNotice(error.message || "Two factor enrollment could not start.");
+        }
+    };
+    const confirmTwoFactor = async () => {
+        try {
+            await apiRequest("/user/confirmed-two-factor-authentication", {
+                method: "POST",
+                body: { code: twoFactorSetup.confirmationCode },
+            });
+            setTwoFactorEnabled(true);
+            setTwoFactorSetup((current) => ({
+                ...current,
+                qrSvg: "",
+                confirmationCode: "",
+            }));
+            setNotice("Two factor authentication is enabled.");
+        } catch (error) {
+            setNotice(error.message || "Authenticator code was not accepted.");
+        }
+    };
+    const disableTwoFactor = async () => {
+        try {
+            await apiRequest("/user/two-factor-authentication", {
+                method: "DELETE",
+            });
+            setTwoFactorEnabled(false);
+            setTwoFactorSetup({
+                qrSvg: "",
+                recoveryCodes: [],
+                confirmationCode: "",
+            });
+            setNotice("Two factor authentication is disabled.");
+        } catch (error) {
+            setNotice(error.message || "Two factor authentication stayed enabled.");
+        }
+    };
+    const regenerateRecoveryCodes = async () => {
+        try {
+            await apiRequest("/user/two-factor-recovery-codes", {
+                method: "POST",
+                body: {},
+            });
+            const recoveryCodes = await apiRequest(
+                "/user/two-factor-recovery-codes",
+            );
+            setTwoFactorSetup((current) => ({
+                ...current,
+                recoveryCodes: recoveryCodes || [],
+            }));
+            setNotice("Recovery codes regenerated.");
+        } catch (error) {
+            setNotice(error.message || "Recovery codes could not be regenerated.");
+        }
+    };
+    const revokeSession = async (sessionId) => {
+        try {
+            await apiRequest(`/api/user/settings/sessions/${sessionId}`, {
+                method: "DELETE",
+            });
+            setSessions((current) =>
+                current.filter((session) => session.id !== sessionId),
+            );
+            setNotice("Session signed out.");
+        } catch (error) {
+            setNotice(error.message || "Session could not be revoked.");
+        }
+    };
+    const submitIdentity = async (payload) => {
+        try {
+            const submission = await apiRequest(
+                "/api/user/settings/identity-verification",
+                { body: payload },
+            );
+            setIdentity(submission);
+            setAccount((current) => ({
+                ...current,
+                verificationStatus: submission.status,
+            }));
+            setNotice("Identity verification submitted for review.");
+        } catch (error) {
+            setNotice(error.message || "Identity verification could not be submitted.");
+        }
+    };
+    const deactivateAccount = async (password) => {
+        try {
+            await apiRequest("/api/user/settings/deactivate", {
+                body: { password },
+            });
+            setCurrentUser(null);
+            onNavigate("home");
+        } catch (error) {
+            setNotice(error.message || "Account deactivation failed.");
+        }
     };
     if (settingsPage && !settingsPageTitles[settingsPage]) {
         return <Navigate to={basePath} replace />;
@@ -82,21 +275,27 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
                 <PersonalInformationSection
                     basePath={basePath}
                     rows={personalRows}
-                    onAction={(label) =>
-                        setNotice(`${label} settings are ready to edit.`)
-                    }
+                    onAction={() => onNavigate(profile.profilePage)}
+                    onDeactivate={deactivateAccount}
                 />
             ) : null}
             {activePage === "account-security" ? (
                 <AccountSecuritySection
                     basePath={basePath}
+                    sessions={sessions}
+                    twoFactorSetup={twoFactorSetup}
                     twoFactorEnabled={twoFactorEnabled}
-                    onSave={() => setNotice("Security changes saved.")}
-                    onToggleTwoFactor={() =>
-                        setTwoFactorEnabled((enabled) => !enabled)
-                    }
-                    onAction={(label) =>
-                        setNotice(`${label} settings are ready to edit.`)
+                    onConfirmTwoFactor={confirmTwoFactor}
+                    onDisableTwoFactor={disableTwoFactor}
+                    onPasswordUpdate={updatePassword}
+                    onRecoveryCodes={regenerateRecoveryCodes}
+                    onRevokeSession={revokeSession}
+                    onStartTwoFactor={startTwoFactor}
+                    onTwoFactorCode={(confirmationCode) =>
+                        setTwoFactorSetup((current) => ({
+                            ...current,
+                            confirmationCode,
+                        }))
                     }
                 />
             ) : null}
@@ -113,9 +312,7 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
                         setRealTimeEnabled((enabled) => !enabled)
                     }
                     onToggleSound={() => setSoundEnabled((enabled) => !enabled)}
-                    onSave={() =>
-                        setNotice("Notification preferences updated.")
-                    }
+                    onSave={saveNotifications}
                     onTry={() =>
                         setNotice("Real-time notification preview sent.")
                     }
@@ -124,9 +321,10 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
             {activePage === "identity-verification" ? (
                 <IdentityVerificationSection
                     basePath={basePath}
+                    identity={identity}
                     profile={profile}
                     onBack={() => setNotice("Returned to account settings.")}
-                    onContinue={() => setNotice("Verification flow opened.")}
+                    onContinue={submitIdentity}
                 />
             ) : null}
         </main>
@@ -155,8 +353,14 @@ function SettingsHubCards({ basePath }) {
         </section>
     );
 }
-function PersonalInformationSection({ basePath, rows, onAction }) {
+function PersonalInformationSection({
+    basePath,
+    rows,
+    onAction,
+    onDeactivate,
+}) {
     const { t } = useTranslation();
+    const [password, setPassword] = useState("");
     return (
         <section
             className="account-settings-section personal-info-section"
@@ -169,7 +373,7 @@ function PersonalInformationSection({ basePath, rows, onAction }) {
                 )}
             </h2>
             <div className="personal-info-list">
-                {rows.map((row) => (
+                {rows.filter((row) => !row.danger).map((row) => (
                     <article className="personal-info-row" key={row.label}>
                         <div>
                             <strong>{row.label}</strong>
@@ -185,17 +389,61 @@ function PersonalInformationSection({ basePath, rows, onAction }) {
                     </article>
                 ))}
             </div>
+            <form
+                className="security-password-form account-deactivate-form"
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    onDeactivate(password);
+                }}
+            >
+                <h3>Deactivate account</h3>
+                <p>
+                    Marketplace records stay in place, but this account will be
+                    signed out and blocked from further use.
+                </p>
+                <label>
+                    <span>Confirm password</span>
+                    <input
+                        type="password"
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        required
+                    />
+                </label>
+                <button
+                    className="settings-dark-button danger-link"
+                    type="submit"
+                    disabled={!password}
+                >
+                    Deactivate account
+                </button>
+            </form>
         </section>
     );
 }
 function AccountSecuritySection({
     basePath,
+    sessions,
+    twoFactorSetup,
     twoFactorEnabled,
-    onAction,
-    onSave,
-    onToggleTwoFactor,
+    onConfirmTwoFactor,
+    onDisableTwoFactor,
+    onPasswordUpdate,
+    onRecoveryCodes,
+    onRevokeSession,
+    onStartTwoFactor,
+    onTwoFactorCode,
 }) {
     const { t } = useTranslation();
+    const [passwordForm, setPasswordForm] = useState({
+        currentPassword: "",
+        password: "",
+        password_confirmation: "",
+    });
+    const updatePasswordField = (field, value) => {
+        setPasswordForm((current) => ({ ...current, [field]: value }));
+    };
     return (
         <section
             className="account-settings-section security-settings-section"
@@ -211,7 +459,12 @@ function AccountSecuritySection({
                 className="security-password-form"
                 onSubmit={(event) => {
                     event.preventDefault();
-                    onSave();
+                    onPasswordUpdate(passwordForm);
+                    setPasswordForm({
+                        currentPassword: "",
+                        password: "",
+                        password_confirmation: "",
+                    });
                 }}
             >
                 <h3>
@@ -225,7 +478,18 @@ function AccountSecuritySection({
                             "components.dashboard.settings.accountsettingspanel.currentPassword",
                         )}
                     </span>
-                    <input type="password" autoComplete="current-password" />
+                    <input
+                        type="password"
+                        autoComplete="current-password"
+                        value={passwordForm.currentPassword}
+                        onChange={(event) =>
+                            updatePasswordField(
+                                "currentPassword",
+                                event.target.value,
+                            )
+                        }
+                        required
+                    />
                 </label>
                 <label>
                     <span>
@@ -233,7 +497,15 @@ function AccountSecuritySection({
                             "components.dashboard.settings.accountsettingspanel.newPassword",
                         )}
                     </span>
-                    <input type="password" autoComplete="new-password" />
+                    <input
+                        type="password"
+                        autoComplete="new-password"
+                        value={passwordForm.password}
+                        onChange={(event) =>
+                            updatePasswordField("password", event.target.value)
+                        }
+                        required
+                    />
                 </label>
                 <label>
                     <span>
@@ -242,7 +514,18 @@ function AccountSecuritySection({
                         )}
                     </span>
                     <div>
-                        <input type="password" autoComplete="new-password" />
+                        <input
+                            type="password"
+                            autoComplete="new-password"
+                            value={passwordForm.password_confirmation}
+                            onChange={(event) =>
+                                updatePasswordField(
+                                    "password_confirmation",
+                                    event.target.value,
+                                )
+                            }
+                            required
+                        />
                         <small>
                             {t(
                                 "components.dashboard.settings.accountsettingspanel.8CharactersOrLongerCombineUpperAndLowercase",
@@ -259,18 +542,6 @@ function AccountSecuritySection({
             </form>
 
             <div className="security-option-list">
-                {securityRows.map((row) => (
-                    <article className="security-option-row" key={row.title}>
-                        <strong>{row.title}</strong>
-                        <p>{row.description}</p>
-                        <button
-                            type="button"
-                            onClick={() => onAction(row.title)}
-                        >
-                            {row.action}
-                        </button>
-                    </article>
-                ))}
                 <article className="security-option-row two-factor-row">
                     <strong>
                         {" "}
@@ -287,7 +558,11 @@ function AccountSecuritySection({
                         <SettingsSwitch
                             enabled={twoFactorEnabled}
                             label="Toggle two factor authentication"
-                            onToggle={onToggleTwoFactor}
+                            onToggle={
+                                twoFactorEnabled
+                                    ? onDisableTwoFactor
+                                    : onStartTwoFactor
+                            }
                         />
                         <p>
                             {" "}
@@ -297,6 +572,65 @@ function AccountSecuritySection({
                         </p>
                     </div>
                 </article>
+                {twoFactorSetup.qrSvg ? (
+                    <article className="security-option-row two-factor-setup-row">
+                        <div>
+                            <strong>Authenticator setup</strong>
+                            <p>
+                                Scan this QR code, then enter the current code
+                                from your authenticator app.
+                            </p>
+                        </div>
+                        <div className="two-factor-qr-panel">
+                            <div
+                                className="two-factor-qr"
+                                dangerouslySetInnerHTML={{
+                                    __html: twoFactorSetup.qrSvg,
+                                }}
+                            />
+                            <label>
+                                <span className="sr-only">
+                                    Authenticator code
+                                </span>
+                                <input
+                                    inputMode="numeric"
+                                    value={twoFactorSetup.confirmationCode}
+                                    onChange={(event) =>
+                                        onTwoFactorCode(event.target.value)
+                                    }
+                                    placeholder="123456"
+                                />
+                            </label>
+                            <button
+                                className="settings-primary-button"
+                                type="button"
+                                disabled={!twoFactorSetup.confirmationCode}
+                                onClick={onConfirmTwoFactor}
+                            >
+                                Confirm two factor
+                            </button>
+                        </div>
+                    </article>
+                ) : null}
+                {twoFactorEnabled || twoFactorSetup.recoveryCodes.length ? (
+                    <article className="security-option-row recovery-code-row">
+                        <div>
+                            <strong>Recovery codes</strong>
+                            <p>
+                                Store recovery codes somewhere private before
+                                you need them.
+                            </p>
+                        </div>
+                        {twoFactorSetup.recoveryCodes.length ? (
+                            <code className="two-factor-codes">
+                                {twoFactorSetup.recoveryCodes.join("\n")}
+                            </code>
+                        ) : null}
+                        <button type="button" onClick={onRecoveryCodes}>
+                            Regenerate codes
+                        </button>
+                    </article>
+                ) : null}
             </div>
 
             <section
@@ -308,21 +642,34 @@ function AccountSecuritySection({
                         "components.dashboard.settings.accountsettingspanel.connectedDevices",
                     )}
                 </h3>
-                <article>
-                    <Icon name="dashboard" />
-                    <div>
-                        <strong>
-                            {connectedDevice.title}{" "}
-                            <span>{connectedDevice.status}</span>
-                        </strong>
-                        <p>{connectedDevice.detail}</p>
-                    </div>
-                    <button type="button">
-                        {t(
-                            "components.dashboard.settings.accountsettingspanel.signOut",
-                        )}
-                    </button>
-                </article>
+                {sessions.length ? sessions.map((session) => (
+                    <article key={session.id}>
+                        <Icon name="dashboard" />
+                        <div>
+                            <strong>
+                                {session.userAgent || "Browser session"}{" "}
+                                {session.current ? <span>This device</span> : null}
+                            </strong>
+                            <p>
+                                {session.ipAddress || "Unknown IP"} -{" "}
+                                {session.lastActivity}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            disabled={session.current}
+                            onClick={() => onRevokeSession(session.id)}
+                        >
+                            {session.current
+                                ? "Active"
+                                : t(
+                                      "components.dashboard.settings.accountsettingspanel.signOut",
+                                  )}
+                        </button>
+                    </article>
+                )) : (
+                    <p>No connected sessions found.</p>
+                )}
             </section>
         </section>
     );
@@ -489,11 +836,21 @@ function NotificationPreferencesSection({
 }
 function IdentityVerificationSection({
     basePath,
+    identity,
     onBack,
     onContinue,
     profile,
 }) {
     const { t } = useTranslation();
+    const [draft, setDraft] = useState({
+        legalName: profile.name || "",
+        documentType: "Government ID",
+        documentReference: "",
+        country: profile.country || "",
+    });
+    const updateDraft = (field, value) => {
+        setDraft((current) => ({ ...current, [field]: value }));
+    };
     return (
         <section
             className="account-settings-section identity-settings-section"
@@ -538,17 +895,72 @@ function IdentityVerificationSection({
                             "components.dashboard.settings.accountsettingspanel.back",
                         )}{" "}
                     </button>
-                    <button
-                        className="settings-dark-button"
-                        type="button"
-                        onClick={onContinue}
-                    >
-                        {" "}
+                </div>
+                <form
+                    className="security-password-form identity-submit-form"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        onContinue(draft);
+                    }}
+                >
+                    <h3>Submit verification details</h3>
+                    {identity ? (
+                        <p>
+                            Current status:{" "}
+                            <strong>{identity.status || "submitted"}</strong>
+                        </p>
+                    ) : null}
+                    <label>
+                        <span>Legal name</span>
+                        <input
+                            value={draft.legalName}
+                            onChange={(event) =>
+                                updateDraft("legalName", event.target.value)
+                            }
+                            required
+                        />
+                    </label>
+                    <label>
+                        <span>Document type</span>
+                        <select
+                            value={draft.documentType}
+                            onChange={(event) =>
+                                updateDraft("documentType", event.target.value)
+                            }
+                        >
+                            <option>Government ID</option>
+                            <option>Passport</option>
+                            <option>Driving license</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Document reference</span>
+                        <input
+                            value={draft.documentReference}
+                            onChange={(event) =>
+                                updateDraft(
+                                    "documentReference",
+                                    event.target.value,
+                                )
+                            }
+                            required
+                        />
+                    </label>
+                    <label>
+                        <span>Country</span>
+                        <input
+                            value={draft.country}
+                            onChange={(event) =>
+                                updateDraft("country", event.target.value)
+                            }
+                        />
+                    </label>
+                    <button className="settings-dark-button" type="submit">
                         {t(
                             "components.dashboard.settings.accountsettingspanel.continue",
-                        )}{" "}
+                        )}
                     </button>
-                </div>
+                </form>
             </div>
             <aside className="identity-info-card">
                 <Icon name="document" />

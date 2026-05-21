@@ -1,9 +1,13 @@
-import { useState } from "react";
-import { sellerPayoutHistory } from "../../../data/dashboardPageData.js";
+import { useEffect, useState } from "react";
 import { Icon } from "../../common/Icons.jsx";
-import { FilterButton, FinanceNotice } from "../FinanceControls.jsx";
+import {
+    FilterButton,
+    FinanceEmptyState,
+    FinanceNotice,
+} from "../FinanceControls.jsx";
 import SellerEarningsLineChart from "./SellerEarningsLineChart.jsx";
 import { useTranslation } from "react-i18next";
+import { apiRequest } from "../../../api/apiClient.js";
 const activityFilterLabels = {
     all: "Activity",
     earning: "Earning",
@@ -14,13 +18,49 @@ const nextActivityFilter = {
     earning: "withdrawal",
     withdrawal: "all",
 };
+
+const emptyFinance = {
+    summary: {
+        availableFunds: "$0",
+        withdrawnToDate: "$0",
+        clearing: "$0",
+        activeOrderEarnings: "$0",
+        earningsToDate: "$0",
+        expensesToDate: "$0",
+    },
+    history: [],
+    chartData: [],
+};
+
 function SellerEarningsOverview() {
     const { t } = useTranslation();
     const [activityFilter, setActivityFilter] = useState("all");
     const [dateFilter, setDateFilter] = useState("All dates");
     const [viewMode, setViewMode] = useState("table");
     const [notice, setNotice] = useState("");
-    const filteredHistory = getFilteredHistory(activityFilter);
+    const [finance, setFinance] = useState(emptyFinance);
+    const filteredHistory = getFilteredHistory(
+        finance.history,
+        activityFilter,
+    );
+
+    useEffect(() => {
+        apiRequest("/api/seller/earnings")
+            .then((nextFinance) =>
+                setFinance({
+                    ...emptyFinance,
+                    ...nextFinance,
+                    summary: {
+                        ...emptyFinance.summary,
+                        ...(nextFinance.summary || {}),
+                    },
+                }),
+            )
+            .catch((error) =>
+                setNotice(error.message || "Unable to load seller earnings."),
+            );
+    }, []);
+
     return (
         <>
             <FinanceNotice message={notice} />
@@ -44,27 +84,21 @@ function SellerEarningsOverview() {
                             )}
                         </span>
                         <strong className="finance-value">
-                            {t(
-                                "components.dashboard.earnings.sellerearningsoverview.1600",
-                            )}
+                            {finance.summary.availableFunds}
                         </strong>
                         <p>
                             {" "}
                             {t(
                                 "components.dashboard.earnings.sellerearningsoverview.withdrawnToDate",
                             )}{" "}
-                            <span>
-                                {t(
-                                    "components.dashboard.earnings.sellerearningsoverview.102480",
-                                )}
-                            </span>
+                            <span>{finance.summary.withdrawnToDate}</span>
                         </p>
                         <button
                             className="finance-primary-button"
                             type="button"
                             onClick={() =>
                                 setNotice(
-                                    "Withdrawal flow opened. Your balance is ready to transfer.",
+                                    "Payout transfers are not enabled yet.",
                                 )
                             }
                         >
@@ -78,7 +112,7 @@ function SellerEarningsOverview() {
                             type="button"
                             onClick={() =>
                                 setNotice(
-                                    "Payout method settings are ready to review.",
+                                    "Payout method setup is not enabled yet.",
                                 )
                             }
                         >
@@ -112,9 +146,7 @@ function SellerEarningsOverview() {
                                 )}
                             </span>
                             <strong className="finance-value">
-                                {t(
-                                    "components.dashboard.earnings.sellerearningsoverview.000",
-                                )}
+                                {finance.summary.clearing}
                             </strong>
                         </div>
                         <div>
@@ -124,9 +156,7 @@ function SellerEarningsOverview() {
                                 )}
                             </span>
                             <strong className="finance-value">
-                                {t(
-                                    "components.dashboard.earnings.sellerearningsoverview.000",
-                                )}
+                                {finance.summary.activeOrderEarnings}
                             </strong>
                         </div>
                     </div>
@@ -170,9 +200,7 @@ function SellerEarningsOverview() {
                                 )}
                             </span>
                             <strong className="finance-value">
-                                {t(
-                                    "components.dashboard.earnings.sellerearningsoverview.104080",
-                                )}
+                                {finance.summary.earningsToDate}
                             </strong>
                             <p>
                                 {t(
@@ -187,9 +215,7 @@ function SellerEarningsOverview() {
                                 )}
                             </span>
                             <strong className="finance-value">
-                                {t(
-                                    "components.dashboard.earnings.sellerearningsoverview.000",
-                                )}
+                                {finance.summary.expensesToDate}
                             </strong>
                             <p>
                                 {t(
@@ -254,7 +280,7 @@ function SellerEarningsOverview() {
                             type="button"
                             onClick={() =>
                                 setNotice(
-                                    "Activity report queued for email delivery.",
+                                    "No emailed activity export is available yet.",
                                 )
                             }
                         >
@@ -281,7 +307,10 @@ function SellerEarningsOverview() {
                 {viewMode === "table" ? (
                     <EarningsHistoryTable history={filteredHistory} />
                 ) : (
-                    <EarningsChartPanel />
+                    <EarningsChartPanel
+                        data={finance.chartData}
+                        summaryValue={finance.summary.earningsToDate}
+                    />
                 )}
             </section>
         </>
@@ -326,8 +355,9 @@ function EarningsHistoryTable({ history }) {
                         </th>
                     </tr>
                 </thead>
-                <tbody>
-                    {history.map((item) => (
+                {history.length ? (
+                    <tbody>
+                        {history.map((item) => (
                         <tr key={`${item.id}-${item.date}`}>
                             <td>{item.date}</td>
                             <td>
@@ -357,24 +387,42 @@ function EarningsHistoryTable({ history }) {
                                 {item.amount}
                             </td>
                         </tr>
-                    ))}
-                </tbody>
+                        ))}
+                    </tbody>
+                ) : null}
             </table>
+            {!history.length ? (
+                <FinanceEmptyState
+                    title="No earnings activity yet"
+                    description="Seller order earnings appear here after buyers place orders."
+                />
+            ) : null}
         </div>
     );
 }
-function EarningsChartPanel() {
+function EarningsChartPanel({ data, summaryValue }) {
     return (
         <div className="finance-chart-panel">
-            <SellerEarningsLineChart />
+            {data.length ? (
+                <SellerEarningsLineChart
+                    data={data}
+                    summaryValue={summaryValue}
+                    trendLabel="Order earnings by month"
+                />
+            ) : (
+                <FinanceEmptyState
+                    title="No chart data yet"
+                    description="Monthly earnings trends appear after seller orders are recorded."
+                />
+            )}
         </div>
     );
 }
-function getFilteredHistory(activityFilter) {
+function getFilteredHistory(history, activityFilter) {
     if (activityFilter === "all") {
-        return sellerPayoutHistory;
+        return history;
     }
-    return sellerPayoutHistory.filter(
+    return history.filter(
         (item) => item.activity === activityFilter,
     );
 }

@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { Icon } from "../components/common/Icons.jsx";
 import Footer from "../components/layout/Footer.jsx";
 import Header from "../components/layout/Header.jsx";
-import { getUserProfile } from "../data/userProfileData.js";
+import { apiRequest } from "../api/apiClient.js";
 import { useConversationLauncher } from "../hooks/useConversationLauncher.js";
 import { useTranslation } from "react-i18next";
 const profileTabs = [
@@ -24,9 +24,44 @@ const profileTabs = [
         label: "Reviews",
     },
 ];
+
+function emptyPublicProfile(username = "") {
+    return {
+        userId: null,
+        slug: username,
+        name: "Seller profile",
+        handle: username ? `@${username}` : "",
+        avatar: "",
+        title: "",
+        level: "New Seller",
+        rating: 0,
+        reviews: 0,
+        location: "",
+        localTime: "",
+        languages: [],
+        about: "",
+        skills: [],
+        responseTime: "Inbox",
+        services: [],
+        portfolio: null,
+        workExperience: [],
+        education: null,
+        certifications: [],
+        reviewsData: {
+            count: 0,
+            rating: 0,
+            breakdown: [],
+            ratings: [],
+            sample: null,
+        },
+    };
+}
+
 function UserProfilePage({ onNavigate }) {
     const { username } = useParams();
-    const profile = getUserProfile(username);
+    const [profile, setProfile] = useState(() => emptyPublicProfile(username));
+    const [profileStatus, setProfileStatus] = useState("loading");
+    const [profileError, setProfileError] = useState("");
     const [activeSection, setActiveSection] = useState("about");
     const [isStickyNavVisible, setIsStickyNavVisible] = useState(false);
     const [activeProfileDialog, setActiveProfileDialog] = useState("");
@@ -52,6 +87,48 @@ function UserProfilePage({ onNavigate }) {
         setActiveProfileDialog("");
         setIsAboutSheetClosing(false);
     };
+
+    useEffect(() => {
+        let active = true;
+
+        setProfile(emptyPublicProfile(username));
+        setProfileStatus("loading");
+        setProfileError("");
+
+        apiRequest(`/api/users/${encodeURIComponent(username)}/profile`)
+            .then((nextProfile) => {
+                if (!active) return;
+
+                setProfile({
+                    ...emptyPublicProfile(username),
+                    ...nextProfile,
+                    services: nextProfile.services || [],
+                    languages: nextProfile.languages || [],
+                    skills: nextProfile.skills || [],
+                    workExperience: nextProfile.workExperience || [],
+                    certifications: nextProfile.certifications || [],
+                    reviewsData: {
+                        ...emptyPublicProfile(username).reviewsData,
+                        ...(nextProfile.reviewsData || {}),
+                    },
+                });
+                setProfileStatus("ready");
+            })
+            .catch((error) => {
+                if (!active) return;
+
+                setProfileStatus("error");
+                setProfileError(
+                    error.status === 404
+                        ? "This seller profile is not available yet."
+                        : error.message || "Unable to load this profile.",
+                );
+            });
+
+        return () => {
+            active = false;
+        };
+    }, [username]);
 
     useEffect(() => {
         const observers = profileTabs
@@ -122,33 +199,47 @@ function UserProfilePage({ onNavigate }) {
             />
 
             <main>
-                <section className="public-profile-shell">
-                    <div className="container">
-                        <ProfileHero
+                {profileStatus === "error" ? (
+                    <section className="public-profile-shell">
+                        <div className="container profile-data-empty">
+                            <h1>{profileError}</h1>
+                            <p>
+                                Seller details appear here after a profile or
+                                service is published.
+                            </p>
+                        </div>
+                    </section>
+                ) : (
+                    <>
+                        <section className="public-profile-shell">
+                            <div className="container">
+                                <ProfileHero
+                                    onContact={openContactPopup}
+                                    onMoreAbout={openAboutSheet}
+                                    profile={profile}
+                                    summaryRef={summaryRef}
+                                />
+                            </div>
+                        </section>
+
+                        <ProfileStickyNav
+                            activeSection={activeSection}
+                            isVisible={isStickyNavVisible}
                             onContact={openContactPopup}
-                            onMoreAbout={openAboutSheet}
                             profile={profile}
-                            summaryRef={summaryRef}
                         />
-                    </div>
-                </section>
 
-                <ProfileStickyNav
-                    activeSection={activeSection}
-                    isVisible={isStickyNavVisible}
-                    onContact={openContactPopup}
-                    profile={profile}
-                />
+                        <div className="container public-profile-content">
+                            <ServicesSection profile={profile} />
+                            <PortfolioSection profile={profile} />
+                            <WorkExperienceSection profile={profile} />
+                            <ProfileSourcingCTA />
+                            <ReviewsSection profile={profile} />
+                        </div>
 
-                <div className="container public-profile-content">
-                    <ServicesSection profile={profile} />
-                    <PortfolioSection profile={profile} />
-                    <WorkExperienceSection profile={profile} />
-                    <ProfileSourcingCTA />
-                    <ReviewsSection profile={profile} />
-                </div>
-
-                <ProfileTalentSection />
+                        <ProfileTalentSection />
+                    </>
+                )}
             </main>
 
             {activeProfileDialog === "contact" ? (
@@ -168,7 +259,9 @@ function UserProfilePage({ onNavigate }) {
                 />
             ) : null}
 
-            <ProfileMessageBubble profile={profile} />
+            {profileStatus === "ready" ? (
+                <ProfileMessageBubble profile={profile} />
+            ) : null}
             <Footer />
         </div>
     );
@@ -348,14 +441,16 @@ function ProfileStickyNav({ activeSection, isVisible, onContact, profile }) {
 }
 function ServicesSection({ profile }) {
     const { t } = useTranslation();
+    const services = profile.services || [];
     return (
         <section
             className="profile-section profile-services-section"
             id="services"
         >
             <h2>{t("pages.userprofilepage.seeMyServices")}</h2>
-            <div className="profile-service-list">
-                {profile.services.map((service) => (
+            {services.length ? (
+                <div className="profile-service-list">
+                    {services.map((service) => (
                     <article className="profile-service-card" key={service.id}>
                         <div className="profile-service-main">
                             <img src={service.image} alt="" />
@@ -378,14 +473,36 @@ function ServicesSection({ profile }) {
                             </Link>
                         </div>
                     </article>
-                ))}
-            </div>
+                    ))}
+                </div>
+            ) : (
+                <ProfileDataEmpty
+                    title="No services published yet"
+                    description="Published seller services will appear here."
+                />
+            )}
         </section>
     );
 }
 function PortfolioSection({ profile }) {
     const { t } = useTranslation();
     const { portfolio } = profile;
+
+    if (!portfolio) {
+        return (
+            <section
+                className="profile-section profile-portfolio-section"
+                id="portfolio"
+            >
+                <h2>{t("pages.userprofilepage.portfolio")}</h2>
+                <ProfileDataEmpty
+                    title="No portfolio projects yet"
+                    description="Portfolio work appears after the seller adds project samples."
+                />
+            </section>
+        );
+    }
+
     return (
         <section
             className="profile-section profile-portfolio-section"
@@ -452,11 +569,13 @@ function PortfolioSection({ profile }) {
 }
 function WorkExperienceSection({ profile }) {
     const { t } = useTranslation();
+    const workExperience = profile.workExperience || [];
     return (
         <section className="profile-section profile-work-section">
             <h2>{t("pages.userprofilepage.workExperience")}</h2>
-            <div className="profile-work-list">
-                {profile.workExperience.map((item) => (
+            {workExperience.length ? (
+                <div className="profile-work-list">
+                    {workExperience.map((item) => (
                     <article
                         className="profile-work-item"
                         key={`${item.role}-${item.company}`}
@@ -475,8 +594,14 @@ function WorkExperienceSection({ profile }) {
                             <p>{item.description}</p>
                         </div>
                     </article>
-                ))}
-            </div>
+                    ))}
+                </div>
+            ) : (
+                <ProfileDataEmpty
+                    title="No work history shared"
+                    description="Work experience will appear when the seller adds it."
+                />
+            )}
         </section>
     );
 }
@@ -522,6 +647,31 @@ function ReviewsSection({ profile }) {
     const { t } = useTranslation();
     const reviews = profile.reviewsData;
     const sample = reviews.sample;
+
+    if (!sample) {
+        return (
+            <section
+                className="profile-section profile-reviews-section"
+                id="reviews"
+            >
+                <div className="profile-reviews-summary">
+                    <div>
+                        <h2>
+                            {reviews.count} {t("pages.userprofilepage.reviews")}
+                        </h2>
+                    </div>
+                    <div>
+                        <ProfileRating rating={reviews.rating} reviews={0} />
+                    </div>
+                </div>
+                <ProfileDataEmpty
+                    title="No reviews yet"
+                    description="Verified order reviews will appear here."
+                />
+            </section>
+        );
+    }
+
     return (
         <section
             className="profile-section profile-reviews-section"
@@ -938,21 +1088,8 @@ function ProfileAboutSheet({
                   ? "Conversational"
                   : "Conversational",
     }));
-    const education = profile.education || {
-        school: "The Islamia University Bahawalpur",
-        degree: "M.A. Degree. Artificial Intelligence",
-        year: "Graduated 2021",
-    };
-    const certifications = profile.certifications || [
-        {
-            name: "IDEOVERSITY Web Development",
-            year: "Graduated 2022",
-        },
-        {
-            name: "IDEOVERSITY Python",
-            year: "Graduated 2020",
-        },
-    ];
+    const education = profile.education;
+    const certifications = profile.certifications || [];
 
     useEffect(() => {
         if (!isClosing) {
@@ -1045,40 +1182,39 @@ function ProfileAboutSheet({
                             </div>
                         </section>
 
-                        <section className="profile-learn-row">
-                            <h3>Successfully completed online</h3>
-                            <article>
-                                <span>
-                                    <Icon name="verifiedUser" />
-                                </span>
-                                <div>
-                                    <strong>
-                                        Online Freelancing Essentials: be a
-                                        successful Fiverr seller
-                                    </strong>
-                                    <p>Oct 2023</p>
-                                </div>
-                                <b>fiverr learn.</b>
-                            </article>
-                        </section>
-
                         <section>
                             <h3>Education</h3>
-                            <article className="profile-about-timeline-item">
-                                <span>
-                                    <Icon name="graduation" />
-                                </span>
-                                <div>
-                                    <strong>{education.school}</strong>
-                                    <p>{education.degree}</p>
-                                    <p>{education.year}</p>
-                                </div>
-                            </article>
+                            {education ? (
+                                <article className="profile-about-timeline-item">
+                                    <span>
+                                        <Icon name="graduation" />
+                                    </span>
+                                    <div>
+                                        <strong>
+                                            {education.school ||
+                                                education.university}
+                                        </strong>
+                                        <p>
+                                            {education.degree}
+                                            {education.major
+                                                ? ` ${education.major}`
+                                                : ""}
+                                        </p>
+                                        <p>
+                                            {education.year
+                                                ? `Graduated ${education.year}`
+                                                : ""}
+                                        </p>
+                                    </div>
+                                </article>
+                            ) : (
+                                <p>No education shared.</p>
+                            )}
                         </section>
 
                         <section>
                             <h3>Certifications</h3>
-                            {certifications.map((item) => (
+                            {certifications.length ? certifications.map((item) => (
                                 <article
                                     className="profile-about-timeline-item"
                                     key={`${item.name}-${item.year}`}
@@ -1091,13 +1227,13 @@ function ProfileAboutSheet({
                                         <p>{item.year}</p>
                                     </div>
                                 </article>
-                            ))}
+                            )) : <p>No certifications shared.</p>}
                         </section>
                     </div>
 
                     <aside className="profile-about-sheet-card">
                         <strong>
-                            <Icon name="user" /> On Fiverr since Aug 2020
+                            <Icon name="user" /> bdgigs seller profile
                         </strong>
                         <hr />
                         <h3>I speak</h3>
@@ -1112,6 +1248,15 @@ function ProfileAboutSheet({
                     </aside>
                 </div>
             </section>
+        </div>
+    );
+}
+
+function ProfileDataEmpty({ description, title }) {
+    return (
+        <div className="profile-data-empty">
+            <strong>{title}</strong>
+            <p>{description}</p>
         </div>
     );
 }

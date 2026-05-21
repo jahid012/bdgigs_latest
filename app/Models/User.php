@@ -9,16 +9,19 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
+use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'email_verified_at', 'profile_type', 'country', 'verification_status', 'suspended_at', 'last_seen_at'])]
+#[Fillable(['name', 'username', 'email', 'password', 'email_verified_at', 'profile_type', 'country', 'avatar', 'verification_status', 'suspended_at', 'deactivated_at', 'last_seen_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable;
+    use HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
 
     /**
      * Get the attributes that should be cast.
@@ -30,9 +33,33 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'suspended_at' => 'datetime',
+            'deactivated_at' => 'datetime',
             'last_seen_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (User $user): void {
+            if (! $user->username) {
+                $user->username = static::uniqueUsername($user->name ?: Str::before($user->email, '@'));
+            }
+        });
+    }
+
+    public static function uniqueUsername(string $seed): string
+    {
+        $base = Str::slug($seed, '_') ?: 'user';
+        $candidate = $base;
+        $suffix = 1;
+
+        while (static::where('username', $candidate)->exists()) {
+            $suffix++;
+            $candidate = "{$base}_{$suffix}";
+        }
+
+        return $candidate;
     }
 
     public function gigs(): HasMany
@@ -58,6 +85,36 @@ class User extends Authenticatable
     public function userNotifications(): HasMany
     {
         return $this->hasMany(UserNotification::class);
+    }
+
+    public function buyerProfile(): HasOne
+    {
+        return $this->hasOne(BuyerProfile::class);
+    }
+
+    public function sellerProfile(): HasOne
+    {
+        return $this->hasOne(SellerProfile::class);
+    }
+
+    public function billingProfile(): HasOne
+    {
+        return $this->hasOne(BillingProfile::class);
+    }
+
+    public function notificationPreference(): HasOne
+    {
+        return $this->hasOne(NotificationPreference::class);
+    }
+
+    public function identityVerificationSubmissions(): HasMany
+    {
+        return $this->hasMany(IdentityVerificationSubmission::class);
+    }
+
+    public function savedMessages(): BelongsToMany
+    {
+        return $this->belongsToMany(Message::class, 'message_saves')->withTimestamps();
     }
 
     public function conversationParticipants(): HasMany

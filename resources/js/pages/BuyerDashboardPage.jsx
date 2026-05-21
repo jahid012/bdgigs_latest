@@ -3,6 +3,7 @@ import { Icon, Rating } from "../components/common/Icons.jsx";
 import { useTranslation } from "react-i18next";
 import { useDashboardStore } from "../stores/useDashboardStore.js";
 import { useEffect } from "react";
+import { useSessionStore } from "../stores/useSessionStore.js";
 function StatsGrid() {
     const { t } = useTranslation();
     const stats = useDashboardStore((state) => state.stats);
@@ -80,6 +81,15 @@ function RecentOrders({ onNavigate }) {
                                 <td data-label="Price">{order.price}</td>
                             </tr>
                         ))}
+                        {orders.length === 0 ? (
+                            <tr>
+                                <td colSpan="6">
+                                    <p className="messages-empty">
+                                        No buyer orders yet.
+                                    </p>
+                                </td>
+                            </tr>
+                        ) : null}
                     </tbody>
                 </table>
             </div>
@@ -89,7 +99,7 @@ function RecentOrders({ onNavigate }) {
 function ChartCard({ onNavigate }) {
     const { t } = useTranslation();
     const chartData = useDashboardStore((state) => state.chartData);
-    const topValue = Math.max(...chartData.map((bar) => bar.value));
+    const total = chartData.reduce((sum, bar) => sum + bar.value, 0);
     return (
         <article className="card dashboard-card chart-card">
             <div className="card-heading">
@@ -112,11 +122,13 @@ function ChartCard({ onNavigate }) {
             </div>
             <div className="chart-summary">
                 <div>
-                    <strong>{t("pages.buyerdashboardpage.2860")}</strong>
+                    <strong>${total.toLocaleString()}</strong>
                     <span>{t("pages.buyerdashboardpage.spentThisPeriod")}</span>
                 </div>
                 <span className="status-badge status-completed">
-                    {t("pages.buyerdashboardpage.14")}
+                    {chartData.some((item) => item.value > 0)
+                        ? "Order spend"
+                        : "No spend yet"}
                 </span>
             </div>
         </article>
@@ -156,6 +168,12 @@ function MessagesPreview({ onNavigate }) {
                         </div>
                     </article>
                 ))}
+                {messages.length === 0 ? (
+                    <p className="messages-empty">
+                        Seller replies will appear here after a conversation
+                        starts.
+                    </p>
+                ) : null}
             </div>
         </article>
     );
@@ -221,6 +239,12 @@ function RecommendedServices({ onNavigate }) {
                         </div>
                     </article>
                 ))}
+                {recommendedServices.length === 0 ? (
+                    <p className="messages-empty">
+                        Marketplace recommendations will appear when services
+                        are available.
+                    </p>
+                ) : null}
             </div>
         </article>
     );
@@ -230,22 +254,21 @@ function BuyerDashboardPage({ onNavigate }) {
     const dashboardHighlights = useDashboardStore(
         (state) => state.dashboardHighlights,
     );
-    const fetchOrders = useDashboardStore((state) => state.fetchOrders);
-    const fetchConversations = useDashboardStore(
-        (state) => state.fetchConversations,
+    const fetchDashboardSummary = useDashboardStore(
+        (state) => state.fetchDashboardSummary,
     );
+    const currentUser = useSessionStore((state) => state.currentUser);
 
     useEffect(() => {
-        fetchOrders("buyer");
-        fetchConversations("buyer");
-    }, [fetchConversations, fetchOrders]);
+        fetchDashboardSummary("buyer");
+    }, [fetchDashboardSummary]);
 
     return (
         <main className="dashboard-content marketplace-dashboard-content">
             <DashboardPageHeader
                 className="dashboard-overview-hero buyer-overview-hero"
                 eyebrow="Buyer workspace"
-                title={t("pages.buyerdashboardpage.welcomeBackJahid")}
+                title={`Welcome back, ${currentUser?.name || "there"}`}
                 titleId="dashboardTitle"
                 description="Track priority orders, review seller updates, and discover services matched to your active projects."
                 stats={dashboardHighlights}

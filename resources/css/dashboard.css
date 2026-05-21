@@ -11099,6 +11099,131 @@ body.dashboard-page .btn {
   font-size: 0.86rem;
 }
 
+.conversation-empty-graphic {
+  display: grid;
+  min-height: clamp(320px, 52vh, 620px);
+  align-content: center;
+  justify-items: center;
+  gap: 0.45rem;
+  padding: clamp(1.25rem, 4vw, 3rem);
+  color: var(--color-dark);
+  text-align: center;
+}
+
+.conversation-empty-graphic svg {
+  width: min(100%, 320px);
+  color: var(--color-primary);
+}
+
+.conversation-empty-graphic h1,
+.conversation-empty-graphic p {
+  margin: 0;
+}
+
+.conversation-empty-graphic p,
+.messages-details-empty p {
+  max-width: 330px;
+  color: var(--color-muted);
+}
+
+.saved-services-empty-page {
+  display: grid;
+  min-height: min(620px, 62vh);
+  place-items: center;
+  padding: clamp(1rem, 3vw, 2.5rem);
+}
+
+.saved-services-empty-page .minimal-service-empty {
+  width: min(100%, 560px);
+  padding: clamp(1.4rem, 4vw, 3rem);
+}
+
+.saved-services-empty-page a {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.45rem;
+  padding: 0 1rem;
+  border-radius: var(--dashboard-radius);
+  background: var(--color-dark);
+  color: #ffffff;
+  font-weight: 850;
+}
+
+.profile-data-empty {
+  display: grid;
+  gap: 0.45rem;
+  align-content: center;
+  min-height: 126px;
+  padding: clamp(1rem, 2vw, 1.5rem);
+  border: 1px solid rgba(203, 213, 225, 0.85);
+  border-radius: var(--dashboard-radius);
+  background: #ffffff;
+  color: var(--color-dark);
+}
+
+.profile-data-empty h1,
+.profile-data-empty p,
+.profile-data-empty strong {
+  margin: 0;
+}
+
+.profile-data-empty p {
+  color: var(--color-muted);
+}
+
+.account-deactivate-form,
+.identity-submit-form {
+  margin-top: 1rem;
+}
+
+.two-factor-setup-row,
+.recovery-code-row {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.two-factor-qr-panel {
+  display: grid;
+  gap: 0.7rem;
+  justify-items: start;
+}
+
+.two-factor-qr {
+  width: min(100%, 190px);
+  overflow: hidden;
+  padding: 0.55rem;
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  border-radius: var(--dashboard-radius);
+  background: #ffffff;
+}
+
+.two-factor-qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.two-factor-qr-panel input,
+.identity-submit-form select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid rgba(148, 163, 184, 0.82);
+  border-radius: var(--dashboard-radius);
+  background: #ffffff;
+}
+
+.two-factor-codes {
+  display: block;
+  width: min(100%, 360px);
+  white-space: pre-line;
+  padding: 0.8rem;
+  border-radius: var(--dashboard-radius);
+  background: #0f172a;
+  color: #ffffff;
+}
+
 @media (max-width: 575.98px) {
   .finance-page {
     width: min(100% - 0.75rem, 1120px);

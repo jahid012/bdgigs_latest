@@ -576,6 +576,9 @@ function AuthModal({ mode, onClose, onModeChange, onSuccess }) {
     const isRegister = mode === "register";
     const login = useSessionStore((state) => state.login);
     const register = useSessionStore((state) => state.register);
+    const completeTwoFactor = useSessionStore(
+        (state) => state.completeTwoFactor,
+    );
     const isLoading = useSessionStore((state) => state.isLoading);
     const [form, setForm] = useState({
         name: "",
@@ -585,6 +588,12 @@ function AuthModal({ mode, onClose, onModeChange, onSuccess }) {
     });
     const [formError, setFormError] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [twoFactorForm, setTwoFactorForm] = useState({
+        active: false,
+        code: "",
+        recoveryCode: "",
+        useRecoveryCode: false,
+    });
 
     const updateForm = (field, value) => {
         setForm((current) => ({
@@ -606,10 +615,18 @@ function AuthModal({ mode, onClose, onModeChange, onSuccess }) {
             if (isRegister) {
                 await register(form);
             } else {
-                await login({
+                const loginResult = await login({
                     email: form.email,
                     password: form.password,
                 });
+
+                if (loginResult?.requiresTwoFactor) {
+                    setTwoFactorForm((current) => ({
+                        ...current,
+                        active: true,
+                    }));
+                    return;
+                }
             }
 
             onSuccess?.();
@@ -620,6 +637,29 @@ function AuthModal({ mode, onClose, onModeChange, onSuccess }) {
                 error.payload?.errors?.name?.[0] ||
                 error.message;
             setFormError(validationMessage);
+        }
+    };
+
+    const handleTwoFactorSubmit = async (event) => {
+        event.preventDefault();
+        setFormError("");
+
+        try {
+            await completeTwoFactor({
+                code: twoFactorForm.useRecoveryCode
+                    ? ""
+                    : twoFactorForm.code,
+                recoveryCode: twoFactorForm.useRecoveryCode
+                    ? twoFactorForm.recoveryCode
+                    : "",
+            });
+            onSuccess?.();
+        } catch (error) {
+            setFormError(
+                error.payload?.errors?.code?.[0] ||
+                    error.payload?.errors?.recovery_code?.[0] ||
+                    error.message,
+            );
         }
     };
 
@@ -689,6 +729,67 @@ function AuthModal({ mode, onClose, onModeChange, onSuccess }) {
                         </p>
                     </div>
 
+                    {twoFactorForm.active ? (
+                        <form
+                            className="auth-email-form"
+                            onSubmit={handleTwoFactorSubmit}
+                        >
+                            <label>
+                                <span>
+                                    {twoFactorForm.useRecoveryCode
+                                        ? "Recovery code"
+                                        : "Authenticator code"}
+                                </span>
+                                <input
+                                    autoComplete="one-time-code"
+                                    value={
+                                        twoFactorForm.useRecoveryCode
+                                            ? twoFactorForm.recoveryCode
+                                            : twoFactorForm.code
+                                    }
+                                    onChange={(event) =>
+                                        setTwoFactorForm((current) => ({
+                                            ...current,
+                                            [current.useRecoveryCode
+                                                ? "recoveryCode"
+                                                : "code"]: event.target.value,
+                                        }))
+                                    }
+                                    required
+                                />
+                            </label>
+                            <button
+                                className="auth-forgot-link"
+                                type="button"
+                                onClick={() =>
+                                    setTwoFactorForm((current) => ({
+                                        ...current,
+                                        useRecoveryCode:
+                                            !current.useRecoveryCode,
+                                    }))
+                                }
+                            >
+                                {twoFactorForm.useRecoveryCode
+                                    ? "Use authenticator code"
+                                    : "Use a recovery code"}
+                            </button>
+                            {formError ? (
+                                <p className="auth-form-error">{formError}</p>
+                            ) : null}
+                            <button
+                                className="auth-submit-button"
+                                type="submit"
+                                disabled={
+                                    isLoading ||
+                                    !(twoFactorForm.useRecoveryCode
+                                        ? twoFactorForm.recoveryCode
+                                        : twoFactorForm.code)
+                                }
+                            >
+                                {isLoading ? "Please wait..." : "Verify"}
+                            </button>
+                        </form>
+                    ) : (
                     <form className="auth-email-form" onSubmit={handleSubmit}>
                         {isRegister ? (
                             <label>
@@ -798,6 +899,7 @@ function AuthModal({ mode, onClose, onModeChange, onSuccess }) {
                                   : "Sign in"}
                         </button>
                     </form>
+                    )}
 
                     <p className="auth-legal">
                         {t("auth.legalBefore")}{" "}

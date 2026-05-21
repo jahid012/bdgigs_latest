@@ -1,13 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import {
-    orderDetailRecords,
-    orderRequirements,
-    orderSupportLinks,
-} from "../data/orderDetailsData.js";
+import { orderSupportLinks } from "../data/orderDetailsData.js";
 import { Icon, Rating } from "../components/common/Icons.jsx";
 import { useConversationLauncher } from "../hooks/useConversationLauncher.js";
 import { useTranslation } from "react-i18next";
+import { apiRequest } from "../api/apiClient.js";
 const tabs = [
     {
         id: "activity",
@@ -25,11 +22,24 @@ const tabs = [
 function OrderDetailsPage({ variant = "buyer" }) {
     const { orderId } = useParams();
     const isSeller = variant === "seller";
-    const order = orderDetailRecords[variant] || orderDetailRecords.buyer;
     const launchConversation = useConversationLauncher();
     const [activeTab, setActiveTab] = useState("details");
     const [conversationStatus, setConversationStatus] = useState("");
+    const [order, setOrder] = useState(null);
+    const [loadError, setLoadError] = useState("");
+
+    useEffect(() => {
+        apiRequest(
+            `/api/orders/${encodeURIComponent(orderId)}?role=${isSeller ? "seller" : "buyer"}`,
+        )
+            .then(setOrder)
+            .catch((error) =>
+                setLoadError(error.message || "This order is unavailable."),
+            );
+    }, [isSeller, orderId]);
+
     const openOrderConversation = async () => {
+        if (!order) return;
         setConversationStatus("Opening conversation...");
 
         try {
@@ -45,6 +55,26 @@ function OrderDetailsPage({ variant = "buyer" }) {
             );
         }
     };
+
+    if (loadError) {
+        return (
+            <main className="dashboard-content order-details-page">
+                <div className="order-detail-card">
+                    <h1>Order unavailable</h1>
+                    <p>{loadError}</p>
+                </div>
+            </main>
+        );
+    }
+
+    if (!order) {
+        return (
+            <main className="dashboard-content order-details-page">
+                <p className="messages-empty">Loading order details...</p>
+            </main>
+        );
+    }
+
     return (
         <main className="dashboard-content order-details-page">
             <div className="order-details-shell">
@@ -60,7 +90,9 @@ function OrderDetailsPage({ variant = "buyer" }) {
                         <OrderDetailsPanel order={order} />
                     ) : null}
                     {activeTab === "requirements" ? (
-                        <OrderRequirementsPanel />
+                        <OrderRequirementsPanel
+                            requirements={order.requirements || []}
+                        />
                     ) : null}
                 </section>
 
@@ -125,11 +157,13 @@ function OrderDetailsPanel({ order }) {
                 <strong>{order.orderNumber}</strong>
             </div>
 
-            <ol className="order-bullet-list">
-                {order.orderBullets.map((item) => (
-                    <li key={item}>{item}</li>
-                ))}
-            </ol>
+            {order.orderBullets?.length ? (
+                <ol className="order-bullet-list">
+                    {order.orderBullets.map((item) => (
+                        <li key={item}>{item}</li>
+                    ))}
+                </ol>
+            ) : null}
 
             <div
                 className="order-item-table"
@@ -160,11 +194,22 @@ function OrderDetailsPanel({ order }) {
         </article>
     );
 }
-function OrderRequirementsPanel() {
+function OrderRequirementsPanel({ requirements = [] }) {
     const { t } = useTranslation();
+
+    if (requirements.length === 0) {
+        return (
+            <article className="order-detail-card order-requirements-card">
+                <p className="messages-empty">
+                    No saved order requirements are available yet.
+                </p>
+            </article>
+        );
+    }
+
     return (
         <article className="order-detail-card order-requirements-card">
-            {orderRequirements.map((requirement, index) => (
+            {requirements.map((requirement, index) => (
                 <section
                     className="order-requirement-item"
                     key={requirement.question}
@@ -189,86 +234,31 @@ function OrderRequirementsPanel() {
 }
 function OrderActivity({ order, isSeller }) {
     const { t } = useTranslation();
+
+    if (!order.activity?.length) {
+        return (
+            <article className="order-detail-card order-activity-card">
+                <p className="messages-empty">
+                    Order activity will appear here as delivery events are
+                    recorded.
+                </p>
+            </article>
+        );
+    }
+
     return (
         <article className="order-detail-card order-activity-card">
-            <span className="order-date-pill">{order.timelineDate}</span>
+            <span className="order-date-pill">{order.dateOrdered}</span>
             <div className="order-timeline">
-                <TimelineItem
-                    color="violet"
-                    icon="document"
-                    title={`${order.counterpartyName} placed the order`}
-                    time={order.dateOrdered}
-                />
-                <TimelineItem
-                    color="blue"
-                    icon="edit"
-                    title={`${order.counterpartyName} sent the requirements`}
-                    time={order.dateOrdered}
-                >
-                    <OrderRequirementsPanel />
-                </TimelineItem>
-                <TimelineItem
-                    color="green"
-                    icon="orders"
-                    title={t("pages.orderdetailspage.theOrderStarted")}
-                    time={order.dateOrdered}
-                />
-                <TimelineItem
-                    color="green"
-                    icon="payment"
-                    title={`Your delivery date was updated to ${order.deliveryDate}`}
-                    time={order.dateOrdered}
-                />
-                <TimelineItem
-                    color="pink"
-                    icon="packageCheck"
-                    title={t("pages.orderdetailspage.youDeliveredTheOrder")}
-                    time="Nov 21, 2025, 8:55 PM"
-                >
-                    <ActivityMessage
-                        title={t("pages.orderdetailspage.delivery1")}
-                        avatarLabel="Me"
-                        message={order.deliveryMessage}
+                {order.activity.map((item) => (
+                    <TimelineItem
+                        color={item.color || "green"}
+                        icon={item.icon || "orders"}
+                        title={item.title}
+                        time={item.time}
+                        key={`${item.title}-${item.time}`}
                     />
-                </TimelineItem>
-                <TimelineItem
-                    color="violet"
-                    icon="document"
-                    title={t("pages.orderdetailspage.theOrderWasCompleted")}
-                    time="Nov 21, 2025, 9:07 PM"
-                />
-                <TimelineItem
-                    color="slate"
-                    icon="star"
-                    title={`${order.counterpartyName} gave you a 5-star review`}
-                    time="Nov 21, 2025, 9:08 PM"
-                >
-                    <ReviewCard
-                        heading={`${order.counterpartyName}'s review`}
-                        name={`${order.counterpartyName}'s message`}
-                        avatar={order.counterpartyAvatar}
-                        message={order.buyerReview}
-                    />
-                    {isSeller ? (
-                        <ActivityMessage
-                            avatarLabel="Me"
-                            message={order.sellerReply}
-                        />
-                    ) : null}
-                </TimelineItem>
-                <TimelineItem
-                    color="slate"
-                    icon="star"
-                    title={`You left ${order.counterpartyName} a 5-star review`}
-                    time="Nov 21, 2025, 9:40 PM"
-                >
-                    <ReviewCard
-                        heading="Your review"
-                        name="Me"
-                        avatar="/assets/img/gig_images/4.png"
-                        message="It was a nice experience. Very responsive. Looking forward to the next order."
-                    />
-                </TimelineItem>
+                ))}
             </div>
         </article>
     );
@@ -361,7 +351,9 @@ function OrderDetailsSidebar({
             <section className="order-side-card">
                 <h2>{t("pages.orderdetailspage.orderDetails")}</h2>
                 <div className="order-side-service">
-                    <img src={order.serviceImage} alt="" />
+                    {order.serviceImage ? (
+                        <img src={order.serviceImage} alt="" />
+                    ) : null}
                     <div>
                         <strong>{order.serviceSummary}</strong>
                         <span className={`status-badge ${order.statusClass}`}>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { billingTabs } from "../data/dashboardPageData.js";
 import {
     FilterButton,
@@ -8,12 +8,47 @@ import {
 } from "../components/dashboard/FinanceControls.jsx";
 import { Icon } from "../components/common/Icons.jsx";
 import { useTranslation } from "react-i18next";
-function BillingHistory({ onNavigate, onReport }) {
+import { apiRequest } from "../api/apiClient.js";
+
+const emptyBillingSummary = {
+    history: [],
+    balances: {
+        balance: "$0",
+        credits: "$0",
+        refunded: "$0",
+    },
+    paymentMethods: [],
+    documents: [],
+};
+
+function BillingHistory({ history, onNavigate, onReport }) {
     const { t } = useTranslation();
     const [dateFilter, setDateFilter] = useState("Date range");
     const [documentFilter, setDocumentFilter] = useState("Document");
     const [currencyFilter, setCurrencyFilter] = useState("Currency");
     const [searchTerm, setSearchTerm] = useState("");
+    const visibleHistory = useMemo(() => {
+        const query = searchTerm.trim().toLowerCase();
+
+        return history.filter((item) => {
+            const matchesSearch =
+                !query ||
+                [item.document, item.service, item.order, item.id]
+                    .filter(Boolean)
+                    .join(" ")
+                    .toLowerCase()
+                    .includes(query);
+            const matchesCurrency =
+                currencyFilter === "Currency" ||
+                item.currency === currencyFilter;
+            const matchesDocument =
+                documentFilter === "Document" ||
+                item.document?.toLowerCase().includes("receipt");
+
+            return matchesSearch && matchesCurrency && matchesDocument;
+        });
+    }, [currencyFilter, documentFilter, history, searchTerm]);
+
     return (
         <section className="billing-section">
             <h2>{t("pages.paymentspage.billingHistory")}</h2>
@@ -73,7 +108,10 @@ function BillingHistory({ onNavigate, onReport }) {
                 </form>
             </div>
             <div className="billing-results-row">
-                <p>{t("pages.paymentspage.showing0Results")}</p>
+                <p>
+                    Showing {visibleHistory.length}{" "}
+                    {visibleHistory.length === 1 ? "result" : "results"}
+                </p>
                 <button
                     className="finance-report-link"
                     type="button"
@@ -83,7 +121,9 @@ function BillingHistory({ onNavigate, onReport }) {
                     {t("pages.paymentspage.downloadReport")}{" "}
                 </button>
             </div>
-            <div className="finance-table-wrap billing-empty-table">
+            <div
+                className={`finance-table-wrap${visibleHistory.length ? "" : " billing-empty-table"}`}
+            >
                 <table className="finance-table">
                     <thead>
                         <tr>
@@ -102,29 +142,52 @@ function BillingHistory({ onNavigate, onReport }) {
                             <th>{t("pages.paymentspage.pdf")}</th>
                         </tr>
                     </thead>
+                    {visibleHistory.length ? (
+                        <tbody>
+                            {visibleHistory.map((item) => (
+                                <tr key={item.id}>
+                                    <td>
+                                        <span
+                                            className="fake-checkbox"
+                                            aria-hidden="true"
+                                        ></span>
+                                    </td>
+                                    <td>{item.date}</td>
+                                    <td>{item.document}</td>
+                                    <td>{item.service}</td>
+                                    <td>{item.order}</td>
+                                    <td>{item.currency}</td>
+                                    <td>{item.total}</td>
+                                    <td>
+                                        <span className="status-badge status-progress">
+                                            Unavailable
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    ) : null}
                 </table>
-                <FinanceEmptyState
-                    title={t("pages.paymentspage.noInvoicesYet")}
-                    description="Ready to place an order? Make sure your billing info is up to date."
-                    actionLabel="Explore"
-                    onAction={() => onNavigate("home", "#services")}
-                />
+                {!visibleHistory.length ? (
+                    <FinanceEmptyState
+                        title={t("pages.paymentspage.noInvoicesYet")}
+                        description="Order receipts and billing history appear after you place marketplace orders."
+                        actionLabel="Explore"
+                        onAction={() => onNavigate("home", "#services")}
+                    />
+                ) : null}
             </div>
         </section>
     );
 }
-function BillingInfo({ onSave }) {
+function BillingInfo({ onSave, profile }) {
     const { t } = useTranslation();
-    const [form, setForm] = useState({
-        fullName: "jahid_01",
-        company: "",
-        country: "Bangladesh",
-        state: "",
-        address: "",
-        city: "",
-        postalCode: "",
-        taxId: "",
-    });
+    const [form, setForm] = useState(profile);
+
+    useEffect(() => {
+        setForm(profile);
+    }, [profile]);
+
     const updateField = (field, value) => {
         setForm((current) => ({
             ...current,
@@ -136,7 +199,7 @@ function BillingInfo({ onSave }) {
             className="billing-form"
             onSubmit={(event) => {
                 event.preventDefault();
-                onSave();
+                onSave(form);
             }}
         >
             <h2>{t("pages.paymentspage.billingInformation")}</h2>
@@ -233,7 +296,7 @@ function BillingInfo({ onSave }) {
         </form>
     );
 }
-function Balances({ onCredit }) {
+function Balances({ balances, onCredit }) {
     const { t } = useTranslation();
     return (
         <section className="billing-section">
@@ -247,7 +310,7 @@ function Balances({ onCredit }) {
                                 {t("pages.paymentspage.earnings")}
                             </span>
                             <strong className="finance-value">
-                                {t("pages.paymentspage.1600")}
+                                {balances.balance}
                             </strong>
                             <p>
                                 {t(
@@ -260,7 +323,7 @@ function Balances({ onCredit }) {
                                 {t("pages.paymentspage.fromCanceledOrders")}
                             </span>
                             <strong className="finance-value">
-                                {t("pages.paymentspage.000")}
+                                {balances.refunded}
                             </strong>
                         </div>
                     </div>
@@ -273,7 +336,7 @@ function Balances({ onCredit }) {
                                 {t("pages.paymentspage.credits")}
                             </span>
                             <strong className="finance-value">
-                                {t("pages.paymentspage.000")}
+                                {balances.credits}
                             </strong>
                             <p>{t("pages.paymentspage.useForPurchases")}</p>
                         </div>
@@ -301,7 +364,7 @@ function Balances({ onCredit }) {
         </section>
     );
 }
-function PaymentMethods({ onAdd }) {
+function PaymentMethods({ methods, onAdd }) {
     const { t } = useTranslation();
     return (
         <section className="billing-section">
@@ -316,44 +379,29 @@ function PaymentMethods({ onAdd }) {
                     {t("pages.paymentspage.addPaymentMethod")}{" "}
                 </button>
             </div>
-            <div className="payment-method-grid">
-                <article>
-                    <span className="stat-icon" aria-hidden="true">
-                        <Icon name="payment" />
-                    </span>
-                    <div>
-                        <strong>
-                            {t("pages.paymentspage.visaEndingIn4242")}
-                        </strong>
-                        <p>
-                            {t(
-                                "pages.paymentspage.primaryMethodForProtectedOrders",
-                            )}
-                        </p>
-                    </div>
-                    <span className="status-badge status-completed">
-                        {t("pages.paymentspage.primary")}
-                    </span>
-                </article>
-                <article>
-                    <span className="stat-icon" aria-hidden="true">
-                        <Icon name="verifiedUser" />
-                    </span>
-                    <div>
-                        <strong>
-                            {t("pages.paymentspage.protectedCheckout")}
-                        </strong>
-                        <p>
-                            {t(
-                                "pages.paymentspage.fundsAreReleasedOnlyAfterOrderApproval",
-                            )}
-                        </p>
-                    </div>
-                    <span className="status-badge status-progress">
-                        {t("pages.paymentspage.enabled")}
-                    </span>
-                </article>
-            </div>
+            {methods.length ? (
+                <div className="payment-method-grid">
+                    {methods.map((method) => (
+                        <article key={method.id}>
+                            <span className="stat-icon" aria-hidden="true">
+                                <Icon name="payment" />
+                            </span>
+                            <div>
+                                <strong>{method.label}</strong>
+                                <p>{method.detail}</p>
+                            </div>
+                            <span className="status-badge status-completed">
+                                {method.status}
+                            </span>
+                        </article>
+                    ))}
+                </div>
+            ) : (
+                <FinanceEmptyState
+                    title="No payment methods on file"
+                    description="Card vaulting and external checkout setup are not enabled in this billing pass."
+                />
+            )}
         </section>
     );
 }
@@ -361,23 +409,61 @@ function PaymentsPage({ onNavigate }) {
     const { t } = useTranslation();
     const [activeTab, setActiveTab] = useState("history");
     const [notice, setNotice] = useState("");
+    const [summary, setSummary] = useState(emptyBillingSummary);
+    const [profile, setProfile] = useState({
+        fullName: "",
+        company: "",
+        country: "",
+        state: "",
+        address: "",
+        city: "",
+        postalCode: "",
+        taxId: "",
+    });
+
+    useEffect(() => {
+        apiRequest("/api/billing/summary")
+            .then((nextSummary) =>
+                setSummary({ ...emptyBillingSummary, ...nextSummary }),
+            )
+            .catch((error) =>
+                setNotice(error.message || "Unable to load billing history."),
+            );
+        apiRequest("/api/billing/profile")
+            .then(setProfile)
+            .catch((error) =>
+                setNotice(error.message || "Unable to load billing profile."),
+            );
+    }, []);
+
+    const saveBillingProfile = async (nextProfile) => {
+        try {
+            const savedProfile = await apiRequest("/api/billing/profile", {
+                method: "PATCH",
+                body: nextProfile,
+            });
+            setProfile(savedProfile);
+            setNotice("Billing information saved for future order receipts.");
+        } catch (error) {
+            setNotice(error.message || "Billing information could not be saved.");
+        }
+    };
+
     const renderTab = () => {
         if (activeTab === "info")
             return (
                 <BillingInfo
-                    onSave={() =>
-                        setNotice(
-                            "Billing information saved for future invoices.",
-                        )
-                    }
+                    profile={profile}
+                    onSave={saveBillingProfile}
                 />
             );
         if (activeTab === "balances")
             return (
                 <Balances
+                    balances={summary.balances}
                     onCredit={() =>
                         setNotice(
-                            "Credit referral options are ready to review.",
+                            "Marketplace credits are not available yet.",
                         )
                     }
                 />
@@ -385,14 +471,24 @@ function PaymentsPage({ onNavigate }) {
         if (activeTab === "methods")
             return (
                 <PaymentMethods
-                    onAdd={() => setNotice("Payment method setup opened.")}
+                    methods={summary.paymentMethods}
+                    onAdd={() =>
+                        setNotice(
+                            "Payment method vaulting is not enabled yet.",
+                        )
+                    }
                 />
             );
         return (
             <BillingHistory
+                history={summary.history}
                 onNavigate={onNavigate}
                 onReport={() =>
-                    setNotice("Billing report is ready to download.")
+                    setNotice(
+                        summary.documents.length
+                            ? "Billing documents are available in your history."
+                            : "No downloadable billing documents are available yet.",
+                    )
                 }
             />
         );

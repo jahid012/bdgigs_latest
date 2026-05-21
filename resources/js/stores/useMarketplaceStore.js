@@ -7,7 +7,6 @@ import {
     listingSortOptions,
     websiteCategoryPage,
 } from "../data/gigListingData.js";
-import { recommendedServices } from "../data/dashboardData.js";
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -19,7 +18,7 @@ export const useMarketplaceStore = create((set, get) => ({
     listingGigs: deepClone(listingGigs),
     gigsById: {},
     listingSortOptions: deepClone(listingSortOptions),
-    savedServices: deepClone(recommendedServices),
+    savedServices: [],
     websiteCategoryPage: deepClone(websiteCategoryPage),
 
     fetchGigs: async () => {

@@ -21,6 +21,9 @@ class MessageResource extends JsonResource
             'sentAt' => $this->sent_at?->toISOString(),
             'readAt' => $this->read_at?->toISOString(),
             'own' => $this->sender_id === $request->user()?->id,
+            'saved' => $this->relationLoaded('savedByUsers')
+                ? $this->savedByUsers->contains('id', $request->user()?->id)
+                : false,
             'attachments' => MessageAttachmentResource::collection($this->whenLoaded('attachments')),
         ];
     }

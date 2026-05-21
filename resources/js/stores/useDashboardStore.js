@@ -1,51 +1,28 @@
 import { create } from "zustand";
 import { apiRequest } from "../api/apiClient.js";
-import {
-    buyerMessageThreads,
-    buyerNotifications,
-    chartData,
-    dashboardHighlights,
-    messages,
-    orders,
-    recommendedServices,
-    sellerChartData,
-    sellerDashboardHighlights,
-    sellerMessageThreads,
-    sellerMessages,
-    sellerNotifications,
-    sellerOrderInsights,
-    sellerOrders,
-    sellerPipeline,
-    sellerServices as initialSellerServices,
-    sellerStats,
-    stats,
-    buyerOrderInsights,
-} from "../data/dashboardData.js";
-
-const deepClone = (value) => JSON.parse(JSON.stringify(value));
-
 export const useDashboardStore = create((set, get) => ({
     error: null,
     isLoading: false,
-    stats: deepClone(stats),
-    sellerStats: deepClone(sellerStats),
-    dashboardHighlights: deepClone(dashboardHighlights),
-    sellerDashboardHighlights: deepClone(sellerDashboardHighlights),
-    orders: deepClone(orders),
-    sellerOrders: deepClone(sellerOrders),
-    buyerOrderInsights: deepClone(buyerOrderInsights),
-    sellerOrderInsights: deepClone(sellerOrderInsights),
-    messages: deepClone(messages),
-    sellerMessages: deepClone(sellerMessages),
-    buyerNotifications: deepClone(buyerNotifications),
-    sellerNotifications: deepClone(sellerNotifications),
-    buyerMessageThreads: deepClone(buyerMessageThreads),
-    sellerMessageThreads: deepClone(sellerMessageThreads),
-    recommendedServices: deepClone(recommendedServices),
-    sellerServices: deepClone(initialSellerServices),
-    chartData: deepClone(chartData),
-    sellerChartData: deepClone(sellerChartData),
-    sellerPipeline: deepClone(sellerPipeline),
+    stats: [],
+    sellerStats: [],
+    dashboardHighlights: [],
+    sellerDashboardHighlights: [],
+    orders: [],
+    sellerOrders: [],
+    buyerOrderInsights: [],
+    sellerOrderInsights: [],
+    messages: [],
+    sellerMessages: [],
+    buyerNotifications: [],
+    sellerNotifications: [],
+    buyerMessageThreads: [],
+    sellerMessageThreads: [],
+    recommendedServices: [],
+    sellerServices: [],
+    chartData: [],
+    sellerChartData: [],
+    sellerPipeline: [],
+    sellerFinance: null,
 
     getSellerServiceById: (id) =>
         get().sellerServices.find((service) => service.id === id),
@@ -60,6 +37,58 @@ export const useDashboardStore = create((set, get) => ({
         } catch (error) {
             set({ error: error.message, isLoading: false });
             return get().sellerServices;
+        }
+    },
+
+    fetchDashboardSummary: async (variant = "buyer") => {
+        set({ isLoading: true, error: null });
+
+        try {
+            const summary = await apiRequest(
+                `/api/user/dashboard?variant=${variant}`,
+            );
+
+            set({
+                ...(variant === "seller"
+                    ? {
+                          sellerStats: summary.stats || [],
+                          sellerDashboardHighlights: summary.highlights || [],
+                          sellerOrders: summary.orders || [],
+                          sellerMessages: summary.messages || [],
+                          sellerChartData: summary.chartData || [],
+                          sellerPipeline: summary.pipeline || [],
+                          sellerServices: summary.sellerServices || [],
+                      }
+                    : {
+                          stats: summary.stats || [],
+                          dashboardHighlights: summary.highlights || [],
+                          orders: summary.orders || [],
+                          messages: summary.messages || [],
+                          chartData: summary.chartData || [],
+                          recommendedServices:
+                              summary.recommendedServices || [],
+                      }),
+                isLoading: false,
+            });
+
+            return summary;
+        } catch (error) {
+            set({ error: error.message, isLoading: false });
+            return null;
+        }
+    },
+
+    fetchSellerEarnings: async () => {
+        try {
+            const finance = await apiRequest("/api/seller/earnings");
+            set({
+                sellerFinance: finance,
+                sellerChartData: finance.chartData || [],
+            });
+            return finance;
+        } catch (error) {
+            set({ error: error.message });
+            return get().sellerFinance;
         }
     },
 
@@ -183,6 +212,39 @@ export const useDashboardStore = create((set, get) => ({
             set({ error: error.message });
             return get().buyerMessageThreads;
         }
+    },
+
+    fetchSavedMessages: async (conversationId) => {
+        if (!conversationId) return [];
+
+        return (await apiRequest(
+            `/api/conversations/${conversationId}/saved-messages`,
+        )).map(normalizeMessage);
+    },
+
+    saveMessage: async (messageId) => {
+        const message = normalizeMessage(
+            await apiRequest(`/api/messages/${messageId}/save`, {
+                method: "POST",
+                body: {},
+            }),
+        );
+
+        set((state) => replaceThreadMessageState(state, message));
+        return message;
+    },
+
+    unsaveMessage: async (messageId) => {
+        await apiRequest(`/api/messages/${messageId}/save`, {
+            method: "DELETE",
+        });
+
+        set((state) =>
+            replaceThreadMessageState(state, {
+                id: messageId,
+                saved: false,
+            }),
+        );
     },
 
     fetchConversation: async (conversationId) => {
@@ -430,6 +492,7 @@ function normalizeConversation(conversation) {
         counterpart: conversation?.counterpart || null,
         viewerParticipant: conversation?.viewerParticipant || null,
         participants: conversation?.participants || [],
+        attachments: conversation?.attachments || [],
     };
 }
 
@@ -447,6 +510,7 @@ function normalizeMessage(message) {
         readAt: message?.readAt,
         own: Boolean(message?.own),
         attachments: message?.attachments || [],
+        saved: Boolean(message?.saved),
     };
 }
 
@@ -470,6 +534,24 @@ function replaceNotification(notifications, notification) {
     return notifications.map((item) =>
         item.id === notification.id ? notification : item,
     );
+}
+
+function replaceThreadMessageState(state, message) {
+    const replaceMessage = (thread) => ({
+        ...thread,
+        messages: (thread.messages || []).map((item) =>
+            item.id === message.id ? { ...item, ...message } : item,
+        ),
+    });
+    const buyerMessageThreads = state.buyerMessageThreads.map(replaceMessage);
+    const sellerMessageThreads = state.sellerMessageThreads.map(replaceMessage);
+
+    return {
+        buyerMessageThreads,
+        sellerMessageThreads,
+        messages: summarizeThreads(buyerMessageThreads),
+        sellerMessages: summarizeThreads(sellerMessageThreads),
+    };
 }
 
 function normalizeSellerService(draft, services, existingService = null) {

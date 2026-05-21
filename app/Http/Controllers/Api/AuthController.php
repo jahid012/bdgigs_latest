@@ -20,10 +20,14 @@ class AuthController extends Controller
             'data' => $user ? [
                 'id' => (string) $user->id,
                 'name' => $user->name,
+                'username' => $user->username,
                 'email' => $user->email,
+                'avatar' => $user->avatar,
+                'country' => $user->country,
                 'initials' => initialsFromName($user->name),
                 'role' => 'buyer',
                 'sellerEnabled' => true,
+                'twoFactorEnabled' => filled($user->two_factor_secret),
                 'authenticated' => true,
                 'csrfToken' => csrf_token(),
             ] : [
@@ -39,10 +43,30 @@ class AuthController extends Controller
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
         ]);
+        $user = User::where('email', $credentials['email'])->first();
+
+        if ($user
+            && Hash::check($credentials['password'], $user->password)
+            && filled($user->two_factor_secret)) {
+            return response()->json([
+                'data' => [
+                    'twoFactorRequired' => true,
+                    'message' => 'Use the two factor login challenge to continue.',
+                ],
+            ], 409);
+        }
 
         if (! Auth::attempt($credentials, true)) {
             throw ValidationException::withMessages([
                 'email' => ['These credentials do not match our records.'],
+            ]);
+        }
+
+        if ($request->user()->deactivated_at) {
+            Auth::guard('web')->logout();
+
+            throw ValidationException::withMessages([
+                'email' => ['This account is deactivated.'],
             ]);
         }
 

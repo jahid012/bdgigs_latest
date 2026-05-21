@@ -3,18 +3,18 @@ import { useNavigate } from "react-router-dom";
 import { FinanceNotice } from "../FinanceControls.jsx";
 import { Icon } from "../../common/Icons.jsx";
 import { profilePathForSeller } from "../../../data/userProfileData.js";
+import { apiRequest } from "../../../api/apiClient.js";
 
 const sellerProfile = {
-    name: "Hasan",
-    handle: "@jahid_01",
-    title: "Web Developer || Mobile App Developer || Full Stack Developer",
-    location: "Bangladesh",
-    languages: "Speaks English, Bengali, French, Spanish",
-    avatar:
-        "https://images.pexels.com/photos/3785077/pexels-photo-3785077.jpeg?auto=compress&cs=tinysrgb&w=240&h=240&fit=crop",
-    rating: "4.9",
-    reviews: "25",
-    about: "Hi, I'm your dedicated PHP and full-stack developer with a passion for delivering exceptional digital solutions. Whether you need a quick fix, a complete overhaul, or a bespoke website build from scratch, I'm here to bring your vision to life.\nI offer free consultations, personalized attention, and a commitment to your success. With over five years of experience in web development, I ensure each project is crafted to perfection, combining innovative feature with a seamless user experience.\nPlease reach out today and let's get started on your journey to digital brilliance!",
+    name: "",
+    handle: "",
+    title: "",
+    location: "",
+    languages: "Add languages",
+    avatar: "",
+    rating: "0.0",
+    reviews: "0",
+    about: "",
 };
 
 const industries = [
@@ -59,67 +59,42 @@ const months = [
 
 const years = ["2026", "2025", "2024", "2023", "2022", "2021"];
 
-const starterProjects = [
-    {
-        id: "wordpress-payment-gateway",
-        name: "Creating a WordPress plugin for payment gateway.",
-        industry: "Programming & Tech",
-        expertise: "WordPress",
-        duration: "1-3 months",
-        cost: "90",
-        startedMonth: "03",
-        startedYear: "2025",
-        madeOnFiverr: true,
-        image: "/assets/img/gig_images/1.png",
-        mediaCount: 4,
-        linkedCatalog: "Full Stack Web Applications",
-        description:
-            "Once a client was eager to expand the payment options by offering a cryptocurrency to his users. While he already had a website, the payment flow needed to connect seamlessly with the existing setup. I mirrored the current checkout experience, created a secure plugin, and delivered a reliable gateway that kept the user workflow simple.",
-    },
-];
+const starterProjects = [];
 
-const defaultSkills = [
-    "Website development",
-    "Website customization",
-    "Laravel development",
-    "Laravel",
-    "PHP Laravel",
-    "Laravel framework",
-];
+const defaultSkills = [];
 
-const defaultWorkExperience = {
-    id: "software-engineer",
-    title: "Software Engineer",
-    company: "The SoftKing Limited",
+const defaultWorkExperience = null;
+
+const defaultEducation = null;
+
+const defaultCertification = null;
+
+const emptyWorkExperienceDraft = {
+    title: "",
     employmentType: "Full-time",
-    startDate: "Jun 2023",
-    endDate: "Present",
-    duration: "2 yrs 11 mos",
-    description:
-        "I design, develop, and maintain web applications using PHP, Laravel, and Node.js. I work on improving existing projects by adding new features based on requirements and ensuring everything runs smoothly. I also provide support and fix bugs in Laravel applications.",
+    company: "",
+    startDate: "",
+    endDate: "",
+    duration: "",
+    description: "",
 };
 
-const defaultEducation = {
-    country: "Bangladesh",
-    university: "University of Dhaka",
+const emptyEducationDraft = {
+    country: "",
+    university: "",
     degree: "B.Sc.",
-    major: "computerscience engineering",
-    year: "2018",
+    major: "",
+    year: "2026",
 };
 
-const defaultCertification = {
-    name: "Laravel Certified Developer",
-    provider: "Laravel",
-    year: "2024",
+const emptyCertificationDraft = {
+    name: "",
+    provider: "",
+    year: "2026",
     credentialUrl: "",
 };
 
-const defaultSellerLanguages = [
-    { id: "english", language: "English", proficiency: "Fluent" },
-    { id: "bengali", language: "Bengali", proficiency: "Native/Bilingual" },
-    { id: "french", language: "French", proficiency: "Conversational" },
-    { id: "spanish", language: "Spanish", proficiency: "Conversational" },
-];
+const defaultSellerLanguages = [];
 
 const sellerLanguageOptions = [
     "English",
@@ -152,28 +127,11 @@ const storageKeys = {
 };
 
 function readStoredValue(key, fallback) {
-    if (typeof window === "undefined") {
-        return fallback;
-    }
-
-    try {
-        const value = window.localStorage.getItem(key);
-        return value ? JSON.parse(value) : fallback;
-    } catch {
-        return fallback;
-    }
+    return fallback;
 }
 
 function writeStoredValue(key, value) {
-    if (typeof window === "undefined") {
-        return;
-    }
-
-    try {
-        window.localStorage.setItem(key, JSON.stringify(value));
-    } catch {
-        // Local storage keeps these profile editors useful before backend wiring.
-    }
+    return { key, value };
 }
 
 function formatSellerLanguages(languages) {
@@ -267,14 +225,17 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
     const [projectStep, setProjectStep] = useState(1);
     const [editingProjectId, setEditingProjectId] = useState("");
     const [projectForm, setProjectForm] = useState(createEmptyProjectForm);
+    const [identityProfile, setIdentityProfile] = useState(sellerProfile);
+    const [profileLoaded, setProfileLoaded] = useState(false);
 
     const displayProfile = useMemo(
         () => ({
-            ...sellerProfile,
+            ...identityProfile,
             title: professionalTitle,
+            about,
             languages: formatSellerLanguages(sellerLanguages),
         }),
-        [professionalTitle, sellerLanguages],
+        [about, identityProfile, professionalTitle, sellerLanguages],
     );
     const sellerPublicProfilePath = useMemo(
         () => profilePathForSeller(displayProfile.handle || displayProfile.name),
@@ -297,36 +258,57 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
     );
 
     useEffect(() => {
-        writeStoredValue(storageKeys.title, professionalTitle);
-    }, [professionalTitle]);
+        apiRequest("/api/user/profile/seller")
+            .then((profile) => {
+                setIdentityProfile((current) => ({
+                    ...current,
+                    name: profile.name,
+                    handle: profile.handle,
+                    avatar: profile.avatar,
+                    location: profile.location,
+                    rating: profile.rating,
+                    reviews: profile.reviews,
+                }));
+                setProfessionalTitle(profile.title || "");
+                setSellerLanguages(profile.languages || []);
+                setAbout(profile.about || "");
+                setProjects(profile.projects || []);
+                setSkills(profile.skills || []);
+                setEducation(profile.education || null);
+                setWorkExperience(profile.workExperience || null);
+                setCertification(profile.certification || null);
+                setProfileLoaded(true);
+            })
+            .catch(() => setProfileLoaded(true));
+    }, []);
 
     useEffect(() => {
-        writeStoredValue(storageKeys.languages, sellerLanguages);
-    }, [sellerLanguages]);
+        if (!profileLoaded) return;
 
-    useEffect(() => {
-        writeStoredValue(storageKeys.about, about);
-    }, [about]);
-
-    useEffect(() => {
-        writeStoredValue(storageKeys.projects, projects);
-    }, [projects]);
-
-    useEffect(() => {
-        writeStoredValue(storageKeys.skills, skills);
-    }, [skills]);
-
-    useEffect(() => {
-        writeStoredValue(storageKeys.education, education);
-    }, [education]);
-
-    useEffect(() => {
-        writeStoredValue(storageKeys.work, workExperience);
-    }, [workExperience]);
-
-    useEffect(() => {
-        writeStoredValue(storageKeys.certification, certification);
-    }, [certification]);
+        apiRequest("/api/user/profile/seller", {
+            method: "PATCH",
+            body: {
+                title: professionalTitle,
+                languages: sellerLanguages,
+                about,
+                projects,
+                skills,
+                education,
+                workExperience,
+                certification,
+            },
+        }).catch(() => {});
+    }, [
+        about,
+        certification,
+        education,
+        professionalTitle,
+        profileLoaded,
+        projects,
+        sellerLanguages,
+        skills,
+        workExperience,
+    ]);
 
     useEffect(() => {
         setMode(initialMode);
@@ -1318,7 +1300,7 @@ function WorkExperienceSection({
         return (
             <SellerSectionCard title="Work experience">
                 <WorkExperienceForm
-                    work={work || defaultWorkExperience}
+                    work={work || emptyWorkExperienceDraft}
                     onCancel={onCancel}
                     onSave={onSave}
                 />
@@ -1589,7 +1571,7 @@ function EducationCertificationSection({
                 </button>
                 {isEducationEditing ? (
                     <EducationForm
-                        education={education || defaultEducation}
+                        education={education || emptyEducationDraft}
                         onCancel={onCancel}
                         onSave={onSave}
                     />
@@ -1625,7 +1607,7 @@ function EducationCertificationSection({
             <SellerSectionCard title="Certifications">
                 {isCertificationEditing ? (
                     <CertificationForm
-                        certification={certification || defaultCertification}
+                        certification={certification || emptyCertificationDraft}
                         onCancel={onCancel}
                         onSave={onCertificationSave}
                     />

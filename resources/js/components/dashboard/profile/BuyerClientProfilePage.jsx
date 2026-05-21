@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../common/Icons.jsx";
+import { apiRequest } from "../../../api/apiClient.js";
 
 const initialClientProfile = {
-    name: "Hasan",
-    handle: "@jahid_01",
-    username: "jahid_01",
-    avatar:
-        "https://images.pexels.com/photos/3785077/pexels-photo-3785077.jpeg?auto=compress&cs=tinysrgb&w=240&h=240&fit=crop",
-    location: "Bangladesh",
-    joined: "Joined in November 2019",
+    name: "",
+    handle: "",
+    username: "",
+    avatar: "",
+    location: "",
+    joined: "",
     overview: "",
     workingDays: {
         start: "",
@@ -18,36 +18,9 @@ const initialClientProfile = {
         start: "",
         end: "",
     },
-        timezone: "Asia/Dhaka",
-    languages: [
-        {
-            id: "english",
-            language: "English",
-            level: "Fluent",
-            communicationPreference: "Inbox messages",
-        },
-        {
-            id: "bengali",
-            language: "Bengali",
-            level: "Native/Bilingual",
-            communicationPreference: "Inbox messages",
-        },
-        {
-            id: "french",
-            language: "French",
-            level: "Conversational",
-            communicationPreference: "Inbox messages",
-        },
-        {
-            id: "spanish",
-            language: "Spanish",
-            level: "Conversational",
-            communicationPreference: "Inbox messages",
-        },
-    ],
+    timezone: "UTC",
+    languages: [],
 };
-
-const clientProfileStorageKey = "bdgigs:buyer-client-profile";
 
 const timeOptions = [
     "8:00 AM",
@@ -88,41 +61,18 @@ const communicationPreferenceOptions = [
     "Project brief only",
 ];
 
-function readClientProfile() {
-    if (typeof window === "undefined") {
-        return initialClientProfile;
-    }
-
-    try {
-        const value = window.localStorage.getItem(clientProfileStorageKey);
-        return value ? JSON.parse(value) : initialClientProfile;
-    } catch {
-        return initialClientProfile;
-    }
-}
-
-function writeClientProfile(profile) {
-    if (typeof window === "undefined") {
-        return;
-    }
-
-    try {
-        window.localStorage.setItem(
-            clientProfileStorageKey,
-            JSON.stringify(profile),
-        );
-    } catch {
-        // Local storage keeps this profile editor useful before backend wiring.
-    }
-}
-
 function BuyerClientProfilePage() {
-    const [profile, setProfile] = useState(readClientProfile);
+    const [profile, setProfile] = useState(initialClientProfile);
     const [activeDrawer, setActiveDrawer] = useState("");
+    const [notice, setNotice] = useState("");
 
     useEffect(() => {
-        writeClientProfile(profile);
-    }, [profile]);
+        apiRequest("/api/user/profile/buyer")
+            .then(setProfile)
+            .catch((error) =>
+                setNotice(error.message || "Profile could not be loaded."),
+            );
+    }, []);
 
     useEffect(() => {
         if (!activeDrawer) {
@@ -162,6 +112,14 @@ function BuyerClientProfilePage() {
 
     const updateProfile = (updates, shouldClose = true) => {
         setProfile((current) => ({ ...current, ...updates }));
+        apiRequest("/api/user/profile/buyer", {
+            method: "PATCH",
+            body: updates,
+        })
+            .then(setProfile)
+            .catch((error) =>
+                setNotice(error.message || "Profile could not be saved."),
+            );
         if (shouldClose) {
             setActiveDrawer("");
         }
@@ -178,7 +136,7 @@ function BuyerClientProfilePage() {
             <header className="buyer-profile-top">
                 <div className="buyer-profile-intro">
                     <p>
-                        Create your <strong>client profile</strong> on Fiverr.
+                        Build your <strong>client profile</strong> on bdgigs.
                     </p>
                     <p>
                         Are you a freelancer? Visit your{" "}
@@ -240,6 +198,8 @@ function BuyerClientProfilePage() {
                     </section>
                 </aside>
             </div>
+
+            {notice ? <p className="account-settings-notice">{notice}</p> : null}
 
             {activeDrawer ? (
                 <ClientProfileDrawer

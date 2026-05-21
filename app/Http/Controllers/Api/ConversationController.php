@@ -34,6 +34,7 @@ class ConversationController extends Controller
                 ->with([
                     'gig',
                     'messages.attachments',
+                    'messages.savedByUsers',
                     'participants.user',
                 ])
                 ->whereHas('participants', function ($query) use ($request, $filter) {
@@ -96,6 +97,7 @@ class ConversationController extends Controller
         return ConversationResource::make($conversation->fresh([
             'gig',
             'messages.attachments',
+            'messages.savedByUsers',
             'participants.user',
         ]));
     }
@@ -107,6 +109,7 @@ class ConversationController extends Controller
         return ConversationResource::make($conversation->load([
             'gig',
             'messages.attachments',
+            'messages.savedByUsers',
             'participants.user',
         ]));
     }
@@ -118,7 +121,7 @@ class ConversationController extends Controller
         $limit = min(max((int) $request->query('limit', 50), 1), 100);
         $before = (int) $request->query('before', 0);
         $messages = $conversation->messages()
-            ->with('attachments')
+            ->with(['attachments', 'savedByUsers'])
             ->when($before > 0, fn ($query) => $query->where('id', '<', $before))
             ->latest('id')
             ->take($limit)
@@ -179,6 +182,7 @@ class ConversationController extends Controller
         $freshConversation = $conversation->fresh([
             'gig',
             'messages.attachments',
+            'messages.savedByUsers',
             'participants.user',
         ]);
 
@@ -208,6 +212,7 @@ class ConversationController extends Controller
         return ConversationResource::make($conversation->fresh([
             'gig',
             'messages.attachments',
+            'messages.savedByUsers',
             'participants.user',
         ]));
     }

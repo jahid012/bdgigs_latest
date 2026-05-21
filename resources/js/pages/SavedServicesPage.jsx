@@ -5,36 +5,7 @@ import { FinanceNotice } from "../components/dashboard/FinanceControls.jsx";
 import { Icon, Rating } from "../components/common/Icons.jsx";
 import { useTranslation } from "react-i18next";
 import { useMarketplaceStore } from "../stores/useMarketplaceStore.js";
-const savedServiceDetails = [
-    {
-        match: "96%",
-        response: "Replies in 1h",
-        savedAt: "Saved 2 days ago",
-        note: "Best for the landing page refresh brief.",
-        signal: "Strong SaaS fit",
-    },
-    {
-        match: "91%",
-        response: "Replies today",
-        savedAt: "Saved yesterday",
-        note: "Good paid acquisition support after launch.",
-        signal: "Campaign ready",
-    },
-    {
-        match: "94%",
-        response: "Replies in 2h",
-        savedAt: "Saved this week",
-        note: "Clear fit for investor-facing collateral.",
-        signal: "Fast delivery",
-    },
-    {
-        match: "88%",
-        response: "Replies in 4h",
-        savedAt: "Saved Apr 30",
-        note: "Useful for cleanup before publishing.",
-        signal: "Budget friendly",
-    },
-];
+
 const savedFilters = [
     {
         id: "all",
@@ -60,20 +31,24 @@ function SavedServicesPage({ onNavigate }) {
     const fetchSavedServices = useMarketplaceStore(
         (state) => state.fetchSavedServices,
     );
+    const removeSavedService = useMarketplaceStore(
+        (state) => state.removeSavedService,
+    );
     const services = useMemo(
         () =>
-            savedServices.map((service, index) => ({
+            savedServices.map((service) => ({
                 ...service,
-                ...savedServiceDetails[index],
+                response: service.response || "Response time not shared",
+                savedAt: service.savedAt || "Saved",
+                note: service.description || "Saved for a future project.",
+                signal: service.status || "Saved",
             })),
         [savedServices],
     );
     const [activeFilter, setActiveFilter] = useState("all");
     const [searchTerm, setSearchTerm] = useState("");
     const [notice, setNotice] = useState("");
-    const [selectedServices, setSelectedServices] = useState(
-        () => new Set(services.slice(0, 2).map((service) => service.title)),
-    );
+    const [selectedServices, setSelectedServices] = useState(() => new Set());
 
     useEffect(() => {
         fetchSavedServices();
@@ -85,12 +60,19 @@ function SavedServicesPage({ onNavigate }) {
     const selectedList = services.filter((service) =>
         selectedServices.has(service.title),
     );
-    const topMatch = services.reduce(
+    const topRated = services.reduce(
         (best, service) =>
-            Number.parseInt(service.match, 10) > Number.parseInt(best.match, 10)
+            Number(service.rating || 0) > Number(best?.rating || 0)
                 ? service
                 : best,
-        services[0],
+        null,
+    );
+    const lowestPrice = services.reduce(
+        (lowest, service) =>
+            !lowest || numericPrice(service.price) < numericPrice(lowest.price)
+                ? service
+                : lowest,
+        null,
     );
     const toggleSelected = (serviceTitle) => {
         setSelectedServices((current) => {
@@ -107,13 +89,39 @@ function SavedServicesPage({ onNavigate }) {
         event.preventDefault();
         onNavigate("home", "#services");
     };
+
+    if (!services.length) {
+        return (
+            <main className="dashboard-content detail-page saved-services-page">
+                <DashboardPageHeader
+                    title={content.title}
+                    titleId={content.titleId}
+                    description={content.description}
+                />
+                <FinanceNotice message={notice} />
+                <section className="saved-services-empty-page">
+                    <div className="minimal-service-empty">
+                        <Icon name="heart" />
+                        <h2>No saved services yet</h2>
+                        <p>
+                            Services you save from the marketplace will appear
+                            here for comparison.
+                        </p>
+                        <a href="/#services" onClick={browseMarketplace}>
+                            Browse marketplace
+                        </a>
+                    </div>
+                </section>
+            </main>
+        );
+    }
+
     return (
         <main className="dashboard-content detail-page saved-services-page">
             <DashboardPageHeader
                 title={content.title}
                 titleId={content.titleId}
                 description={content.description}
-                stats={content.stats}
             />
 
             <section
@@ -128,15 +136,15 @@ function SavedServicesPage({ onNavigate }) {
                 />
                 <SavedInsightCard
                     icon="star"
-                    label="Best match"
-                    value={topMatch.match}
-                    detail={topMatch.title}
+                    label="Top rated"
+                    value={topRated?.rating || "0.0"}
+                    detail={topRated?.title || "Save a service first"}
                 />
                 <SavedInsightCard
                     icon="payment"
                     label="Lowest price"
-                    value="$95"
-                    detail="WordPress cleanup"
+                    value={lowestPrice?.price || "$0"}
+                    detail={lowestPrice?.title || "No saved services"}
                 />
             </section>
 
@@ -232,11 +240,12 @@ function SavedServicesPage({ onNavigate }) {
                                             `${service.title} opened for comparison.`,
                                         )
                                     }
-                                    onRemove={() =>
+                                    onRemove={async () => {
+                                        await removeSavedService(service.id);
                                         setNotice(
-                                            `${service.title} removed from this view.`,
-                                        )
-                                    }
+                                            `${service.title} removed from saved services.`,
+                                        );
+                                    }}
                                     onSelect={() =>
                                         toggleSelected(service.title)
                                     }
@@ -417,9 +426,7 @@ function SavedServiceRow({ onOpen, onRemove, onSelect, selected, service }) {
                     <span>{service.delivery}</span>
                     <span>{service.response}</span>
                     <span>{service.savedAt}</span>
-                    <span>
-                        {service.match} {t("pages.savedservicespage.match")}
-                    </span>
+                    <span>{service.rating || "0.0"} rating</span>
                 </div>
             </div>
             <div className="saved-service-side">
@@ -468,5 +475,9 @@ function matchesSavedServiceFilter(service, activeFilter, searchTerm) {
         return Number(service.rating) >= 4.9;
     }
     return true;
+}
+
+function numericPrice(value = "$0") {
+    return Number(String(value).replace(/[^0-9.]/g, "")) || 0;
 }
 export default SavedServicesPage;

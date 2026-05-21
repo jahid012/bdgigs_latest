@@ -23,7 +23,7 @@ function Topbar({
     sectionLabel = "Dashboard",
     title = "Overview",
     searchPlaceholder = "Search orders, sellers, services...",
-    profileName = "Jahid",
+    profileName = "Guest",
     profileInitials = "JA",
     profileLinks = defaultProfileLinks,
     profileActionLabel = "Sign out",

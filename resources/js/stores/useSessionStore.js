@@ -41,10 +41,35 @@ export const useSessionStore = create((set) => ({
         set({ isLoading: true, error: null });
 
         try {
-            const user = await apiRequest("/api/auth/login", {
+            const response = await apiRequest("/login", {
                 body: credentials,
             });
 
+            if (response?.two_factor || response?.twoFactor) {
+                set({ isLoading: false });
+                return { requiresTwoFactor: true };
+            }
+
+            const user = await apiRequest("/api/me");
+            set({ currentUser: user, hasHydrated: true, isLoading: false });
+            return user;
+        } catch (error) {
+            set({ error: error.message, isLoading: false });
+            throw error;
+        }
+    },
+
+    completeTwoFactor: async ({ code, recoveryCode }) => {
+        set({ isLoading: true, error: null });
+
+        try {
+            await apiRequest("/two-factor-challenge", {
+                body: {
+                    code: code || undefined,
+                    recovery_code: recoveryCode || undefined,
+                },
+            });
+            const user = await apiRequest("/api/me");
             set({ currentUser: user, hasHydrated: true, isLoading: false });
             return user;
         } catch (error) {

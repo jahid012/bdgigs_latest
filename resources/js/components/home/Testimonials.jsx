@@ -93,7 +93,7 @@ function Testimonials({ onNavigate }) {
                                 {t("components.home.testimonials.fingertips")}
                             </span>
                         </h2>
-                        <a href="/register">
+                        <a href="/?auth=register">
                             {t("components.home.testimonials.joinBdgigs")}
                         </a>
                     </div>
