@@ -11,8 +11,12 @@ export function slugifySellerName(name = "") {
     );
 }
 
-export function profilePathForSeller(name) {
-    return `/users/${slugifySellerName(name)}`;
+export function profilePathForSeller(name, username = "") {
+    const handle = String(username || "")
+        .trim()
+        .replace(/^@/, "");
+
+    return `/users/${handle || slugifySellerName(name)}`;
 }
 
 const editableSellerStorageKeys = {

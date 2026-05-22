@@ -1,10 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-    aiGigDetailId,
     createDetailFromListingGig,
-    getGigDetail,
-    getRecommendedGigs,
 } from "../data/gigDetailsData.js";
 import {
     profilePathForSeller,
@@ -16,7 +13,9 @@ import { Icon } from "../components/common/Icons.jsx";
 import Footer from "../components/layout/Footer.jsx";
 import Header from "../components/layout/Header.jsx";
 import { useTranslation } from "react-i18next";
+import { apiRequest } from "../api/apiClient.js";
 import { useMarketplaceStore } from "../stores/useMarketplaceStore.js";
+import { useSessionStore } from "../stores/useSessionStore.js";
 const packageFeatureRows = [
     "Functional Web App",
     "Desktop Application",
@@ -30,24 +29,57 @@ function GigDetailsPage({ onNavigate }) {
     const { gigId } = useParams();
     const apiGig = useMarketplaceStore((state) => state.gigsById[gigId]);
     const fetchGig = useMarketplaceStore((state) => state.fetchGig);
+    const fetchGigs = useMarketplaceStore((state) => state.fetchGigs);
+    const toggleSavedService = useMarketplaceStore(
+        (state) => state.toggleSavedService,
+    );
+    const currentUser = useSessionStore((state) => state.currentUser);
     const launchConversation = useConversationLauncher();
-    const detail = apiGig ? createDetailFromListingGig(apiGig) : getGigDetail(gigId);
+    const detail = useMemo(
+        () => (apiGig ? createDetailFromListingGig(apiGig) : null),
+        [apiGig],
+    );
     const [activeImage, setActiveImage] = useState(0);
-    const [activePackage, setActivePackage] = useState(detail.packages[0].id);
+    const [activePackage, setActivePackage] = useState("basic");
     const [openFaq, setOpenFaq] = useState(null);
     const [isReportOpen, setIsReportOpen] = useState(false);
+    const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
     const [contactStatus, setContactStatus] = useState("");
+    const [gigLoadError, setGigLoadError] = useState("");
     const reportRef = useRef(null);
     const selectedPackage =
-        detail.packages.find((pkg) => pkg.id === activePackage) ||
-        detail.packages[0];
+        detail?.packages.find((pkg) => pkg.id === activePackage) ||
+        detail?.packages[0];
     useDismissOnInteractOutside(reportRef, isReportOpen, () =>
         setIsReportOpen(false),
     );
 
     useEffect(() => {
-        fetchGig(gigId);
-    }, [fetchGig, gigId]);
+        let active = true;
+
+        setGigLoadError("");
+        fetchGigs();
+        fetchGig(gigId).then((gig) => {
+            if (active && !gig) {
+                setGigLoadError("This gig is not available.");
+            }
+        });
+
+        return () => {
+            active = false;
+        };
+    }, [fetchGig, fetchGigs, gigId]);
+
+    useEffect(() => {
+        const firstPackageId = detail?.packages[0]?.id;
+
+        if (
+            firstPackageId &&
+            !detail.packages.some((pkg) => pkg.id === activePackage)
+        ) {
+            setActivePackage(firstPackageId);
+        }
+    }, [activePackage, detail]);
 
     const changeImage = (direction) => {
         setActiveImage(
@@ -60,20 +92,55 @@ function GigDetailsPage({ onNavigate }) {
         setContactStatus("Opening conversation...");
 
         try {
-            await launchConversation({
+            const conversation = await launchConversation({
                 targetUserId: apiGig?.sellerUserId || detail.seller.userId,
                 targetName: detail.seller.name,
-                targetSlug: slugifySellerName(detail.seller.name),
+                targetSlug:
+                    detail.seller.username || slugifySellerName(detail.seller.name),
                 contextType: "gig",
-                contextId: apiGig?.id || detail.id || gigId,
+                contextId: apiGig?.id || gigId,
                 message,
             });
+
+            return { conversation };
         } catch (error) {
-            setContactStatus(
-                error.message || "This seller is not available for messaging.",
-            );
+            const errorMessage =
+                error.message || "This seller is not available for messaging.";
+            setContactStatus(errorMessage);
+
+            return { error: errorMessage };
         }
     };
+    const toggleSavedGig = async () => {
+        if (!currentUser?.authenticated) {
+            onNavigate(
+                `/?auth=login&redirect=${encodeURIComponent(`/gigs/${gigId}`)}`,
+            );
+            return;
+        }
+
+        await toggleSavedService(apiGig);
+    };
+    const openManualCheckout = () => {
+        if (!currentUser?.authenticated) {
+            onNavigate(
+                `/?auth=login&redirect=${encodeURIComponent(`/gigs/${gigId}`)}`,
+            );
+            return;
+        }
+
+        setIsCheckoutOpen(true);
+    };
+
+    if (!detail || !selectedPackage) {
+        return (
+            <GigDetailStatus
+                error={gigLoadError}
+                onNavigate={onNavigate}
+            />
+        );
+    }
+
     return (
         <div className="gig-detail-page">
             <Header
@@ -119,6 +186,8 @@ function GigDetailsPage({ onNavigate }) {
                         >
                             <TopActions
                                 isReportOpen={isReportOpen}
+                                isSaved={Boolean(apiGig?.saved)}
+                                onSave={toggleSavedGig}
                                 onToggleReport={() =>
                                     setIsReportOpen((open) => !open)
                                 }
@@ -132,6 +201,7 @@ function GigDetailsPage({ onNavigate }) {
                                         `Hi ${detail.seller.name}, I am interested in ${detail.title}.`,
                                     )
                                 }
+                                onContinue={openManualCheckout}
                                 onPackageChange={setActivePackage}
                                 packageData={selectedPackage}
                                 packages={detail.packages}
@@ -147,9 +217,17 @@ function GigDetailsPage({ onNavigate }) {
             </main>
 
             <MessageBubble
-                onContact={() => startGigConversation()}
+                onSend={startGigConversation}
                 seller={detail.seller}
             />
+            {isCheckoutOpen ? (
+                <ManualCheckoutDialog
+                    gig={apiGig}
+                    onClose={() => setIsCheckoutOpen(false)}
+                    onNavigate={onNavigate}
+                    packageData={selectedPackage}
+                />
+            ) : null}
             <Footer />
         </div>
     );
@@ -219,12 +297,42 @@ function GigHero({ activeImage, detail, onChangeImage, onSelectImage }) {
         </section>
     );
 }
+function GigDetailStatus({ error, onNavigate }) {
+    return (
+        <div className="gig-detail-page">
+            <Header
+                enableMarketplaceHeader={false}
+                forceSearch
+                onNavigate={onNavigate}
+            />
+            <main className="gig-detail-main">
+                <div className="container profile-data-empty">
+                    <h1>{error || "Loading gig..."}</h1>
+                    <p>
+                        {error
+                            ? "Browse the live gig catalog to open a service that is still published."
+                            : "Loading the live gig record and package details."}
+                    </p>
+                </div>
+            </main>
+            <Footer />
+        </div>
+    );
+}
+
+function sellerProfilePath(seller) {
+    return (
+        seller.profilePath ||
+        profilePathForSeller(seller.name, seller.username)
+    );
+}
+
 function SellerMini({ seller }) {
     return (
         <div className="gig-seller-mini">
             <Link
                 className="gig-seller-mini-avatar"
-                to={profilePathForSeller(seller.name)}
+                to={sellerProfilePath(seller)}
                 aria-label={`View ${seller.name} profile`}
             >
                 <img src={seller.avatar} alt="" />
@@ -232,7 +340,7 @@ function SellerMini({ seller }) {
             <div>
                 <Link
                     className="gig-seller-mini-name"
-                    to={profilePathForSeller(seller.name)}
+                    to={sellerProfilePath(seller)}
                 >
                     <strong>{seller.name}</strong>
                 </Link>
@@ -242,8 +350,14 @@ function SellerMini({ seller }) {
         </div>
     );
 }
-function RatingLine({ rating, reviews }) {
+function RatingLine({ rating, reviews, reviewsLink = true }) {
     const { t } = useTranslation();
+    const reviewLabel = (
+        <>
+            ({reviews} {t("pages.gigdetailspage.reviews")})
+        </>
+    );
+
     return (
         <span className="detail-rating-line">
             {Array.from(
@@ -255,15 +369,21 @@ function RatingLine({ rating, reviews }) {
                 ),
             )}
             <strong>{rating.toFixed(1)}</strong>
-            {reviews ? (
-                <Link to="#reviews">
-                    ({reviews} {t("pages.gigdetailspage.reviews")}
-                </Link>
+            {reviews && reviewsLink ? <Link to="#reviews">{reviewLabel}</Link> : null}
+            {reviews && !reviewsLink ? (
+                <span className="review-count">{reviewLabel}</span>
             ) : null}
         </span>
     );
 }
-function TopActions({ isReportOpen, onToggleReport, reportRef, reviewCount }) {
+function TopActions({
+    isReportOpen,
+    isSaved,
+    onSave,
+    onToggleReport,
+    reportRef,
+    reviewCount,
+}) {
     const { t } = useTranslation();
     return (
         <div className="gig-detail-actions" ref={reportRef}>
@@ -274,8 +394,11 @@ function TopActions({ isReportOpen, onToggleReport, reportRef, reviewCount }) {
                 <Icon name="menu" />
             </button>
             <button
+                className={isSaved ? "is-favorite" : undefined}
                 type="button"
                 aria-label={t("pages.gigdetailspage.saveGig")}
+                aria-pressed={isSaved}
+                onClick={onSave}
             >
                 <Icon name="heart" />
             </button>
@@ -308,6 +431,7 @@ function TopActions({ isReportOpen, onToggleReport, reportRef, reviewCount }) {
 function PackageCard({
     activePackage,
     onContact,
+    onContinue,
     onPackageChange,
     packageData,
     packages,
@@ -365,7 +489,11 @@ function PackageCard({
                     ))}
                 </ul>
 
-                <button className="package-continue-button" type="button">
+                <button
+                    className="package-continue-button"
+                    type="button"
+                    onClick={onContinue}
+                >
                     {" "}
                     {t("pages.gigdetailspage.continue")}{" "}
                     <Icon name="arrowRight" />
@@ -397,6 +525,173 @@ function PackageCard({
                 </div>
             </div>
         </section>
+    );
+}
+
+function ManualCheckoutDialog({ gig, onClose, onNavigate, packageData }) {
+    const [methods, setMethods] = useState([]);
+    const [methodId, setMethodId] = useState("");
+    const [reference, setReference] = useState("");
+    const [proofReference, setProofReference] = useState("");
+    const [note, setNote] = useState("");
+    const [status, setStatus] = useState("loading");
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        let active = true;
+
+        apiRequest("/api/manual-payment-methods")
+            .then((nextMethods) => {
+                if (!active) return;
+
+                setMethods(nextMethods);
+                setMethodId(String(nextMethods[0]?.id || ""));
+                setStatus("ready");
+            })
+            .catch((nextError) => {
+                if (!active) return;
+
+                setError(
+                    nextError.message || "Unable to load payment methods.",
+                );
+                setStatus("error");
+            });
+
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    const selectedMethod = methods.find(
+        (method) => String(method.id) === methodId,
+    );
+    const submitCheckout = async (event) => {
+        event.preventDefault();
+        setStatus("submitting");
+        setError("");
+
+        try {
+            const order = await apiRequest(
+                `/api/gigs/${gig.id}/manual-checkout`,
+                {
+                    body: {
+                        packageId: packageData.id,
+                        manualPaymentMethodId: Number(methodId),
+                        reference,
+                        proofReference: proofReference || undefined,
+                        note: note || undefined,
+                    },
+                },
+            );
+
+            onClose();
+            onNavigate(`/dashboard/orders/${order.orderNumber}`);
+        } catch (nextError) {
+            setError(nextError.message || "Unable to submit checkout.");
+            setStatus("ready");
+        }
+    };
+
+    return (
+        <div className="manual-checkout-backdrop" role="presentation">
+            <section
+                className="manual-checkout-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="manualCheckoutTitle"
+            >
+                <button
+                    className="manual-checkout-close"
+                    type="button"
+                    aria-label="Close checkout"
+                    onClick={onClose}
+                >
+                    <Icon name="close" />
+                </button>
+                <div>
+                    <span>Manual payment checkout</span>
+                    <h2 id="manualCheckoutTitle">{packageData.title}</h2>
+                    <p>
+                        ${packageData.price.toLocaleString()} for{" "}
+                        {gig.title}
+                    </p>
+                </div>
+                <form onSubmit={submitCheckout}>
+                    <label>
+                        <span>Payment method</span>
+                        <select
+                            value={methodId}
+                            onChange={(event) =>
+                                setMethodId(event.target.value)
+                            }
+                            disabled={status !== "ready"}
+                            required
+                        >
+                            {methods.map((method) => (
+                                <option value={method.id} key={method.id}>
+                                    {method.name}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    {selectedMethod ? (
+                        <div className="manual-method-note">
+                            <strong>
+                                {selectedMethod.accountName}{" "}
+                                {selectedMethod.accountNumber}
+                            </strong>
+                            <p>{selectedMethod.instructions}</p>
+                        </div>
+                    ) : null}
+                    <label>
+                        <span>Transaction reference</span>
+                        <input
+                            value={reference}
+                            onChange={(event) =>
+                                setReference(event.target.value)
+                            }
+                            placeholder="Bank or wallet transaction ID"
+                            required
+                        />
+                    </label>
+                    <label>
+                        <span>Proof reference</span>
+                        <input
+                            value={proofReference}
+                            onChange={(event) =>
+                                setProofReference(event.target.value)
+                            }
+                            placeholder="Optional receipt link or note"
+                        />
+                    </label>
+                    <label>
+                        <span>Buyer note</span>
+                        <textarea
+                            value={note}
+                            onChange={(event) => setNote(event.target.value)}
+                            placeholder="Optional note for the payment reviewer"
+                        />
+                    </label>
+                    {error ? <p className="manual-checkout-error">{error}</p> : null}
+                    {status === "ready" && methods.length === 0 ? (
+                        <p className="manual-checkout-error">
+                            No active manual payment methods are available.
+                        </p>
+                    ) : null}
+                    <button
+                        className="btn btn-primary"
+                        type="submit"
+                        disabled={
+                            status !== "ready" ||
+                            methods.length === 0 ||
+                            !reference.trim()
+                        }
+                    >
+                        Submit order for payment review
+                    </button>
+                </form>
+            </section>
+        </div>
     );
 }
 function AboutGig({ detail }) {
@@ -445,19 +740,17 @@ function SellerProfile({ contactStatus = "", onContact, seller }) {
             <h2>
                 {" "}
                 {t("pages.gigdetailspage.getToKnow")}{" "}
-                <Link to={profilePathForSeller(seller.name)}>
-                    {seller.name}
-                </Link>
+                <Link to={sellerProfilePath(seller)}>{seller.name}</Link>
             </h2>
             <div className="seller-profile-header">
                 <Link
-                    to={profilePathForSeller(seller.name)}
+                    to={sellerProfilePath(seller)}
                     aria-label={`View ${seller.name} profile`}
                 >
                     <img src={seller.avatar} alt="" />
                 </Link>
                 <div>
-                    <Link to={profilePathForSeller(seller.name)}>
+                    <Link to={sellerProfilePath(seller)}>
                         <strong>{seller.name}</strong>
                     </Link>
                     <p>{seller.tagline}</p>
@@ -636,9 +929,10 @@ function ComparePackages({ packages, onSelect }) {
 }
 function RecommendedSection({ currentId }) {
     const { t } = useTranslation();
-    const recommended = getRecommendedGigs(
-        currentId === aiGigDetailId ? "" : currentId,
-    );
+    const listingGigs = useMarketplaceStore((state) => state.listingGigs);
+    const recommended = listingGigs
+        .filter((gig) => gig.id !== currentId)
+        .slice(0, 2);
     return (
         <section className="detail-section recommended-detail-section">
             <h2>{t("pages.gigdetailspage.recommendedForYou")}</h2>
@@ -655,7 +949,11 @@ function RecommendedSection({ currentId }) {
                             <span>{gig.level}</span>
                         </div>
                         <p>{gig.title}</p>
-                        <RatingLine rating={gig.rating} reviews={gig.reviews} />
+                        <RatingLine
+                            rating={gig.rating}
+                            reviews={gig.reviews}
+                            reviewsLink={false}
+                        />
                         <b>
                             {t("pages.gigdetailspage.from2")}
                             {gig.price}
@@ -906,112 +1204,11 @@ function GigDetailBottomSections({ detail, onNavigate }) {
     const viewedRef = useRef(null);
     const historyRef = useRef(null);
     const baseGigs = listingGigs.filter((gig) => gig.id !== detail.id);
-    const byId = (id) =>
-        listingGigs.find((gig) => gig.id === id) || listingGigs[0];
-    const sellerGig = (id, overrides) => ({
-        ...byId(id),
-        seller: detail.seller.name,
-        avatar: detail.seller.avatar,
-        level: detail.seller.level,
-        consultation: true,
-        ...overrides,
-    });
-    const moreFromSeller = [
-        sellerGig("android-codecanyon-reskin", {
-            title: "I will do android and ios mobile app development using flutter as your mobile app developer",
-            image: "/assets/img/gig_images/14.png",
-            price: 400,
-            rating: 4.7,
-            reviews: 2,
-        }),
-        sellerGig("codecanyon-hosting", {
-            title: "I will install and set up your personal ai assistant and automation workflow",
-            image: "/assets/img/gig_images/9.png",
-            price: 60,
-            rating: 5,
-            reviews: 18,
-        }),
-        sellerGig("nextjs-codecanyon", {
-            title: "I will do b2b lead generation, linkedin lead generation and web research",
-            image: "/assets/img/gig_images/15.png",
-            price: 20,
-            rating: 5,
-            reviews: 31,
-        }),
-        sellerGig("wordpress-redesign", {
-            title: "I will convert figma, xd and psd to wordpress and custom websites",
-            image: "/assets/img/gig_images/3.png",
-            price: 80,
-            rating: 4.9,
-            reviews: 64,
-        }),
-    ];
-    const viewedAlso = [
-        {
-            ...byId("full-stack-website"),
-            seller: "Xtreeme Tech",
-            badge: "Top Rated",
-            title: "Our agency will integrate chatgpt openai API in wordpress website",
-            image: "/assets/img/gig_images/1.png",
-            price: 90,
-            rating: 4.9,
-            reviews: 139,
-            consultation: true,
-        },
-        {
-            ...byId("wordpress-transfer"),
-            seller: "Anil Chaudhary",
-            title: "I will integrate chatgpt openai API in wordpress website for automation",
-            image: "/assets/img/gig_images/6.png",
-            price: 90,
-            rating: 5,
-            reviews: 9,
-        },
-        {
-            ...byId("shopify-store"),
-            seller: "Weballures",
-            badge: "Top Rated",
-            title: "Our agency will ai website, ai web app creation, ai website development",
-            image: "/assets/img/gig_images/12.png",
-            price: 125,
-            rating: 5,
-            reviews: 18,
-        },
-        {
-            ...byId("wix-redesign"),
-            seller: "Abdul Ahad",
-            title: "I will develop ai website, ai chatbot, ai web application and ai software",
-            image: "/assets/img/gig_images/16.png",
-            price: 60,
-            rating: 5,
-            reviews: 6,
-        },
-        {
-            ...byId("codecanyon-envato"),
-            seller: "Ahsaan Ali Khan",
-            title: "I will build ai website, ai chatbot, ai web application, custom website",
-            image: "/assets/img/gig_images/10.png",
-            price: 110,
-            rating: 5,
-            reviews: 11,
-            consultation: true,
-        },
-    ];
-    const historyGigs = [
-        sellerGig("full-stack-website", {
-            seller: "Jasper Studio",
-            avatar: byId("full-stack-website").avatar,
-            title: "I will create a saas gpt4 ai content and image generator like jasper or chatgpt",
-            image: "/assets/img/gig_images/20.png",
-        }),
-        sellerGig("shopify-store", {
-            seller: "AI Platform",
-            avatar: byId("shopify-store").avatar,
-            title: "I will create saas ai content generator generative ai platform website",
-            image: "/assets/img/gig_images/21.png",
-        }),
-        ...baseGigs.slice(0, 6),
-    ].slice(0, 8);
+    const moreFromSeller = baseGigs
+        .filter((gig) => gig.sellerUserId === detail.seller.userId)
+        .slice(0, 4);
+    const viewedAlso = baseGigs.slice(0, 5);
+    const historyGigs = baseGigs.slice(5, 13);
     const scrollStrip = (ref, direction) => {
         ref.current?.scrollBy({
             left: direction * 290,
@@ -1031,33 +1228,39 @@ function GigDetailBottomSections({ detail, onNavigate }) {
             aria-label={t("pages.gigdetailspage.moreServicesAndHiringOptions")}
         >
             <div className="container">
-                <DetailGigStrip
-                    actionLabel={`More from ${detail.seller.name}`}
-                    heading={
-                        <>
-                            {" "}
-                            {t("pages.gigdetailspage.moreFrom")}{" "}
-                            <Link to={profilePathForSeller(detail.seller.name)}>
-                                {detail.seller.name}
-                            </Link>
-                        </>
-                    }
-                    gigs={moreFromSeller}
-                    rowRef={moreFromRef}
-                    onScroll={(direction) =>
-                        scrollStrip(moreFromRef, direction)
-                    }
-                />
+                {moreFromSeller.length ? (
+                    <DetailGigStrip
+                        actionLabel={`More from ${detail.seller.name}`}
+                        heading={
+                            <>
+                                {" "}
+                                {t("pages.gigdetailspage.moreFrom")}{" "}
+                                <Link to={sellerProfilePath(detail.seller)}>
+                                    {detail.seller.name}
+                                </Link>
+                            </>
+                        }
+                        gigs={moreFromSeller}
+                        rowRef={moreFromRef}
+                        onScroll={(direction) =>
+                            scrollStrip(moreFromRef, direction)
+                        }
+                    />
+                ) : null}
 
-                <DetailGigStrip
-                    actionLabel="People who viewed this service also viewed"
-                    heading="People Who Viewed This Service Also Viewed"
-                    gigs={viewedAlso}
-                    rowRef={viewedRef}
-                    onScroll={(direction) => scrollStrip(viewedRef, direction)}
-                />
+                {viewedAlso.length ? (
+                    <DetailGigStrip
+                        actionLabel="People who viewed this service also viewed"
+                        heading="People Who Viewed This Service Also Viewed"
+                        gigs={viewedAlso}
+                        rowRef={viewedRef}
+                        onScroll={(direction) =>
+                            scrollStrip(viewedRef, direction)
+                        }
+                    />
+                ) : null}
 
-                {!isHistoryHidden ? (
+                {!isHistoryHidden && historyGigs.length ? (
                     <DetailHistoryStrip
                         gigs={historyGigs}
                         onClear={() => setIsHistoryHidden(true)}
@@ -1156,6 +1359,22 @@ function DetailGigStrip({ actionLabel, gigs, heading, onScroll, rowRef }) {
 }
 function DetailGigStripCard({ gig }) {
     const { t } = useTranslation();
+    const navigate = useNavigate();
+    const currentUser = useSessionStore((state) => state.currentUser);
+    const toggleSavedService = useMarketplaceStore(
+        (state) => state.toggleSavedService,
+    );
+    const toggleSaved = async () => {
+        if (!currentUser?.authenticated) {
+            navigate(
+                `/?auth=login&redirect=${encodeURIComponent(`/gigs/${gig.id}`)}`,
+            );
+            return;
+        }
+
+        await toggleSavedService(gig);
+    };
+
     return (
         <article className="detail-strip-card">
             <div className="detail-strip-media">
@@ -1167,7 +1386,13 @@ function DetailGigStripCard({ gig }) {
                         decoding="async"
                     />
                 </Link>
-                <button type="button" aria-label={`Save ${gig.title}`}>
+                <button
+                    className={gig.saved ? "is-favorite" : undefined}
+                    type="button"
+                    aria-label={`${gig.saved ? "Remove" : "Save"} ${gig.title}`}
+                    aria-pressed={Boolean(gig.saved)}
+                    onClick={toggleSaved}
+                >
                     <Icon name="heart" />
                 </button>
                 {gig.consultation ? (
@@ -1179,7 +1404,10 @@ function DetailGigStripCard({ gig }) {
             <div className="detail-strip-seller-row">
                 <Link
                     className="gig-seller-profile-link"
-                    to={profilePathForSeller(gig.seller)}
+                    to={
+                        gig.sellerProfilePath ||
+                        profilePathForSeller(gig.seller, gig.sellerUsername)
+                    }
                 >
                     <span className="gig-avatar">
                         <img
@@ -1304,14 +1532,154 @@ function DetailTalentWayCard({
         </article>
     );
 }
-function MessageBubble({ onContact, seller }) {
+function MessageBubble({ onSend, seller }) {
     const { t } = useTranslation();
+    const [isComposerOpen, setIsComposerOpen] = useState(false);
+    const [messageDraft, setMessageDraft] = useState(
+        `Hi ${seller.name}, I would like to discuss this service.`,
+    );
+    const [sendStatus, setSendStatus] = useState("");
+    const [isSending, setIsSending] = useState(false);
+    const promptStarters = [
+        `Hi ${seller.name}, can you help with a similar project?`,
+        "Could you share timeline and pricing for my scope?",
+        "Can we discuss requirements before I place an order?",
+    ];
+
+    useEffect(() => {
+        if (!isComposerOpen) {
+            return undefined;
+        }
+
+        const closeOnEscape = (event) => {
+            if (event.key === "Escape") {
+                setIsComposerOpen(false);
+            }
+        };
+
+        window.addEventListener("keydown", closeOnEscape);
+
+        return () => window.removeEventListener("keydown", closeOnEscape);
+    }, [isComposerOpen]);
+
+    useEffect(() => {
+        setMessageDraft(
+            `Hi ${seller.name}, I would like to discuss this service.`,
+        );
+    }, [seller.name]);
+
+    const sendMessage = async () => {
+        const message = messageDraft.trim();
+
+        if (!message || isSending) {
+            return;
+        }
+
+        setIsSending(true);
+        setSendStatus("Opening conversation...");
+
+        const result = await onSend(message);
+
+        if (result?.error) {
+            setSendStatus(result.error);
+            setIsSending(false);
+        }
+    };
+
+    if (isComposerOpen) {
+        return (
+            <aside
+                className="profile-message-composer seller-message-composer"
+                aria-label={`Send a message to ${seller.name}`}
+            >
+                <header>
+                    <img src={seller.avatar} alt="" />
+                    <div>
+                        <strong>
+                            {t("pages.gigdetailspage.message")} {seller.name}
+                        </strong>
+                        <span>
+                            {t("pages.gigdetailspage.awayAvgResponseTime")}{" "}
+                            <b>{seller.responseTime}</b>
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        aria-label="Close message box"
+                        onClick={() => setIsComposerOpen(false)}
+                    >
+                        <Icon name="close" />
+                    </button>
+                </header>
+
+                <div className="profile-message-composer-body">
+                    <label className="sr-only" htmlFor="gigSellerMessageDraft">
+                        Message
+                    </label>
+                    <textarea
+                        id="gigSellerMessageDraft"
+                        maxLength={2500}
+                        value={messageDraft}
+                        onChange={(event) => {
+                            setMessageDraft(event.target.value);
+                            setSendStatus("");
+                        }}
+                    />
+                    <span
+                        className="profile-message-secure"
+                        aria-label="Secure message"
+                    >
+                        <Icon name="archive" />
+                    </span>
+                </div>
+
+                <div className="profile-message-prompts">
+                    {promptStarters.map((prompt) => (
+                        <button
+                            type="button"
+                            key={prompt}
+                            onClick={() => {
+                                setMessageDraft(prompt);
+                                setSendStatus("");
+                            }}
+                        >
+                            {prompt}
+                        </button>
+                    ))}
+                </div>
+
+                <footer>
+                    <div>
+                        <button type="button" aria-label="Attach file">
+                            <Icon name="paperclip" />
+                        </button>
+                    </div>
+                    <button
+                        className="profile-message-send"
+                        type="button"
+                        disabled={!messageDraft.trim() || isSending}
+                        onClick={sendMessage}
+                    >
+                        <Icon name="send" /> Send message
+                    </button>
+                </footer>
+
+                {sendStatus ? (
+                    <p className="profile-message-status">{sendStatus}</p>
+                ) : null}
+            </aside>
+        );
+    }
+
     return (
         <button
             className="seller-message-bubble"
             aria-label={`Message ${seller.name}`}
             type="button"
-            onClick={onContact}
+            onClick={() => {
+                setIsComposerOpen(true);
+                setSendStatus("");
+            }}
         >
             <img src={seller.avatar} alt="" />
             <div>

@@ -1,36 +1,38 @@
-import { useState } from "react";
-import { services } from "../../data/homeData.js";
+import { useEffect } from "react";
 import { profilePathForSeller } from "../../data/userProfileData.js";
 import { Icon, Rating } from "../common/Icons.jsx";
 import { useTranslation } from "react-i18next";
-const serviceDetailRoutes = {
-    "brand-identity": "/gigs/ai-website-chatbot",
-    "web-dashboard": "/gigs/codecanyon-install",
-    "seo-growth": "/gigs/codecanyon-hosting",
-    "ai-assistant": "/gigs/ai-website-chatbot",
-    "product-video": "/gigs/wix-redesign",
-    "wordpress-speed": "/gigs/wordpress-transfer",
-};
+import { useMarketplaceStore } from "../../stores/useMarketplaceStore.js";
+import { useSessionStore } from "../../stores/useSessionStore.js";
+
 function FeaturedServices({ onNavigate }) {
     const { t } = useTranslation();
-    const [favorites, setFavorites] = useState(() => new Set());
-    const visibleServices = services.slice(0, 5);
-    const toggleFavorite = (serviceId) => {
-        setFavorites((current) => {
-            const next = new Set(current);
-            if (next.has(serviceId)) {
-                next.delete(serviceId);
-            } else {
-                next.add(serviceId);
-            }
-            return next;
-        });
+    const currentUser = useSessionStore((state) => state.currentUser);
+    const listingGigs = useMarketplaceStore((state) => state.listingGigs);
+    const fetchGigs = useMarketplaceStore((state) => state.fetchGigs);
+    const toggleSavedService = useMarketplaceStore(
+        (state) => state.toggleSavedService,
+    );
+    const visibleServices = listingGigs
+        .filter((service) => service.featured)
+        .slice(0, 5);
+
+    useEffect(() => {
+        fetchGigs();
+    }, [fetchGigs]);
+
+    const toggleFavorite = async (service) => {
+        if (!currentUser?.authenticated) {
+            onNavigate(
+                `/?auth=login&redirect=${encodeURIComponent(`/gigs/${service.id}`)}`,
+            );
+            return;
+        }
+
+        await toggleSavedService(service);
     };
     const openService = (service) => {
-        onNavigate(
-            serviceDetailRoutes[service.id] ||
-                `/search/gigs?query=${encodeURIComponent(service.title)}&source=home-card`,
-        );
+        onNavigate(`/gigs/${service.id}`);
     };
     return (
         <section className="recently-viewed-section" id="services">
@@ -45,7 +47,6 @@ function FeaturedServices({ onNavigate }) {
 
                 <div className="recently-viewed-row">
                     {visibleServices.map((service) => {
-                        const isFavorite = favorites.has(service.id);
                         return (
                             <article className="gig-card" key={service.id}>
                                 <div
@@ -80,13 +81,13 @@ function FeaturedServices({ onNavigate }) {
                                         <Icon name="play" />
                                     </button>
                                     <button
-                                        className={`gig-favorite-button${isFavorite ? " is-favorite" : ""}`}
+                                        className={`gig-favorite-button${service.saved ? " is-favorite" : ""}`}
                                         type="button"
-                                        aria-label={`Save ${service.title}`}
-                                        aria-pressed={isFavorite}
+                                        aria-label={`${service.saved ? "Remove" : "Save"} ${service.title}`}
+                                        aria-pressed={Boolean(service.saved)}
                                         onClick={(event) => {
                                             event.stopPropagation();
-                                            toggleFavorite(service.id);
+                                            toggleFavorite(service);
                                         }}
                                     >
                                         <Icon name="heart" />
@@ -98,14 +99,20 @@ function FeaturedServices({ onNavigate }) {
                                         {service.initials}
                                     </span>
                                     <a
-                                        href={profilePathForSeller(
-                                            service.seller,
-                                        )}
+                                        href={
+                                            service.sellerProfilePath ||
+                                            profilePathForSeller(
+                                                service.seller,
+                                                service.sellerUsername,
+                                            )
+                                        }
                                         onClick={(event) => {
                                             event.preventDefault();
                                             onNavigate(
-                                                profilePathForSeller(
+                                                service.sellerProfilePath ||
+                                                    profilePathForSeller(
                                                     service.seller,
+                                                    service.sellerUsername,
                                                 ),
                                             );
                                         }}
@@ -117,10 +124,7 @@ function FeaturedServices({ onNavigate }) {
 
                                 <h3>
                                     <a
-                                        href={
-                                            serviceDetailRoutes[service.id] ||
-                                            `/search/gigs?query=${encodeURIComponent(service.title)}&source=home-card`
-                                        }
+                                        href={`/gigs/${service.id}`}
                                         onClick={(event) => {
                                             event.preventDefault();
                                             openService(service);
@@ -139,9 +143,9 @@ function FeaturedServices({ onNavigate }) {
 
                                 <strong className="gig-price">
                                     {t("components.home.featuredservices.from")}{" "}
-                                    {service.price}
+                                    ${service.price}
                                 </strong>
-                                {service.id === "brand-identity" ? (
+                                {service.consultation ? (
                                     <span className="gig-consultation">
                                         {t(
                                             "components.home.featuredservices.offersVideoConsultations",
@@ -151,6 +155,13 @@ function FeaturedServices({ onNavigate }) {
                             </article>
                         );
                     })}
+
+                    {visibleServices.length === 0 ? (
+                        <p className="messages-empty">
+                            Featured services will appear after admins choose
+                            them from the live gig catalog.
+                        </p>
+                    ) : null}
 
                     <button
                         className="gig-carousel-button"

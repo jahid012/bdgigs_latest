@@ -34,7 +34,18 @@ class OrderDetailResource extends JsonResource
             'duration' => $this->metadata['duration'] ?? ($this->gig?->delivery_days ? $this->gig->delivery_days.' days' : ''),
             'revisions' => $this->metadata['revisions'] ?? '',
             'requirements' => $this->metadata['requirements'] ?? [],
-            'activity' => $this->metadata['activity'] ?? [],
+            'activity' => $this->relationLoaded('activities') && $this->activities->isNotEmpty()
+                ? $this->activities
+                    ->sortByDesc('created_at')
+                    ->map(fn ($activity) => [
+                        'title' => $activity->title,
+                        'detail' => $activity->detail,
+                        'time' => $activity->created_at?->format('M j, Y g:i A'),
+                    ])
+                    ->values()
+                    ->all()
+                : ($this->metadata['activity'] ?? []),
+            'paymentReviewStatus' => $this->manualPaymentSubmission?->status,
         ];
     }
 }

@@ -11,6 +11,7 @@
             ['label' => 'Gigs', 'route' => 'admin.gigs', 'permission' => 'gigs.view'],
             ['label' => 'Orders', 'route' => 'admin.orders', 'permission' => 'orders.view'],
             ['label' => 'Payments', 'route' => 'admin.payments', 'permission' => 'payments.view'],
+            ['label' => 'Manual Payments', 'route' => 'admin.manual-payments', 'permission' => 'manual-payments.view'],
             ['label' => 'Disputes', 'route' => 'admin.disputes', 'permission' => 'disputes.view'],
             ['label' => 'Reports', 'route' => 'admin.reports', 'permission' => 'reports.view'],
             ['label' => 'Settings', 'route' => 'admin.settings', 'permission' => 'settings.view'],

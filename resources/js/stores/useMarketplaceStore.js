@@ -3,7 +3,6 @@ import { apiRequest } from "../api/apiClient.js";
 import {
     deliveryOptions,
     listingFilterGroups,
-    listingGigs,
     listingSortOptions,
     websiteCategoryPage,
 } from "../data/gigListingData.js";
@@ -15,7 +14,7 @@ export const useMarketplaceStore = create((set, get) => ({
     isLoading: false,
     deliveryOptions: deepClone(deliveryOptions),
     listingFilterGroups: deepClone(listingFilterGroups),
-    listingGigs: deepClone(listingGigs),
+    listingGigs: [],
     gigsById: {},
     listingSortOptions: deepClone(listingSortOptions),
     savedServices: [],
@@ -51,14 +50,25 @@ export const useMarketplaceStore = create((set, get) => ({
             return gig;
         } catch (error) {
             set({ error: error.message });
-            return get().gigsById[id] || get().listingGigs.find((gig) => gig.id === id);
+            return (
+                get().gigsById[id] ||
+                get().listingGigs.find((gig) => gig.id === id) ||
+                null
+            );
         }
     },
 
     fetchSavedServices: async () => {
         try {
             const services = await apiRequest("/api/saved-services");
-            set({ savedServices: services });
+            set((state) => ({
+                savedServices: services,
+                ...updateSavedGigState(
+                    state,
+                    services.map((service) => service.id),
+                    true,
+                ),
+            }));
             return services;
         } catch (error) {
             set({ error: error.message });
@@ -72,6 +82,7 @@ export const useMarketplaceStore = create((set, get) => ({
         });
         set((state) => ({
             savedServices: upsertById(state.savedServices, service),
+            ...updateSavedGigState(state, [gigId], true),
         }));
         return service;
     },
@@ -84,7 +95,18 @@ export const useMarketplaceStore = create((set, get) => ({
             savedServices: state.savedServices.filter(
                 (service) => service.id !== gigId,
             ),
+            ...updateSavedGigState(state, [gigId], false),
         }));
+    },
+
+    toggleSavedService: async (gig) => {
+        if (gig.saved) {
+            await get().removeSavedService(gig.id);
+            return false;
+        }
+
+        await get().saveService(gig.id);
+        return true;
     },
 }));
 
@@ -101,4 +123,19 @@ function upsertById(items, item) {
     if (!exists) return [item, ...items];
 
     return items.map((current) => (current.id === item.id ? item : current));
+}
+
+function updateSavedGigState(state, gigIds, saved) {
+    const ids = new Set(gigIds);
+    const listingGigs = state.listingGigs.map((gig) =>
+        ids.has(gig.id) ? { ...gig, saved } : gig,
+    );
+    const gigsById = Object.fromEntries(
+        Object.entries(state.gigsById).map(([id, gig]) => [
+            id,
+            ids.has(id) ? { ...gig, saved } : gig,
+        ]),
+    );
+
+    return { listingGigs, gigsById };
 }

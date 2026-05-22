@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Events\OrderStatusUpdated;
 use App\Models\Gig;
+use App\Models\ManualPaymentMethod;
+use App\Models\ManualPaymentSubmission;
 use App\Models\Order;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
@@ -55,12 +57,12 @@ class AdminPanelDynamicTest extends TestCase
         $this->actingAs($this->admin)
             ->get(route('admin.gigs'))
             ->assertOk()
-            ->assertSee('Modern Website Landing Page Design');
+            ->assertSee(Gig::where('slug', 'demo-gig-001')->firstOrFail()->title);
 
         $this->actingAs($this->admin)
             ->get(route('admin.orders'))
             ->assertOk()
-            ->assertSee('#SH-1048');
+            ->assertSee('#BO-001');
     }
 
     public function test_admin_pages_respect_page_permissions(): void
@@ -79,15 +81,17 @@ class AdminPanelDynamicTest extends TestCase
     public function test_admin_lists_support_search_and_filters(): void
     {
         $this->actingAs($this->admin)
-            ->get(route('admin.users', ['q' => 'CloudPeak', 'type' => 'buyers']))
+            ->get(route('admin.users', ['q' => 'demo-seller-02', 'type' => 'sellers']))
             ->assertOk()
-            ->assertSee('cloudpeak@bdgigs.test')
+            ->assertSee('demo-seller-02@bdgigs.test')
             ->assertDontSee('test@example.com');
 
+        $gig = Gig::where('slug', 'demo-gig-002')->firstOrFail();
+
         $this->actingAs($this->admin)
-            ->get(route('admin.gigs', ['q' => 'codecanyon']))
+            ->get(route('admin.gigs', ['q' => $gig->title]))
             ->assertOk()
-            ->assertSee('codecanyon');
+            ->assertSee($gig->title);
 
         $this->actingAs($this->admin)
             ->get(route('admin.orders', ['status' => 'delivered']))
@@ -126,7 +130,7 @@ class AdminPanelDynamicTest extends TestCase
 
     public function test_admin_can_update_gig_status(): void
     {
-        $gig = Gig::where('slug', 'modern-website-landing-page-design')->firstOrFail();
+        $gig = Gig::where('slug', 'demo-gig-001')->firstOrFail();
 
         $this->actingAs($this->admin)
             ->patch(route('admin.gigs.status', $gig), [
@@ -176,5 +180,38 @@ class AdminPanelDynamicTest extends TestCase
 
         $this->assertSame('Delivered', $order->fresh()->status);
         Event::assertDispatched(OrderStatusUpdated::class, 2);
+    }
+
+    public function test_admin_can_approve_manual_payment_submission(): void
+    {
+        $buyer = User::factory()->create();
+        $seller = User::factory()->create();
+        $gig = Gig::factory()->withSeller($seller)->create([
+            'slug' => 'admin-payment-gig',
+            'status' => 'Published',
+        ]);
+        $method = ManualPaymentMethod::query()->firstOrFail();
+
+        $orderCode = $this->actingAs($buyer)
+            ->postJson("/api/gigs/{$gig->slug}/manual-checkout", [
+                'packageId' => 'basic',
+                'manualPaymentMethodId' => $method->id,
+                'reference' => 'ADMIN-TX-1',
+            ])
+            ->assertCreated()
+            ->json('data.orderNumber');
+        $submission = ManualPaymentSubmission::query()
+            ->whereHas('order', fn ($orders) => $orders->where('code', $orderCode))
+            ->firstOrFail();
+
+        $this->actingAs($this->admin)
+            ->patch(route('admin.manual-payments.review', $submission), [
+                'decision' => 'approve',
+                'note' => 'Reference checked.',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('approved', $submission->fresh()->status);
+        $this->assertSame('Pending Requirements', $submission->order->fresh()->status);
     }
 }

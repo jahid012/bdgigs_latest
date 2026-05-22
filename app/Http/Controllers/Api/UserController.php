@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\DashboardSummaryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
@@ -94,8 +95,14 @@ class UserController extends Controller
         ]);
     }
 
-    public function publicSellerProfile(User $user): PublicSellerProfileResource
+    public function publicSellerProfile(string $username): PublicSellerProfileResource
     {
+        $user = User::query()
+            ->where('username', ltrim($username, '@'))
+            ->first()
+            ?: User::all()->first(fn (User $candidate) => Str::slug($candidate->name) === $username);
+
+        abort_unless($user, 404);
         abort_unless($user->sellerProfile || $user->gigs()->exists(), 404);
 
         return PublicSellerProfileResource::make($user->loadMissing(['sellerProfile', 'gigs']));

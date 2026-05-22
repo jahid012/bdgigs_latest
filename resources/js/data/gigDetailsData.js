@@ -233,6 +233,15 @@ export function getRecommendedGigs(currentId) {
 }
 
 export function createDetailFromListingGig(gig) {
+    const dynamicPackages = Array.isArray(gig.packages)
+        ? gig.packages.map((pkg, index) => normalizeGigPackage(pkg, gig, index))
+        : [];
+    const galleryImages = [
+        ...(gig.galleryImages || []),
+        gig.image,
+        ...aiGigDetail.gallery,
+    ].filter((image, index, images) => image && images.indexOf(image) === index);
+
     return {
         ...aiGigDetail,
         id: gig.id,
@@ -250,15 +259,34 @@ export function createDetailFromListingGig(gig) {
             reviews: gig.reviews,
             avatar: gig.avatar,
             userId: gig.sellerUserId,
+            username: gig.sellerUsername,
+            profilePath: gig.sellerProfilePath,
         },
-        gallery: [
-            gig.image,
-            ...aiGigDetail.gallery.filter((image) => image !== gig.image),
-        ].slice(0, 6),
-        packages: aiGigDetail.packages.map((pkg, index) => ({
-            ...pkg,
-            price: Math.max(gig.price * [1, 4, 8][index], gig.price),
-        })),
+        gallery: galleryImages.slice(0, 6),
+        packages: dynamicPackages.length
+            ? dynamicPackages
+            : aiGigDetail.packages.map((pkg, index) => ({
+                  ...pkg,
+                  price: Math.max(gig.price * [1, 4, 8][index], gig.price),
+              })),
+    };
+}
+
+function normalizeGigPackage(pkg, gig, index) {
+    const fallback = aiGigDetail.packages[index] || aiGigDetail.packages[0];
+    const price = Number.parseFloat(String(pkg.price || gig.price || 0).replace(/[^0-9.]/g, ""));
+
+    return {
+        ...fallback,
+        id: pkg.id || fallback.id,
+        name: pkg.name || pkg.label || fallback.name,
+        title: pkg.title || pkg.name || fallback.title,
+        description: pkg.description || fallback.description,
+        delivery: pkg.delivery || fallback.delivery,
+        deliveryTime: pkg.deliveryTime || pkg.delivery || fallback.deliveryTime,
+        revisions: pkg.revisions || fallback.revisions,
+        price: Number.isFinite(price) ? price : fallback.price,
+        features: pkg.features || fallback.features,
     };
 }
 

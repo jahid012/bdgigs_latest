@@ -497,10 +497,11 @@ class ConversationController extends Controller
             }
         }
 
-        $slug = $payload['targetSlug'] ?? null;
+        $slug = ltrim((string) ($payload['targetSlug'] ?? $payload['contextId'] ?? ''), '@');
 
         if ($slug) {
-            $user = User::all()->first(fn (User $user) => Str::slug($user->name) === $slug);
+            $user = User::where('username', $slug)->first()
+                ?: User::all()->first(fn (User $user) => Str::slug($user->name) === $slug);
 
             if ($user) {
                 return $user;

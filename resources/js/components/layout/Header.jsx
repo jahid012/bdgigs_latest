@@ -9,6 +9,7 @@ import {
 import { useDismissOnInteractOutside } from "../../hooks/useDismissOnInteractOutside.js";
 import { useScrolledPast } from "../../hooks/useScrolledPast.js";
 import { supportedLanguages } from "../../i18n/index.js";
+import { useDashboardStore } from "../../stores/useDashboardStore.js";
 import { useSessionStore } from "../../stores/useSessionStore.js";
 import { BrandMark, Icon } from "../common/Icons.jsx";
 
@@ -381,24 +382,33 @@ function Header({
                         </nav>
 
                         <div className="nav-actions">
-                            <a
-                                className="btn btn-ghost"
-                                href="/login"
-                                onClick={(event) =>
-                                    openAuthModal(event, "login")
-                                }
-                            >
-                                {t("header.signIn")}
-                            </a>
-                            <a
-                                className="btn btn-primary nav-join-button"
-                                href="/register"
-                                onClick={(event) =>
-                                    openAuthModal(event, "register")
-                                }
-                            >
-                                {t("header.join")}
-                            </a>
+                            {currentUser?.authenticated ? (
+                                <HeaderAccountActions
+                                    currentUser={currentUser}
+                                    onNavigate={onNavigate}
+                                />
+                            ) : (
+                                <>
+                                    <a
+                                        className="btn btn-ghost"
+                                        href="/login"
+                                        onClick={(event) =>
+                                            openAuthModal(event, "login")
+                                        }
+                                    >
+                                        {t("header.signIn")}
+                                    </a>
+                                    <a
+                                        className="btn btn-primary nav-join-button"
+                                        href="/register"
+                                        onClick={(event) =>
+                                            openAuthModal(event, "register")
+                                        }
+                                    >
+                                        {t("header.join")}
+                                    </a>
+                                </>
+                            )}
                         </div>
 
                         <button
@@ -502,24 +512,37 @@ function Header({
                                 </a>
                             ))}
                             <div className="mobile-menu-actions">
-                                <a
-                                    className="btn btn-secondary"
-                                    href="/login"
-                                    onClick={(event) =>
-                                        openAuthModal(event, "login")
-                                    }
-                                >
-                                    {t("header.signIn")}
-                                </a>
-                                <a
-                                    className="btn btn-primary"
-                                    href="/register"
-                                    onClick={(event) =>
-                                        openAuthModal(event, "register")
-                                    }
-                                >
-                                    {t("header.join")}
-                                </a>
+                                {currentUser?.authenticated ? (
+                                    <HeaderAccountActions
+                                        currentUser={currentUser}
+                                        mobile
+                                        onMenuClose={() =>
+                                            setIsMenuOpen(false)
+                                        }
+                                        onNavigate={onNavigate}
+                                    />
+                                ) : (
+                                    <>
+                                        <a
+                                            className="btn btn-secondary"
+                                            href="/login"
+                                            onClick={(event) =>
+                                                openAuthModal(event, "login")
+                                            }
+                                        >
+                                            {t("header.signIn")}
+                                        </a>
+                                        <a
+                                            className="btn btn-primary"
+                                            href="/register"
+                                            onClick={(event) =>
+                                                openAuthModal(event, "register")
+                                            }
+                                        >
+                                            {t("header.join")}
+                                        </a>
+                                    </>
+                                )}
                             </div>
                             <a
                                 className="mobile-seller-link"
@@ -568,6 +591,179 @@ function Header({
                 />
             ) : null}
         </>
+    );
+}
+
+function HeaderAccountActions({
+    currentUser,
+    mobile = false,
+    onMenuClose,
+    onNavigate,
+}) {
+    const [openMenu, setOpenMenu] = useState(null);
+    const actionsRef = useRef(null);
+    const messageItems = useDashboardStore((state) => state.messages);
+    const notificationItems = useDashboardStore(
+        (state) => state.buyerNotifications,
+    );
+    const fetchConversations = useDashboardStore(
+        (state) => state.fetchConversations,
+    );
+    const fetchNotifications = useDashboardStore(
+        (state) => state.fetchNotifications,
+    );
+    const logout = useSessionStore((state) => state.logout);
+    const closeMenus = useCallback(() => setOpenMenu(null), []);
+
+    useDismissOnInteractOutside(actionsRef, openMenu !== null, closeMenus);
+
+    useEffect(() => {
+        fetchConversations();
+        fetchNotifications();
+    }, [fetchConversations, fetchNotifications]);
+
+    const toggleMenu = (event, menu) => {
+        event.stopPropagation();
+        setOpenMenu((current) => (current === menu ? null : menu));
+    };
+    const openPath = (event, path) => {
+        event.preventDefault();
+        closeMenus();
+        onMenuClose?.();
+        onNavigate(path);
+    };
+    const signOut = async () => {
+        await logout();
+        closeMenus();
+        onMenuClose?.();
+        onNavigate("home");
+    };
+
+    return (
+        <div
+            className={`header-account-actions${mobile ? " is-mobile" : ""}`}
+            ref={actionsRef}
+        >
+            <HeaderFeedMenu
+                actionLabel="Open inbox"
+                emptyText="Your conversations will appear here."
+                icon="message"
+                items={messageItems}
+                kind="messages"
+                onAction={(event) => openPath(event, "/dashboard/messages")}
+                onToggle={toggleMenu}
+                openMenu={openMenu}
+                title="Messages"
+            />
+            <HeaderFeedMenu
+                actionLabel="Open dashboard"
+                emptyText="No new notifications."
+                icon="bell"
+                items={notificationItems}
+                kind="notifications"
+                onAction={(event) => openPath(event, "/dashboard")}
+                onToggle={toggleMenu}
+                openMenu={openMenu}
+                title="Notifications"
+            />
+            <div className="header-account-menu">
+                <button
+                    className="btn btn-ghost header-profile-trigger"
+                    type="button"
+                    aria-haspopup="true"
+                    aria-expanded={openMenu === "profile"}
+                    onClick={(event) => toggleMenu(event, "profile")}
+                >
+                    <span className="avatar">
+                        {currentUser.initials || currentUser.name?.slice(0, 2)}
+                    </span>
+                    <span>{currentUser.name}</span>
+                    <Icon name="chevronDown" />
+                </button>
+                <div
+                    className={`header-account-dropdown profile${openMenu === "profile" ? " is-open" : ""}`}
+                >
+                    <a
+                        href="/dashboard/profile"
+                        onClick={(event) => openPath(event, "/dashboard/profile")}
+                    >
+                        Profile
+                    </a>
+                    <a
+                        href="/dashboard"
+                        onClick={(event) => openPath(event, "/dashboard")}
+                    >
+                        Dashboard
+                    </a>
+                    <a
+                        href="/dashboard/settings"
+                        onClick={(event) =>
+                            openPath(event, "/dashboard/settings")
+                        }
+                    >
+                        Settings
+                    </a>
+                    <button type="button" onClick={signOut}>
+                        Sign out
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function HeaderFeedMenu({
+    actionLabel,
+    emptyText,
+    icon,
+    items,
+    kind,
+    onAction,
+    onToggle,
+    openMenu,
+    title,
+}) {
+    return (
+        <div className="header-account-menu">
+            <button
+                className="btn btn-ghost header-feed-trigger"
+                type="button"
+                aria-label={title}
+                aria-haspopup="true"
+                aria-expanded={openMenu === kind}
+                onClick={(event) => onToggle(event, kind)}
+            >
+                <Icon name={icon} />
+                {items.length ? <span aria-hidden="true"></span> : null}
+            </button>
+            <div
+                className={`header-account-dropdown feed${openMenu === kind ? " is-open" : ""}`}
+            >
+                <strong>{title}</strong>
+                <div className="header-feed-list">
+                    {items.slice(0, 4).map((item) => (
+                        <article
+                            key={`${title}-${item.id || item.name || item.title}-${item.time || ""}`}
+                        >
+                            <span className="avatar">
+                                {item.initials || <Icon name={icon} />}
+                            </span>
+                            <span>
+                                <b>{item.name || item.title}</b>
+                                <small>
+                                    {item.message || item.detail || item.type}
+                                </small>
+                                {item.time ? <em>{item.time}</em> : null}
+                            </span>
+                        </article>
+                    ))}
+                    {items.length === 0 ? <p>{emptyText}</p> : null}
+                </div>
+                <a href="#" onClick={onAction}>
+                    {actionLabel}
+                </a>
+            </div>
+        </div>
     );
 }
 

@@ -22,6 +22,7 @@ class AccessControlAdminSeeder extends Seeder
             'gigs' => ['gigs.view', 'gigs.review', 'gigs.publish'],
             'orders' => ['orders.view', 'orders.manage'],
             'payments' => ['payments.view', 'payments.release'],
+            'manual_payments' => ['manual-payments.view', 'manual-payments.approve'],
             'disputes' => ['disputes.view', 'disputes.resolve'],
             'reports' => ['reports.view'],
             'settings' => ['settings.view', 'settings.update'],
@@ -63,6 +64,7 @@ class AccessControlAdminSeeder extends Seeder
                 'gigs.view', 'gigs.review', 'gigs.publish',
                 'orders.view', 'orders.manage',
                 'payments.view',
+                'manual-payments.view',
                 'disputes.view', 'disputes.resolve',
                 'reports.view',
                 'settings.view',
@@ -70,6 +72,7 @@ class AccessControlAdminSeeder extends Seeder
             'finance_manager' => [
                 'admin.access',
                 'payments.view', 'payments.release',
+                'manual-payments.view', 'manual-payments.approve',
                 'reports.view',
             ],
             'support_agent' => [

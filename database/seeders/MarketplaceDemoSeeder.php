@@ -10,6 +10,7 @@ class MarketplaceDemoSeeder extends Seeder
     {
         $this->call([
             MarketplaceCatalogSeeder::class,
+            ManualPaymentMethodSeeder::class,
             MarketplaceActivitySeeder::class,
         ]);
     }

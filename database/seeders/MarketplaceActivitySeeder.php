@@ -8,8 +8,6 @@ use App\Models\Order;
 use App\Models\User;
 use App\Models\UserNotification;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class MarketplaceActivitySeeder extends Seeder
 {
@@ -18,7 +16,9 @@ class MarketplaceActivitySeeder extends Seeder
         $user = User::where('email', 'test@example.com')->firstOrFail();
 
         $user->savedServices()->syncWithoutDetaching(
-            Gig::whereIn('slug', ['wordpress-redesign', 'shopify-store', 'full-stack-website'])
+            Gig::query()
+                ->where('seller_id', '!=', $user->id)
+                ->take(3)
                 ->pluck('id')
                 ->all(),
         );
@@ -41,69 +41,72 @@ class MarketplaceActivitySeeder extends Seeder
 
     private function seedOrders(User $user): void
     {
-        $orders = [
-            ['code' => 'SH-1048', 'role' => 'buyer', 'service' => 'Landing page design', 'seller' => 'Nadia R.', 'status' => 'In Progress', 'class' => 'status-progress', 'due' => '2026-05-12', 'price' => 320],
-            ['code' => 'SH-1042', 'role' => 'buyer', 'service' => 'SEO content audit', 'seller' => 'Ayesha K.', 'status' => 'Delivered', 'class' => 'status-delivered', 'due' => '2026-05-08', 'price' => 140],
-            ['code' => 'SH-2094', 'role' => 'seller', 'service' => 'Premium marketplace landing page', 'buyer' => 'CloudPeak Labs', 'status' => 'In Progress', 'class' => 'status-progress', 'due' => '2026-05-11', 'price' => 480],
-            ['code' => 'SH-2089', 'role' => 'seller', 'service' => 'Mobile app UI kit', 'buyer' => 'BrightCart', 'status' => 'Delivered', 'class' => 'status-delivered', 'due' => '2026-05-08', 'price' => 360],
-        ];
+        Order::whereIn('code', ['SH-1048', 'SH-1042', 'SH-2094', 'SH-2089'])->delete();
 
-        foreach ($orders as $order) {
-            $counterpartyName = $order['role'] === 'buyer' ? $order['seller'] : $order['buyer'];
-            $counterparty = User::updateOrCreate(
-                ['email' => Str::slug($counterpartyName).'@bdgigs.test'],
-                [
-                    'name' => $counterpartyName,
-                    'password' => Hash::make('password'),
-                    'email_verified_at' => now(),
-                    'profile_type' => $order['role'] === 'buyer' ? 'seller' : 'buyer',
-                    'country' => $order['role'] === 'buyer' ? 'Bangladesh' : 'United States',
-                    'verification_status' => 'verified',
-                ],
+        $allMarketplaceGigs = Gig::query()
+            ->with('seller')
+            ->where('seller_id', '!=', $user->id)
+            ->get();
+        $marketplaceGigs = $allMarketplaceGigs
+            ->groupBy('seller_id')
+            ->map(fn ($sellerGigs) => $sellerGigs->first())
+            ->values();
+        $marketplaceGigs = $marketplaceGigs
+            ->concat($allMarketplaceGigs->diff($marketplaceGigs))
+            ->take(10)
+            ->values();
+        $userGigs = $user->gigs()->get()->values();
+        $sellerBuyers = User::query()
+            ->where('id', '!=', $user->id)
+            ->whereHas('gigs')
+            ->take(10)
+            ->get()
+            ->values();
+
+        foreach ($marketplaceGigs as $index => $gig) {
+            $this->upsertOrder(
+                sprintf('BO-%03d', $index + 1),
+                Order::factory()
+                    ->between($user, $gig->seller, $gig)
+                    ->make($this->statusState($index)),
             );
+        }
 
-            Order::updateOrCreate(
-                ['code' => $order['code']],
-                [
-                    'buyer_id' => $order['role'] === 'buyer' ? $user->id : $counterparty->id,
-                    'seller_id' => $order['role'] === 'seller' ? $user->id : $counterparty->id,
-                    'service' => $order['service'],
-                    'buyer_name' => $order['buyer'] ?? $user->name,
-                    'seller_name' => $order['seller'] ?? $user->name,
-                    'status' => $order['status'],
-                    'status_class' => $order['class'],
-                    'due_date' => $order['due'],
-                    'price_cents' => $order['price'] * 100,
-                    'earnings_cents' => $order['price'] * 100,
-                ],
+        foreach (range(0, 9) as $index) {
+            $gig = $userGigs[$index % max(1, $userGigs->count())] ?? null;
+
+            if (! $gig) {
+                continue;
+            }
+
+            $buyer = $sellerBuyers[$index % max(1, $sellerBuyers->count())] ?? $user;
+
+            $this->upsertOrder(
+                sprintf('SO-%03d', $index + 1),
+                Order::factory()
+                    ->between($buyer, $user, $gig)
+                    ->make($this->statusState($index + 1)),
             );
         }
     }
 
     private function seedConversations(User $user): void
     {
-        $counterpart = User::updateOrCreate(
-            ['email' => 'cloudpeak@bdgigs.test'],
-            [
-                'name' => 'CloudPeak Labs',
-                'password' => Hash::make('password'),
-                'email_verified_at' => now(),
-                'profile_type' => 'buyer',
-                'country' => 'United States',
-                'verification_status' => 'verified',
-            ],
-        );
+        $counterpart = User::query()
+            ->where('id', '!=', $user->id)
+            ->whereHas('gigs')
+            ->firstOrFail();
         $conversation = Conversation::updateOrCreate(
             ['public_id' => 'seller-thread-1'],
             [
                 'buyer_id' => $counterpart->id,
                 'seller_id' => $user->id,
-                'subject' => 'Premium marketplace landing page',
-                'buyer_name' => 'CloudPeak Labs',
+                'subject' => 'Seeded marketplace order',
+                'buyer_name' => $counterpart->name,
                 'seller_name' => $user->name,
                 'created_by_id' => $counterpart->id,
                 'context_type' => 'order',
-                'context_id' => 'SH-2094',
+                'context_id' => 'SO-001',
                 'status' => 'In Progress',
                 'status_class' => 'status-progress',
                 'priority' => 'Needs reply',
@@ -114,8 +117,8 @@ class MarketplaceActivitySeeder extends Seeder
 
         $conversation->messages()->delete();
         $conversation->messages()->createMany([
-            ['sender_id' => $counterpart->id, 'recipient_id' => $user->id, 'sender_name' => 'CloudPeak Labs', 'body' => 'Can we review the pricing block before the next milestone?', 'sent_at' => now()->subMinutes(8)],
-            ['sender_id' => $user->id, 'recipient_id' => $counterpart->id, 'sender_name' => $user->name, 'body' => 'Yes. I can send an updated comparison layout in the next delivery.', 'sent_at' => now()->subMinutes(6)],
+            ['sender_id' => $counterpart->id, 'recipient_id' => $user->id, 'sender_name' => $counterpart->name, 'body' => 'Can we review the package scope before the next delivery?', 'sent_at' => now()->subMinutes(8)],
+            ['sender_id' => $user->id, 'recipient_id' => $counterpart->id, 'sender_name' => $user->name, 'body' => 'Yes. I will send an updated order note in the next delivery.', 'sent_at' => now()->subMinutes(6)],
         ]);
         $conversation->participants()->updateOrCreate(
             ['user_id' => $counterpart->id],
@@ -130,13 +133,37 @@ class MarketplaceActivitySeeder extends Seeder
     private function seedNotifications(User $user): void
     {
         foreach ([
-            ['type' => 'Needs reply', 'title' => 'New buyer note', 'detail' => 'CloudPeak Labs added feedback to the pricing block.'],
-            ['type' => 'Growth', 'title' => 'Gig performance rising', 'detail' => 'Your landing page gig gained 18% more clicks this week.'],
+            ['type' => 'Needs reply', 'title' => 'New buyer note', 'detail' => 'A buyer added feedback to a seeded order package.'],
+            ['type' => 'Growth', 'title' => 'Gig catalog ready', 'detail' => 'Factory-backed gigs are available for marketplace testing.'],
         ] as $notification) {
             UserNotification::firstOrCreate(
                 ['user_id' => $user->id, 'title' => $notification['title']],
                 $notification + ['user_id' => $user->id],
             );
         }
+    }
+
+    private function statusState(int $index): array
+    {
+        $status = ['Pending Requirements', 'In Progress', 'Delivered', 'Completed'][$index % 4];
+
+        return [
+            'status' => $status,
+            'status_class' => match ($status) {
+                'Completed' => 'status-completed',
+                'Delivered', 'Pending Requirements' => 'status-delivered',
+                default => 'status-progress',
+            },
+        ];
+    }
+
+    private function upsertOrder(string $code, Order $draft): void
+    {
+        Order::updateOrCreate(
+            ['code' => $code],
+            collect($draft->attributesToArray())
+                ->except(['id', 'code', 'created_at', 'updated_at'])
+                ->all(),
+        );
     }
 }

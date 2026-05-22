@@ -126,22 +126,24 @@ class MarketplaceApiTest extends TestCase
 
     public function test_gigs_and_saved_services_are_available(): void
     {
-        $gig = Gig::where('slug', 'wordpress-redesign')->firstOrFail();
+        $gig = Gig::query()
+            ->where('seller_id', '!=', $this->user->id)
+            ->firstOrFail();
 
         $this->actingAs($this->user)
             ->getJson('/api/gigs')
             ->assertOk()
-            ->assertJsonFragment(['id' => 'wordpress-redesign']);
+            ->assertJsonFragment(['id' => $gig->slug]);
 
         $this->actingAs($this->user)
             ->postJson("/api/saved-services/{$gig->slug}")
             ->assertOk()
-            ->assertJsonPath('data.id', 'wordpress-redesign');
+            ->assertJsonPath('data.id', $gig->slug);
 
         $this->actingAs($this->user)
             ->getJson('/api/saved-services')
             ->assertOk()
-            ->assertJsonFragment(['id' => 'wordpress-redesign']);
+            ->assertJsonFragment(['id' => $gig->slug]);
     }
 
     public function test_orders_conversations_and_messages_are_authorized(): void
@@ -151,7 +153,7 @@ class MarketplaceApiTest extends TestCase
         $this->actingAs($this->user)
             ->getJson('/api/orders?role=seller')
             ->assertOk()
-            ->assertJsonFragment(['id' => '#SH-2094']);
+            ->assertJsonFragment(['id' => '#SO-001']);
 
         $this->actingAs($this->user)
             ->getJson('/api/conversations?role=seller')
@@ -162,7 +164,7 @@ class MarketplaceApiTest extends TestCase
             ->postJson("/api/conversations/{$conversation->public_id}/messages", [
                 'text' => 'I uploaded the next milestone.',
             ])
-            ->assertOk()
+            ->assertCreated()
             ->assertJsonPath('data.text', 'I uploaded the next milestone.');
 
         $outsider = User::create([
@@ -178,7 +180,9 @@ class MarketplaceApiTest extends TestCase
 
     public function test_user_can_start_gig_and_order_conversations_without_duplicates(): void
     {
-        $gig = Gig::where('slug', 'wordpress-redesign')->firstOrFail();
+        $gig = Gig::query()
+            ->where('seller_id', '!=', $this->user->id)
+            ->firstOrFail();
 
         $created = $this->actingAs($this->user)
             ->postJson('/api/conversations', [
@@ -210,7 +214,7 @@ class MarketplaceApiTest extends TestCase
         $this->actingAs($this->user)
             ->postJson('/api/conversations', [
                 'contextType' => 'order',
-                'contextId' => 'SH-1048',
+                'contextId' => 'BO-001',
             ])
             ->assertOk()
             ->assertJsonPath('data.context.type', 'order');
@@ -219,13 +223,17 @@ class MarketplaceApiTest extends TestCase
     public function test_message_send_increments_unread_and_read_clears_it(): void
     {
         $conversation = Conversation::where('public_id', 'seller-thread-1')->firstOrFail();
-        $counterpart = User::where('email', 'cloudpeak@bdgigs.test')->firstOrFail();
+        $counterpart = $conversation->participants()
+            ->with('user')
+            ->where('user_id', '!=', $this->user->id)
+            ->firstOrFail()
+            ->user;
 
         $this->actingAs($counterpart)
             ->postJson("/api/conversations/{$conversation->public_id}/messages", [
                 'text' => 'Please check this unread note.',
             ])
-            ->assertOk()
+            ->assertCreated()
             ->assertJsonPath('data.text', 'Please check this unread note.');
 
         $this->assertGreaterThan(

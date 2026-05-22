@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
     deliveryOptions,
     listingFilterGroups,
@@ -13,6 +13,7 @@ import Footer from "../components/layout/Footer.jsx";
 import Header from "../components/layout/Header.jsx";
 import { useTranslation } from "react-i18next";
 import { useMarketplaceStore } from "../stores/useMarketplaceStore.js";
+import { useSessionStore } from "../stores/useSessionStore.js";
 const defaultFilters = {
     category: "",
     serviceOptions: [],
@@ -825,6 +826,22 @@ function GigGrid({ gigs, compact = false }) {
 }
 function GigCard({ gig }) {
     const { t } = useTranslation();
+    const navigate = useNavigate();
+    const currentUser = useSessionStore((state) => state.currentUser);
+    const toggleSavedService = useMarketplaceStore(
+        (state) => state.toggleSavedService,
+    );
+    const toggleSaved = async () => {
+        if (!currentUser?.authenticated) {
+            navigate(
+                `/?auth=login&redirect=${encodeURIComponent(`/gigs/${gig.id}`)}`,
+            );
+            return;
+        }
+
+        await toggleSavedService(gig);
+    };
+
     return (
         <article className="gig-listing-card">
             <div className="gig-listing-media">
@@ -836,9 +853,11 @@ function GigCard({ gig }) {
                     <img src={gig.image} alt={`${gig.title} preview`} />
                 </Link>
                 <button
-                    className="gig-favorite-button"
+                    className={`gig-favorite-button${gig.saved ? " is-favorite" : ""}`}
                     type="button"
-                    aria-label={`Save ${gig.title}`}
+                    aria-label={`${gig.saved ? "Remove" : "Save"} ${gig.title}`}
+                    aria-pressed={Boolean(gig.saved)}
+                    onClick={toggleSaved}
                 >
                     <Icon name="heart" />
                 </button>
@@ -847,7 +866,13 @@ function GigCard({ gig }) {
                 <div className="gig-seller-row">
                     <Link
                         className="gig-seller-profile-link"
-                        to={profilePathForSeller(gig.seller)}
+                        to={
+                            gig.sellerProfilePath ||
+                            profilePathForSeller(
+                                gig.seller,
+                                gig.sellerUsername,
+                            )
+                        }
                     >
                         <span className="gig-avatar">
                             <img src={gig.avatar} alt="" />

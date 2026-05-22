@@ -46,6 +46,11 @@
                             <b>{{ $gig['price'] }}</b>
                             <div class="admin-row-actions">
                                 @can('gigs.publish')
+                                    <form method="POST" action="{{ route('admin.gigs.featured', $gig['id']) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        <button type="submit">{{ $gig['featured'] ? 'Unfeature' : 'Feature' }}</button>
+                                    </form>
                                     <form method="POST" action="{{ route('admin.gigs.status', $gig['id']) }}">
                                         @csrf
                                         @method('PATCH')

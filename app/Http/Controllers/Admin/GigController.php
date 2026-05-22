@@ -116,6 +116,19 @@ class GigController extends AdminController
         return back()->withNotify('success', 'Gig status updated to '.$status.'.', 'Gig updated');
     }
 
+    public function toggleFeatured(Request $request, Gig $gig)
+    {
+        $gig->forceFill([
+            'featured' => ! $gig->featured,
+        ])->save();
+
+        return back()->withNotify(
+            'success',
+            $gig->featured ? 'Gig added to featured services.' : 'Gig removed from featured services.',
+            'Featured gigs updated',
+        );
+    }
+
     private function gigRow(Gig $gig): array
     {
         return [
@@ -126,6 +139,7 @@ class GigController extends AdminController
             'price' => $this->money((int) $gig->price_cents),
             'status' => $gig->status,
             'status_class' => $this->gigStatusClass($gig->status),
+            'featured' => $gig->featured,
             'updated' => $gig->updated_at?->diffForHumans() ?? 'Unknown',
         ];
     }

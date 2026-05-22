@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\GigController;
+use App\Http\Controllers\Api\ManualCheckoutController;
 use App\Http\Controllers\Api\MessageSaveController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrderController;
@@ -20,7 +21,9 @@ Route::prefix('api')->name('api.')->group(function () {
     Route::post('/auth/login', [AuthController::class, 'login'])->name('auth.login');
     Route::post('/auth/register', [AuthController::class, 'register'])->name('auth.register');
     Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth')->name('auth.logout');
-    Route::get('/users/{user:username}/profile', [UserController::class, 'publicSellerProfile'])->name('users.profile');
+    Route::get('/gigs', [GigController::class, 'index'])->name('gigs.index');
+    Route::get('/gigs/{gig:slug}', [GigController::class, 'show'])->name('gigs.show');
+    Route::get('/users/{username}/profile', [UserController::class, 'publicSellerProfile'])->name('users.profile');
 
     Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/user/dashboard', [UserController::class, 'dashboard'])->name('user.dashboard');
@@ -42,9 +45,6 @@ Route::prefix('api')->name('api.')->group(function () {
         Route::delete('/user/settings/sessions/{sessionId}', [UserSettingsController::class, 'destroySession'])->name('user.settings.sessions.destroy');
         Route::post('/user/settings/deactivate', [UserSettingsController::class, 'deactivate'])->name('user.settings.deactivate');
 
-        Route::get('/gigs', [GigController::class, 'index'])->name('gigs.index');
-        Route::get('/gigs/{gig:slug}', [GigController::class, 'show'])->name('gigs.show');
-
         Route::get('/seller/services', [SellerServiceController::class, 'index'])->name('seller.services.index');
         Route::post('/seller/services', [SellerServiceController::class, 'store'])->name('seller.services.store');
         Route::get('/seller/services/{gig:slug}', [SellerServiceController::class, 'show'])->name('seller.services.show');
@@ -53,6 +53,9 @@ Route::prefix('api')->name('api.')->group(function () {
         Route::get('/saved-services', [SavedServiceController::class, 'index'])->name('saved-services.index');
         Route::post('/saved-services/{gig:slug}', [SavedServiceController::class, 'store'])->name('saved-services.store');
         Route::delete('/saved-services/{gig:slug}', [SavedServiceController::class, 'destroy'])->name('saved-services.destroy');
+
+        Route::get('/manual-payment-methods', [ManualCheckoutController::class, 'methods'])->name('manual-payment-methods.index');
+        Route::post('/gigs/{gig:slug}/manual-checkout', [ManualCheckoutController::class, 'store'])->name('gigs.manual-checkout');
 
         Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
         Route::get('/orders/{order:code}', [OrderController::class, 'show'])->name('orders.show');

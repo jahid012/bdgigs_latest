@@ -70,7 +70,7 @@ abstract class AdminController extends Controller
         return match (strtolower($status)) {
             'delivered', 'completed' => 'status-completed',
             'cancelled', 'canceled' => 'status-cancelled',
-            'revision', 'pending' => 'status-delivered',
+            'revision', 'revision requested', 'pending', 'pending requirements' => 'status-delivered',
             default => 'status-progress',
         };
     }

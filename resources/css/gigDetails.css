@@ -108,9 +108,13 @@
   height: 14px;
 }
 
-.detail-rating-line a {
+.detail-rating-line a,
+.detail-rating-line .review-count {
   color: #62646a;
   font-weight: 500;
+}
+
+.detail-rating-line a {
   text-decoration: underline;
 }
 
@@ -229,6 +233,12 @@
 .gig-detail-actions svg {
   width: 16px;
   height: 16px;
+}
+
+.gig-detail-actions > button.is-favorite svg,
+.detail-strip-media button.is-favorite svg {
+  fill: #ef4444;
+  color: #ef4444;
 }
 
 .report-popover {
@@ -417,6 +427,123 @@
   border: 1px solid #dadbdd;
   background: #ffffff;
   color: #222325;
+}
+
+.manual-checkout-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.56);
+}
+
+.manual-checkout-dialog {
+  position: relative;
+  display: grid;
+  width: min(560px, 100%);
+  max-height: min(860px, calc(100vh - 2rem));
+  gap: 1rem;
+  overflow: auto;
+  padding: clamp(1.1rem, 3vw, 1.65rem);
+  border: 1px solid #dadbdd;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 28px 90px rgba(15, 23, 42, 0.28);
+}
+
+.manual-checkout-dialog > div:first-of-type > span {
+  color: #62646a;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.manual-checkout-dialog h2 {
+  margin: 0.22rem 2rem 0.2rem 0;
+  color: #222325;
+  font-size: clamp(1.1rem, 2vw, 1.35rem);
+}
+
+.manual-checkout-dialog p {
+  color: #62646a;
+  line-height: 1.5;
+}
+
+.manual-checkout-close {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid #dadbdd;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #222325;
+  cursor: pointer;
+}
+
+.manual-checkout-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.manual-checkout-dialog form {
+  display: grid;
+  gap: 0.78rem;
+}
+
+.manual-checkout-dialog label {
+  display: grid;
+  gap: 0.36rem;
+  color: #222325;
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.manual-checkout-dialog input,
+.manual-checkout-dialog select,
+.manual-checkout-dialog textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 0.68rem 0.78rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  color: #222325;
+  font: inherit;
+}
+
+.manual-checkout-dialog textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.manual-method-note {
+  padding: 0.8rem;
+  border: 1px solid #d1fae5;
+  border-radius: 4px;
+  background: #ecfdf5;
+}
+
+.manual-method-note strong {
+  display: block;
+  margin-bottom: 0.22rem;
+  color: #065f46;
+  font-size: 0.86rem;
+}
+
+.manual-method-note p,
+.manual-checkout-error {
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.manual-checkout-error {
+  color: #b91c1c;
+  font-weight: 800;
 }
 
 .hourly-offer-card {

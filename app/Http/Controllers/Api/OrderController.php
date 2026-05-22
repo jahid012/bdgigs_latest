@@ -31,6 +31,12 @@ class OrderController extends Controller
 
         abort_unless($order->{$ownerColumn} === $request->user()->id, 403);
 
-        return OrderDetailResource::make($order->loadMissing(['buyer', 'seller', 'gig']));
+        return OrderDetailResource::make($order->loadMissing([
+            'buyer',
+            'seller',
+            'gig',
+            'activities',
+            'manualPaymentSubmission.method',
+        ]));
     }
 }

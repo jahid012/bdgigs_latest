@@ -35,7 +35,7 @@ class OrderController extends AdminController
             'late' => $ordersQuery
                 ->whereDate('due_date', '<', now()->toDateString())
                 ->whereNotIn('status', ['Delivered', 'Completed', 'Cancelled']),
-            'revision' => $ordersQuery->where('status', 'Revision'),
+            'revision' => $ordersQuery->whereIn('status', ['Revision', 'Revision Requested']),
             'delivered' => $ordersQuery->whereIn('status', ['Delivered', 'Completed']),
             'cancelled' => $ordersQuery->where('status', 'Cancelled'),
             default => null,
@@ -81,7 +81,7 @@ class OrderController extends AdminController
                 ['label' => 'All', 'value' => 'all', 'count' => Order::count()],
                 ['label' => 'Active', 'value' => 'active', 'count' => $activeOrders],
                 ['label' => 'Late risk', 'value' => 'late', 'count' => $lateOrders],
-                ['label' => 'Revision', 'value' => 'revision', 'count' => Order::where('status', 'Revision')->count()],
+                ['label' => 'Revision', 'value' => 'revision', 'count' => Order::whereIn('status', ['Revision', 'Revision Requested'])->count()],
                 ['label' => 'Delivered', 'value' => 'delivered', 'count' => Order::whereIn('status', ['Delivered', 'Completed'])->count()],
                 ['label' => 'Cancelled', 'value' => 'cancelled', 'count' => $cancelled],
             ],
@@ -89,18 +89,27 @@ class OrderController extends AdminController
             'searchQuery' => $search,
             'slaBars' => $this->slaBars($activeOrders, $lateOrders),
             'workflowSteps' => [
-                ['step' => '1', 'label' => 'Nudge missing requirements', 'meta' => number_format(Order::where('status', 'Pending')->count()).' pending'],
+                ['step' => '1', 'label' => 'Nudge missing requirements', 'meta' => number_format(Order::whereIn('status', ['Pending', 'Pending Requirements'])->count()).' pending'],
                 ['step' => '2', 'label' => 'Contact late-risk sellers', 'meta' => number_format($lateOrders).' orders'],
                 ['step' => '3', 'label' => 'Audit cancellation reasons', 'meta' => number_format($cancelled).' cancelled'],
             ],
-            'statusOptions' => ['Pending', 'In Progress', 'Revision', 'Delivered', 'Completed', 'Cancelled'],
+            'statusOptions' => [
+                'Pending Payment Review',
+                'Payment Rejected',
+                'Pending Requirements',
+                'In Progress',
+                'Revision Requested',
+                'Delivered',
+                'Completed',
+                'Cancelled',
+            ],
         ]);
     }
 
     public function updateStatus(Request $request, Order $order)
     {
         $data = $request->validate([
-            'status' => ['required', 'string', 'in:Pending,In Progress,Revision,Delivered,Completed,Cancelled'],
+            'status' => ['required', 'string', 'in:Pending Payment Review,Payment Rejected,Pending Requirements,In Progress,Revision Requested,Delivered,Completed,Cancelled'],
         ]);
 
         $order->forceFill([

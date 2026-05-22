@@ -15,16 +15,16 @@ class UnreadMessageReminderMail extends Mailable
     use Queueable, SerializesModels;
 
     public function __construct(
-        public Message $message,
+        public Message $threadMessage,
         public User $recipient,
     ) {
-        $this->message->loadMissing('conversation');
+        $this->threadMessage->loadMissing('conversation');
     }
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Unread message about '.$this->message->conversation->subject,
+            subject: 'Unread message about '.$this->threadMessage->conversation->subject,
         );
     }
 

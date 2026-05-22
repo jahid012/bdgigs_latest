@@ -433,6 +433,188 @@ ol {
     gap: 1.25rem;
 }
 
+.header-account-actions {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.header-account-menu {
+    position: relative;
+}
+
+.header-feed-trigger,
+.header-profile-trigger {
+    min-height: 44px;
+}
+
+.header-feed-trigger {
+    position: relative;
+    width: 44px;
+    min-width: 44px;
+    flex: 0 0 44px;
+    padding: 0;
+}
+
+.header-feed-trigger svg {
+    width: 19px;
+    height: 19px;
+}
+
+.header-feed-trigger > span {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 8px;
+    height: 8px;
+    border: 2px solid #fff;
+    border-radius: 999px;
+    background: var(--color-primary);
+}
+
+.header-profile-trigger {
+    gap: 0.48rem;
+    max-width: min(220px, 26vw);
+    padding-inline: 0.55rem 0.8rem;
+}
+
+.header-profile-trigger > span:not(.avatar) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.header-profile-trigger .avatar,
+.header-feed-list .avatar {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: #dcfce7;
+    color: #14532d;
+    font-size: 0.75rem;
+    font-weight: 900;
+}
+
+.header-profile-trigger svg {
+    width: 16px;
+    height: 16px;
+}
+
+.header-account-dropdown {
+    position: absolute;
+    top: calc(100% + 0.75rem);
+    right: 0;
+    z-index: 75;
+    display: grid;
+    width: min(340px, calc(100vw - 1.5rem));
+    gap: 0.62rem;
+    padding: 0.82rem;
+    border: 1px solid rgba(226, 232, 240, 0.96);
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.18);
+    color: var(--color-text);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition:
+        opacity var(--transition),
+        transform var(--transition);
+}
+
+.header-account-dropdown.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+.header-account-dropdown > strong {
+    color: var(--color-dark);
+    font-size: 0.86rem;
+}
+
+.header-account-dropdown.profile {
+    width: min(220px, calc(100vw - 1.5rem));
+    gap: 0.18rem;
+}
+
+.header-account-dropdown.profile a,
+.header-account-dropdown.profile button,
+.header-account-dropdown.feed > a {
+    width: 100%;
+    padding: 0.62rem 0.7rem;
+    border-radius: var(--radius-md);
+    color: var(--color-dark);
+    font-size: 0.9rem;
+    font-weight: 850;
+    text-align: left;
+}
+
+.header-account-dropdown.profile button {
+    background: transparent;
+}
+
+.header-account-dropdown.profile a:hover,
+.header-account-dropdown.profile button:hover,
+.header-account-dropdown.feed > a:hover {
+    background: #f1f5f9;
+}
+
+.header-feed-list {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.header-feed-list article {
+    display: flex;
+    gap: 0.56rem;
+    padding: 0.55rem;
+    border-radius: var(--radius-md);
+    background: #f8fafc;
+}
+
+.header-feed-list article > span:last-child,
+.header-feed-list b,
+.header-feed-list small,
+.header-feed-list em {
+    display: block;
+    min-width: 0;
+}
+
+.header-feed-list b {
+    overflow: hidden;
+    color: var(--color-dark);
+    font-size: 0.85rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.header-feed-list small,
+.header-feed-list p {
+    color: var(--color-muted);
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+.header-feed-list em {
+    color: #64748b;
+    font-size: 0.72rem;
+    font-style: normal;
+}
+
+.header-account-actions.is-mobile {
+    width: 100%;
+    justify-content: space-between;
+}
+
+.header-account-actions.is-mobile .header-profile-trigger {
+    max-width: min(210px, calc(100vw - 9rem));
+}
+
 .nav-links > a,
 .nav-dropdown-trigger {
     color: var(--color-text);
@@ -758,6 +940,33 @@ ol {
     padding: 0.48rem 0.75rem;
     border-radius: 4px;
     font-size: 0.86rem;
+}
+
+.nav-actions .btn.header-feed-trigger,
+.site-header.has-header-search .nav-actions .btn.header-feed-trigger {
+    width: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    flex-basis: 48px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
+}
+
+.site-header.is-scrolled .nav-actions .btn.header-feed-trigger,
+.site-header.has-marketplace-header .nav-actions .btn.header-feed-trigger,
+body:not(.home-page) .site-header .nav-actions .btn.header-feed-trigger {
+    border-color: rgba(148, 163, 184, 0.2);
+}
+
+.nav-actions .header-feed-trigger svg {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+}
+
+.btn.header-profile-trigger {
+    padding-inline: 0.55rem 0.8rem;
 }
 
 .site-header.has-header-search .nav-actions .btn-ghost {

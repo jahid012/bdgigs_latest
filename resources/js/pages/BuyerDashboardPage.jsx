@@ -30,6 +30,11 @@ function StatsGrid() {
 function RecentOrders({ onNavigate }) {
     const { t } = useTranslation();
     const orders = useDashboardStore((state) => state.orders);
+
+    if (orders.length === 0) {
+        return null;
+    }
+
     return (
         <article className="card dashboard-card orders-card">
             <div className="card-heading">
@@ -81,15 +86,6 @@ function RecentOrders({ onNavigate }) {
                                 <td data-label="Price">{order.price}</td>
                             </tr>
                         ))}
-                        {orders.length === 0 ? (
-                            <tr>
-                                <td colSpan="6">
-                                    <p className="messages-empty">
-                                        No buyer orders yet.
-                                    </p>
-                                </td>
-                            </tr>
-                        ) : null}
                     </tbody>
                 </table>
             </div>
@@ -137,6 +133,11 @@ function ChartCard({ onNavigate }) {
 function MessagesPreview({ onNavigate }) {
     const { t } = useTranslation();
     const messages = useDashboardStore((state) => state.messages);
+
+    if (messages.length === 0) {
+        return null;
+    }
+
     return (
         <article className="card dashboard-card messages-card">
             <div className="card-heading">
@@ -168,12 +169,6 @@ function MessagesPreview({ onNavigate }) {
                         </div>
                     </article>
                 ))}
-                {messages.length === 0 ? (
-                    <p className="messages-empty">
-                        Seller replies will appear here after a conversation
-                        starts.
-                    </p>
-                ) : null}
             </div>
         </article>
     );

@@ -262,6 +262,7 @@ class RoleController extends AdminController
             'gigs' => ['gigs.view', 'gigs.review', 'gigs.publish'],
             'orders' => ['orders.view', 'orders.manage'],
             'payments' => ['payments.view', 'payments.release'],
+            'manual_payments' => ['manual-payments.view', 'manual-payments.approve'],
             'disputes' => ['disputes.view', 'disputes.resolve'],
             'reports' => ['reports.view'],
             'settings' => ['settings.view', 'settings.update'],
@@ -273,6 +274,7 @@ class RoleController extends AdminController
     {
         return [
             'payments.release',
+            'manual-payments.approve',
             'settings.update',
             'roles.manage',
             'users.suspend',

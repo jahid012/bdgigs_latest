@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Conversation;
+use App\Models\Gig;
+use App\Models\ManualPaymentMethod;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -74,6 +76,10 @@ class DynamicDashboardApiTest extends TestCase
             'seller_id' => $seller->id,
             'created_by_id' => $buyer->id,
             'subject' => 'Saved messages',
+            'buyer_name' => $buyer->name,
+            'seller_name' => $seller->name,
+            'status' => 'Open',
+            'status_class' => 'status-progress',
         ]);
         $conversation->participants()->create([
             'user_id' => $buyer->id,
@@ -103,7 +109,28 @@ class DynamicDashboardApiTest extends TestCase
 
         $this->actingAs($buyer)
             ->deleteJson("/api/messages/{$message->id}/save")
-            ->assertOk();
+            ->assertNoContent();
+    }
+
+    public function test_profile_conversations_resolve_public_username_slugs(): void
+    {
+        $buyer = User::factory()->create();
+        $seller = User::factory()->create([
+            'name' => 'Username Seller',
+        ]);
+        $seller->sellerProfile()->create([
+            'professional_title' => 'Messageable seller',
+        ]);
+
+        $this->actingAs($buyer)
+            ->postJson('/api/conversations', [
+                'contextType' => 'profile',
+                'contextId' => $seller->username,
+                'targetSlug' => $seller->username,
+                'message' => 'Can we discuss your seller profile?',
+            ])
+            ->assertSuccessful()
+            ->assertJsonPath('data.counterpart.name', $seller->name);
     }
 
     public function test_profiles_billing_and_settings_persist_real_user_data(): void
@@ -118,7 +145,7 @@ class DynamicDashboardApiTest extends TestCase
                 'timezone' => 'Asia/Dhaka',
                 'languages' => ['English'],
             ])
-            ->assertOk()
+            ->assertSuccessful()
             ->assertJsonPath('data.overview', 'Buyer overview');
 
         $this->actingAs($user)
@@ -127,7 +154,7 @@ class DynamicDashboardApiTest extends TestCase
                 'about' => 'Seller profile from the database.',
                 'skills' => ['Laravel'],
             ])
-            ->assertOk()
+            ->assertSuccessful()
             ->assertJsonPath('data.title', 'Dynamic seller');
 
         $this->getJson("/api/users/{$user->username}/profile")
@@ -140,7 +167,7 @@ class DynamicDashboardApiTest extends TestCase
                 'country' => 'Bangladesh',
                 'city' => 'Dhaka',
             ])
-            ->assertOk()
+            ->assertSuccessful()
             ->assertJsonPath('data.city', 'Dhaka');
 
         $this->actingAs($user)
@@ -151,7 +178,7 @@ class DynamicDashboardApiTest extends TestCase
                 'realtimeEnabled' => false,
                 'soundEnabled' => true,
             ])
-            ->assertOk()
+            ->assertSuccessful()
             ->assertJsonPath('data.realtimeEnabled', false);
 
         $this->actingAs($user)
@@ -163,5 +190,44 @@ class DynamicDashboardApiTest extends TestCase
             ])
             ->assertCreated()
             ->assertJsonPath('data.status', 'review');
+    }
+
+    public function test_manual_checkout_creates_reviewable_order_from_gig_package(): void
+    {
+        $buyer = User::factory()->create();
+        $seller = User::factory()->create();
+        $gig = Gig::factory()->withSeller($seller)->create([
+            'slug' => 'checkout-gig',
+            'status' => 'Published',
+        ]);
+        $method = ManualPaymentMethod::create([
+            'name' => 'Test transfer',
+            'account_name' => 'bdgigs',
+            'account_number' => 'TEST-001',
+            'instructions' => 'Submit a transaction ID.',
+            'active' => true,
+        ]);
+
+        $orderCode = $this->actingAs($buyer)
+            ->postJson("/api/gigs/{$gig->slug}/manual-checkout", [
+                'packageId' => 'basic',
+                'manualPaymentMethodId' => $method->id,
+                'reference' => 'TX-100',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'Pending Payment Review')
+            ->json('data.orderNumber');
+
+        $this->assertDatabaseHas('orders', [
+            'code' => $orderCode,
+            'buyer_id' => $buyer->id,
+            'seller_id' => $seller->id,
+            'status' => 'Pending Payment Review',
+        ]);
+        $this->assertDatabaseHas('manual_payment_submissions', [
+            'buyer_id' => $buyer->id,
+            'reference' => 'TX-100',
+            'status' => 'pending',
+        ]);
     }
 }

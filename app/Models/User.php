@@ -79,7 +79,7 @@ class User extends Authenticatable
 
     public function savedServices(): BelongsToMany
     {
-        return $this->belongsToMany(Gig::class, 'saved_services')->withTimestamps();
+        return $this->belongsToMany(Gig::class, 'saved_services', 'user_id', 'gig_id')->withTimestamps();
     }
 
     public function userNotifications(): HasMany
