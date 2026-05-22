@@ -124,6 +124,42 @@ class MarketplaceApiTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_seller_can_pause_preview_activate_and_soft_delete_own_service(): void
+    {
+        $gig = Gig::factory()->withSeller($this->user)->create([
+            'slug' => 'seller-lifecycle-gig',
+            'status' => 'Live',
+        ]);
+
+        $this->actingAs($this->user)
+            ->patchJson("/api/seller/services/{$gig->slug}/status", [
+                'action' => 'pause',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'Paused')
+            ->assertJsonPath('data.statusKey', 'paused');
+
+        $this->actingAs($this->user)
+            ->getJson("/api/gigs/{$gig->slug}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $gig->slug);
+
+        $this->actingAs($this->user)
+            ->patchJson("/api/seller/services/{$gig->slug}/status", [
+                'action' => 'activate',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'Live');
+
+        $this->actingAs($this->user)
+            ->deleteJson("/api/seller/services/{$gig->slug}")
+            ->assertNoContent();
+
+        $this->assertSoftDeleted('gigs', [
+            'id' => $gig->id,
+        ]);
+    }
+
     public function test_gigs_and_saved_services_are_available(): void
     {
         $gig = Gig::query()

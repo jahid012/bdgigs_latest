@@ -1,5 +1,5 @@
 import DashboardPageHeader from "../components/dashboard/DashboardPageHeader.jsx";
-import SellerEarningsLineChart from "../components/dashboard/earnings/SellerEarningsLineChart.jsx";
+import SellerDashboardChartJs from "../components/dashboard/SellerDashboardChartJs.jsx";
 import { Icon, Rating } from "../components/common/Icons.jsx";
 import { useTranslation } from "react-i18next";
 import { useDashboardStore } from "../stores/useDashboardStore.js";
@@ -31,6 +31,8 @@ function SellerStatsGrid() {
 function SellerOrders({ onNavigate }) {
     const { t } = useTranslation();
     const sellerOrders = useDashboardStore((state) => state.sellerOrders);
+    if (sellerOrders.length === 0) return null;
+
     return (
         <article className="card dashboard-card orders-card seller-orders-card">
             <div className="card-heading">
@@ -82,15 +84,6 @@ function SellerOrders({ onNavigate }) {
                                 <td data-label="Earnings">{order.earnings}</td>
                             </tr>
                         ))}
-                        {sellerOrders.length === 0 ? (
-                            <tr>
-                                <td colSpan="6">
-                                    <p className="messages-empty">
-                                        No seller orders yet.
-                                    </p>
-                                </td>
-                            </tr>
-                        ) : null}
                     </tbody>
                 </table>
             </div>
@@ -102,6 +95,8 @@ function SellerChartCard({ onNavigate }) {
     const sellerChartData = useDashboardStore((state) => state.sellerChartData);
     const topValue = Math.max(0, ...sellerChartData.map((bar) => bar.value));
     const total = sellerChartData.reduce((sum, bar) => sum + bar.value, 0);
+    if (total === 0) return null;
+
     return (
         <article className="card dashboard-card chart-card seller-chart-card">
             <div className="card-heading">
@@ -145,17 +140,9 @@ function SellerChartCard({ onNavigate }) {
                     }
                 </strong>
             </div>
-            <SellerEarningsLineChart
+            <SellerDashboardChartJs
                 ariaLabel="Monthly seller earnings trend"
-                chartConfig={{
-                    width: 640,
-                    height: 170,
-                    paddingX: 22,
-                    paddingY: 20,
-                }}
-                className="dashboard-line-chart"
-                gradientId="snapshotEarningsLineGradient"
-                showHeader={false}
+                data={sellerChartData}
             />
         </article>
     );
@@ -163,6 +150,8 @@ function SellerChartCard({ onNavigate }) {
 function SellerMessagesPreview({ onNavigate }) {
     const { t } = useTranslation();
     const sellerMessages = useDashboardStore((state) => state.sellerMessages);
+    if (sellerMessages.length === 0) return null;
+
     return (
         <article className="card dashboard-card messages-card">
             <div className="card-heading">
@@ -194,11 +183,6 @@ function SellerMessagesPreview({ onNavigate }) {
                         </div>
                     </article>
                 ))}
-                {sellerMessages.length === 0 ? (
-                    <p className="messages-empty">
-                        Buyer messages will appear after a conversation starts.
-                    </p>
-                ) : null}
             </div>
         </article>
     );
@@ -206,6 +190,8 @@ function SellerMessagesPreview({ onNavigate }) {
 function SellerPipelineCard({ onNavigate }) {
     const { t } = useTranslation();
     const sellerPipeline = useDashboardStore((state) => state.sellerPipeline);
+    if (sellerPipeline.length === 0) return null;
+
     return (
         <article className="card dashboard-card seller-pipeline-card">
             <div className="card-heading">
@@ -249,11 +235,6 @@ function SellerPipelineCard({ onNavigate }) {
                         </div>
                     </article>
                 ))}
-                {sellerPipeline.length === 0 ? (
-                    <p className="messages-empty">
-                        Active delivery milestones will appear here.
-                    </p>
-                ) : null}
             </div>
         </article>
     );
@@ -261,6 +242,8 @@ function SellerPipelineCard({ onNavigate }) {
 function SellerServices({ onNavigate }) {
     const { t } = useTranslation();
     const sellerServices = useDashboardStore((state) => state.sellerServices);
+    if (sellerServices.length === 0) return null;
+
     return (
         <article className="card dashboard-card recommend-card seller-services-card">
             <div className="card-heading">
@@ -325,11 +308,6 @@ function SellerServices({ onNavigate }) {
                         </div>
                     </article>
                 ))}
-                {sellerServices.length === 0 ? (
-                    <p className="messages-empty">
-                        Create a gig to start building your service catalog.
-                    </p>
-                ) : null}
             </div>
         </article>
     );

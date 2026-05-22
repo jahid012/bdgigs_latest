@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\SellerServiceResource;
 use App\Models\Gig;
+use App\Services\SellerGigLifecycleService;
 use App\Support\MarketplaceNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 
 class SellerServiceController extends Controller
@@ -81,6 +83,55 @@ class SellerServiceController extends Controller
         );
 
         return SellerServiceResource::make($gig->refresh());
+    }
+
+    public function updateStatus(
+        Request $request,
+        Gig $gig,
+        MarketplaceNotifier $notifier,
+        SellerGigLifecycleService $lifecycle
+    ): SellerServiceResource {
+        $this->authorizeSeller($request, $gig);
+
+        $payload = $request->validate([
+            'action' => ['required', 'string', 'in:activate,pause'],
+        ]);
+
+        $gig = $payload['action'] === 'activate'
+            ? $lifecycle->activate($gig)
+            : $lifecycle->pause($gig);
+
+        $notifier->notify(
+            $request->user(),
+            'Gig update',
+            $payload['action'] === 'activate' ? 'Gig activated' : 'Gig paused',
+            "{$gig->title} is now {$gig->status}.",
+            "/dashboard/seller/services/{$gig->slug}/edit",
+        );
+
+        return SellerServiceResource::make($gig);
+    }
+
+    public function destroy(
+        Request $request,
+        Gig $gig,
+        MarketplaceNotifier $notifier,
+        SellerGigLifecycleService $lifecycle
+    ): Response {
+        $this->authorizeSeller($request, $gig);
+
+        $title = $gig->title;
+        $lifecycle->delete($gig);
+
+        $notifier->notify(
+            $request->user(),
+            'Gig update',
+            'Gig deleted',
+            "{$title} was removed from your seller services.",
+            '/dashboard/seller/services',
+        );
+
+        return response()->noContent();
     }
 
     private function authorizeSeller(Request $request, Gig $gig): void

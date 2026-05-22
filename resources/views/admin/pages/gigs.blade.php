@@ -42,8 +42,9 @@
                             <p>{{ $gig['seller'] }} - {{ $gig['category'] }} - Updated {{ $gig['updated'] }}</p>
                         </div>
                         <div>
-                            <span class="admin-status-badge {{ $gig['status_class'] }}">{{ $gig['status'] }}</span>
+                            <span class="admin-status-badge {{ $gig['status_class'] }}">{{ $gig['deleted'] ? 'Deleted' : $gig['status'] }}</span>
                             <b>{{ $gig['price'] }}</b>
+                            @if (! $gig['deleted'])
                             <div class="admin-row-actions">
                                 @can('gigs.publish')
                                     <form method="POST" action="{{ route('admin.gigs.featured', $gig['id']) }}">
@@ -79,6 +80,7 @@
                                     </form>
                                 @endcan
                             </div>
+                            @endif
                         </div>
                     </article>
                 @empty

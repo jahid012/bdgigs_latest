@@ -10,6 +10,15 @@ function SellerServicesPage({ onNavigate }) {
     const fetchSellerServices = useDashboardStore(
         (state) => state.fetchSellerServices,
     );
+    const isSellerServicesLoading = useDashboardStore(
+        (state) => state.isSellerServicesLoading,
+    );
+    const changeSellerServiceStatus = useDashboardStore(
+        (state) => state.changeSellerServiceStatus,
+    );
+    const deleteSellerService = useDashboardStore(
+        (state) => state.deleteSellerService,
+    );
 
     useEffect(() => {
         fetchSellerServices();
@@ -23,7 +32,12 @@ function SellerServicesPage({ onNavigate }) {
         >
             <MinimalServiceList
                 content={content}
+                loading={isSellerServicesLoading}
                 onNavigate={onNavigate}
+                onServiceDelete={(service) => deleteSellerService(service.id)}
+                onServiceStatusChange={(service, action) =>
+                    changeSellerServiceStatus(service.id, action)
+                }
                 seller
                 services={sellerServices}
             />

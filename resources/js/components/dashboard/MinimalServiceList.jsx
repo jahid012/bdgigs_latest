@@ -1,11 +1,29 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Icon, Rating } from "../common/Icons.jsx";
+import LoadingSkeleton from "../common/LoadingSkeleton.jsx";
 import { useToast } from "../common/ToastProvider.jsx";
 import { useTranslation } from "react-i18next";
-function MinimalServiceList({ content, onNavigate, seller = false, services }) {
+import { useDismissOnInteractOutside } from "../../hooks/useDismissOnInteractOutside.js";
+function MinimalServiceList({
+    content,
+    loading = false,
+    onNavigate,
+    onServiceDelete,
+    onServiceStatusChange,
+    seller = false,
+    services,
+}) {
     const { t } = useTranslation();
     const notify = useToast();
     const [activeFilter, setActiveFilter] = useState("all");
+    const [busyServiceId, setBusyServiceId] = useState("");
+    const [openServiceMenuId, setOpenServiceMenuId] = useState("");
+    const serviceSectionRef = useRef(null);
+    useDismissOnInteractOutside(
+        serviceSectionRef,
+        Boolean(openServiceMenuId),
+        () => setOpenServiceMenuId(""),
+    );
     const filters = seller
         ? [
               {
@@ -17,8 +35,16 @@ function MinimalServiceList({ content, onNavigate, seller = false, services }) {
                   label: "Live",
               },
               {
-                  id: "optimize",
-                  label: "Optimize",
+                  id: "draft",
+                  label: "Draft",
+              },
+              {
+                  id: "paused",
+                  label: "Paused",
+              },
+              {
+                  id: "review",
+                  label: "Review",
               },
           ]
         : [
@@ -37,7 +63,7 @@ function MinimalServiceList({ content, onNavigate, seller = false, services }) {
           ];
     const filteredServices = services.filter((service) => {
         if (activeFilter === "all") return true;
-        if (seller) return service.status.toLowerCase() === activeFilter;
+        if (seller) return sellerServiceMatchesFilter(service, activeFilter);
         if (activeFilter === "fast")
             return Number.parseInt(service.delivery, 10) <= 3;
         if (activeFilter === "budget")
@@ -47,9 +73,42 @@ function MinimalServiceList({ content, onNavigate, seller = false, services }) {
     const openSellerGigEditor = (service) => {
         onNavigate(`/dashboard/seller/services/${service.id}/edit`);
     };
+    const runSellerAction = async (service, action) => {
+        if (busyServiceId) return;
+
+        setBusyServiceId(service.id);
+
+        try {
+            if (action === "delete") {
+                if (
+                    !window.confirm(
+                        `Delete ${service.title}? It will be hidden from the marketplace and kept for admin review.`,
+                    )
+                ) {
+                    return;
+                }
+
+                await onServiceDelete?.(service);
+                notify.success(`${service.title} moved out of your services.`);
+                return;
+            }
+
+            await onServiceStatusChange?.(service, action);
+            notify.success(
+                action === "activate"
+                    ? `${service.title} is live.`
+                    : `${service.title} is paused.`,
+            );
+        } catch (error) {
+            notify.error(error.message || "Unable to update this service.");
+        } finally {
+            setBusyServiceId("");
+            setOpenServiceMenuId("");
+        }
+    };
 
     return (
-        <section className="minimal-services-section">
+        <section className="minimal-services-section" ref={serviceSectionRef}>
             <article className="service-list-panel">
                 <div className="service-list-header">
                     <div>
@@ -101,10 +160,13 @@ function MinimalServiceList({ content, onNavigate, seller = false, services }) {
                 </div>
 
                 <div className="minimal-service-list">
+                    {loading && services.length === 0 ? (
+                        <MinimalServiceRowsSkeleton />
+                    ) : null}
                     {filteredServices.map((service) => (
                         <article
                             className="minimal-service-row"
-                            key={service.title}
+                            key={service.id || service.title}
                         >
                             <a
                                 className="minimal-service-thumb"
@@ -185,13 +247,26 @@ function MinimalServiceList({ content, onNavigate, seller = false, services }) {
                                             ? "Service options"
                                             : "Remove saved service"
                                     }
-                                    onClick={() =>
-                                        notify.info(
-                                            seller
-                                                ? `${service.title} options opened.`
-                                                : `${service.title} removed from this view.`,
-                                        )
+                                    aria-expanded={
+                                        seller
+                                            ? openServiceMenuId === service.id
+                                            : undefined
                                     }
+                                    onClick={(event) => {
+                                        if (!seller) {
+                                            notify.info(
+                                                `${service.title} removed from this view.`,
+                                            );
+                                            return;
+                                        }
+
+                                        event.stopPropagation();
+                                        setOpenServiceMenuId((current) =>
+                                            current === service.id
+                                                ? ""
+                                                : service.id,
+                                        );
+                                    }}
                                 >
                                     <Icon
                                         name={
@@ -199,12 +274,36 @@ function MinimalServiceList({ content, onNavigate, seller = false, services }) {
                                         }
                                     />
                                 </button>
+                                {seller ? (
+                                    <SellerServiceActionMenu
+                                        busy={busyServiceId === service.id}
+                                        isOpen={
+                                            openServiceMenuId === service.id
+                                        }
+                                        onActivate={() =>
+                                            runSellerAction(service, "activate")
+                                        }
+                                        onDelete={() =>
+                                            runSellerAction(service, "delete")
+                                        }
+                                        onEdit={() =>
+                                            openSellerGigEditor(service)
+                                        }
+                                        onPause={() =>
+                                            runSellerAction(service, "pause")
+                                        }
+                                        onPreview={() =>
+                                            onNavigate(`/gigs/${service.id}`)
+                                        }
+                                        service={service}
+                                    />
+                                ) : null}
                             </div>
                         </article>
                     ))}
                 </div>
 
-                {filteredServices.length === 0 ? (
+                {!loading && filteredServices.length === 0 ? (
                     <div className="minimal-service-empty">
                         <Icon name="search" />
                         <h3>
@@ -222,5 +321,109 @@ function MinimalServiceList({ content, onNavigate, seller = false, services }) {
             </article>
         </section>
     );
+}
+
+function SellerServiceActionMenu({
+    busy,
+    isOpen,
+    onActivate,
+    onDelete,
+    onEdit,
+    onPause,
+    onPreview,
+    service,
+}) {
+    const paused = sellerServiceStatusKey(service) === "paused";
+
+    return (
+        <div
+            className={`seller-service-action-menu${isOpen ? " is-open" : ""}`}
+            role="menu"
+        >
+            <button
+                disabled={busy}
+                type="button"
+                role="menuitem"
+                onClick={onPreview}
+            >
+                <Icon name="eye" /> Preview
+            </button>
+            <button
+                disabled={busy}
+                type="button"
+                role="menuitem"
+                onClick={onEdit}
+            >
+                <Icon name="edit" /> Edit
+            </button>
+            {paused ? (
+                <button
+                    disabled={busy}
+                    type="button"
+                    role="menuitem"
+                    onClick={onActivate}
+                >
+                    <Icon name="play" /> Activate
+                </button>
+            ) : (
+                <button
+                    disabled={busy}
+                    type="button"
+                    role="menuitem"
+                    onClick={onPause}
+                >
+                    <Icon name="archive" /> Pause
+                </button>
+            )}
+            <button
+                className="danger"
+                disabled={busy}
+                type="button"
+                role="menuitem"
+                onClick={onDelete}
+            >
+                <Icon name="trash" /> Delete
+            </button>
+        </div>
+    );
+}
+
+function MinimalServiceRowsSkeleton() {
+    return Array.from({ length: 3 }, (_, index) => (
+        <article
+            className="minimal-service-row minimal-service-skeleton"
+            key={index}
+        >
+            <LoadingSkeleton className="minimal-service-skeleton-thumb" />
+            <div className="minimal-service-skeleton-copy">
+                <LoadingSkeleton className="minimal-service-skeleton-title" />
+                <LoadingSkeleton className="minimal-service-skeleton-line" />
+                <div>
+                    <LoadingSkeleton />
+                    <LoadingSkeleton />
+                </div>
+            </div>
+            <LoadingSkeleton className="minimal-service-skeleton-price" />
+            <LoadingSkeleton className="minimal-service-skeleton-action" />
+        </article>
+    ));
+}
+
+function sellerServiceMatchesFilter(service, filter) {
+    const status = sellerServiceStatusKey(service);
+
+    if (filter === "live") return ["live", "published"].includes(status);
+    if (filter === "review") {
+        return ["needs-edit", "pending", "rejected", "review"].includes(status);
+    }
+
+    return status === filter;
+}
+
+function sellerServiceStatusKey(service) {
+    return String(service.statusKey || service.status || "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "-");
 }
 export default MinimalServiceList;

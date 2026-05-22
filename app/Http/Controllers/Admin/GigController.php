@@ -11,10 +11,10 @@ class GigController extends AdminController
     {
         $search = trim((string) $request->query('q', ''));
         $status = trim((string) $request->query('status', 'all'));
-        $allowedStatuses = ['all', 'published', 'review', 'paused', 'rejected'];
+        $allowedStatuses = ['all', 'published', 'review', 'paused', 'rejected', 'deleted'];
         $status = in_array($status, $allowedStatuses, true) ? $status : 'all';
 
-        $gigsQuery = Gig::query()
+        $gigsQuery = ($status === 'deleted' ? Gig::onlyTrashed() : Gig::query())
             ->with('seller')
             ->latest();
 
@@ -50,6 +50,7 @@ class GigController extends AdminController
         $pending = Gig::whereNotIn('status', ['Live', 'Published', 'Paused', 'Rejected'])->count();
         $rejected = Gig::where('status', 'Rejected')->count();
         $featured = Gig::where('featured', true)->count();
+        $deleted = Gig::onlyTrashed()->count();
 
         return $this->panelView('admin.pages.gigs', [
             'pageTitle' => 'Gigs',
@@ -75,6 +76,7 @@ class GigController extends AdminController
                 ['label' => 'Review', 'value' => 'review', 'count' => $pending],
                 ['label' => 'Paused', 'value' => 'paused', 'count' => Gig::where('status', 'Paused')->count()],
                 ['label' => 'Rejected', 'value' => 'rejected', 'count' => $rejected],
+                ['label' => 'Deleted', 'value' => 'deleted', 'count' => $deleted],
             ],
             'currentFilter' => $status,
             'searchQuery' => $search,
@@ -138,8 +140,9 @@ class GigController extends AdminController
             'category' => $gig->category_label ?: 'Uncategorized',
             'price' => $this->money((int) $gig->price_cents),
             'status' => $gig->status,
-            'status_class' => $this->gigStatusClass($gig->status),
+            'status_class' => $gig->trashed() ? 'status-cancelled' : $this->gigStatusClass($gig->status),
             'featured' => $gig->featured,
+            'deleted' => $gig->trashed(),
             'updated' => $gig->updated_at?->diffForHumans() ?? 'Unknown',
         ];
     }

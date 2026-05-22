@@ -49,6 +49,8 @@ Route::prefix('api')->name('api.')->group(function () {
         Route::post('/seller/services', [SellerServiceController::class, 'store'])->name('seller.services.store');
         Route::get('/seller/services/{gig:slug}', [SellerServiceController::class, 'show'])->name('seller.services.show');
         Route::patch('/seller/services/{gig:slug}', [SellerServiceController::class, 'update'])->name('seller.services.update');
+        Route::patch('/seller/services/{gig:slug}/status', [SellerServiceController::class, 'updateStatus'])->name('seller.services.status');
+        Route::delete('/seller/services/{gig:slug}', [SellerServiceController::class, 'destroy'])->name('seller.services.destroy');
 
         Route::get('/saved-services', [SavedServiceController::class, 'index'])->name('saved-services.index');
         Route::post('/saved-services/{gig:slug}', [SavedServiceController::class, 'store'])->name('saved-services.store');

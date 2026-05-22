@@ -144,6 +144,27 @@ class AdminPanelDynamicTest extends TestCase
         $this->assertSame('status-cancelled', $gig->status_class);
     }
 
+    public function test_admin_deleted_gig_filter_shows_seller_soft_deletes(): void
+    {
+        $seller = User::factory()->create();
+        $gig = Gig::factory()->withSeller($seller)->create([
+            'slug' => 'soft-deleted-admin-gig',
+            'title' => 'Soft Deleted Admin Gig',
+        ]);
+        $gig->delete();
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.gigs'))
+            ->assertOk()
+            ->assertDontSee($gig->title);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.gigs', ['status' => 'deleted']))
+            ->assertOk()
+            ->assertSee($gig->title)
+            ->assertSee('Deleted');
+    }
+
     public function test_admin_can_update_order_status_and_dispatch_event(): void
     {
         Event::fake([OrderStatusUpdated::class]);

@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import {
-    createDetailFromListingGig,
-} from "../data/gigDetailsData.js";
+import { createDetailFromListingGig } from "../data/gigDetailsData.js";
 import {
     profilePathForSeller,
     slugifySellerName,
@@ -10,6 +8,7 @@ import {
 import { useDismissOnInteractOutside } from "../hooks/useDismissOnInteractOutside.js";
 import { useConversationLauncher } from "../hooks/useConversationLauncher.js";
 import { Icon } from "../components/common/Icons.jsx";
+import LoadingSkeleton from "../components/common/LoadingSkeleton.jsx";
 import Footer from "../components/layout/Footer.jsx";
 import Header from "../components/layout/Header.jsx";
 import { useTranslation } from "react-i18next";
@@ -96,7 +95,8 @@ function GigDetailsPage({ onNavigate }) {
                 targetUserId: apiGig?.sellerUserId || detail.seller.userId,
                 targetName: detail.seller.name,
                 targetSlug:
-                    detail.seller.username || slugifySellerName(detail.seller.name),
+                    detail.seller.username ||
+                    slugifySellerName(detail.seller.name),
                 contextType: "gig",
                 contextId: apiGig?.id || gigId,
                 message,
@@ -133,12 +133,7 @@ function GigDetailsPage({ onNavigate }) {
     };
 
     if (!detail || !selectedPackage) {
-        return (
-            <GigDetailStatus
-                error={gigLoadError}
-                onNavigate={onNavigate}
-            />
-        );
+        return <GigDetailStatus error={gigLoadError} onNavigate={onNavigate} />;
     }
 
     return (
@@ -306,24 +301,61 @@ function GigDetailStatus({ error, onNavigate }) {
                 onNavigate={onNavigate}
             />
             <main className="gig-detail-main">
-                <div className="container profile-data-empty">
-                    <h1>{error || "Loading gig..."}</h1>
-                    <p>
-                        {error
-                            ? "Browse the live gig catalog to open a service that is still published."
-                            : "Loading the live gig record and package details."}
-                    </p>
-                </div>
+                {error ? (
+                    <div className="container profile-data-empty">
+                        <h1>{error}</h1>
+                        <p>
+                            Browse the live gig catalog to open a service that
+                            is still published.
+                        </p>
+                    </div>
+                ) : (
+                    <GigDetailSkeleton />
+                )}
             </main>
             <Footer />
         </div>
     );
 }
 
+function GigDetailSkeleton() {
+    return (
+        <div
+            className="container gig-detail-skeleton"
+            aria-label="Loading gig details"
+            role="status"
+        >
+            <article>
+                <LoadingSkeleton className="gig-detail-skeleton-breadcrumb" />
+                <LoadingSkeleton className="gig-detail-skeleton-title" />
+                <div className="gig-detail-skeleton-seller">
+                    <LoadingSkeleton />
+                    <span>
+                        <LoadingSkeleton />
+                        <LoadingSkeleton />
+                    </span>
+                </div>
+                <LoadingSkeleton className="gig-detail-skeleton-gallery" />
+                <div className="gig-detail-skeleton-thumbs">
+                    <LoadingSkeleton />
+                    <LoadingSkeleton />
+                    <LoadingSkeleton />
+                    <LoadingSkeleton />
+                </div>
+                <LoadingSkeleton className="gig-detail-skeleton-copy" />
+                <LoadingSkeleton className="gig-detail-skeleton-copy short" />
+            </article>
+            <aside>
+                <LoadingSkeleton className="gig-detail-skeleton-actions" />
+                <LoadingSkeleton className="gig-detail-skeleton-package" />
+            </aside>
+        </div>
+    );
+}
+
 function sellerProfilePath(seller) {
     return (
-        seller.profilePath ||
-        profilePathForSeller(seller.name, seller.username)
+        seller.profilePath || profilePathForSeller(seller.name, seller.username)
     );
 }
 
@@ -369,7 +401,9 @@ function RatingLine({ rating, reviews, reviewsLink = true }) {
                 ),
             )}
             <strong>{rating.toFixed(1)}</strong>
-            {reviews && reviewsLink ? <Link to="#reviews">{reviewLabel}</Link> : null}
+            {reviews && reviewsLink ? (
+                <Link to="#reviews">{reviewLabel}</Link>
+            ) : null}
             {reviews && !reviewsLink ? (
                 <span className="review-count">{reviewLabel}</span>
             ) : null}
@@ -612,8 +646,7 @@ function ManualCheckoutDialog({ gig, onClose, onNavigate, packageData }) {
                     <span>Manual payment checkout</span>
                     <h2 id="manualCheckoutTitle">{packageData.title}</h2>
                     <p>
-                        ${packageData.price.toLocaleString()} for{" "}
-                        {gig.title}
+                        ${packageData.price.toLocaleString()} for {gig.title}
                     </p>
                 </div>
                 <form onSubmit={submitCheckout}>
@@ -672,7 +705,9 @@ function ManualCheckoutDialog({ gig, onClose, onNavigate, packageData }) {
                             placeholder="Optional note for the payment reviewer"
                         />
                     </label>
-                    {error ? <p className="manual-checkout-error">{error}</p> : null}
+                    {error ? (
+                        <p className="manual-checkout-error">{error}</p>
+                    ) : null}
                     {status === "ready" && methods.length === 0 ? (
                         <p className="manual-checkout-error">
                             No active manual payment methods are available.

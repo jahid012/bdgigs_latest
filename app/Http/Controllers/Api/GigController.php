@@ -22,11 +22,21 @@ class GigController extends Controller
 
     public function show(Request $request, Gig $gig): MarketplaceGigResource
     {
-        return MarketplaceGigResource::make(
-            $this->marketplaceQuery($request)
-                ->whereKey($gig->getKey())
-                ->firstOrFail()
+        abort_unless(
+            $this->isMarketplaceVisible($gig)
+                || $request->user()?->id === $gig->seller_id,
+            404
         );
+
+        $gig->load('seller');
+
+        if ($request->user()) {
+            $gig->load([
+                'savedByUsers' => fn ($savedByUsers) => $savedByUsers->whereKey($request->user()->id),
+            ]);
+        }
+
+        return MarketplaceGigResource::make($gig);
     }
 
     private function marketplaceQuery(Request $request)
@@ -42,5 +52,10 @@ class GigController extends Controller
         }
 
         return $query;
+    }
+
+    private function isMarketplaceVisible(Gig $gig): bool
+    {
+        return in_array($gig->status, ['Live', 'Published'], true);
     }
 }

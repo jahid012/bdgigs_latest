@@ -3,6 +3,8 @@ import { apiRequest } from "../api/apiClient.js";
 export const useDashboardStore = create((set, get) => ({
     error: null,
     isLoading: false,
+    isConversationsLoading: false,
+    isSellerServicesLoading: false,
     stats: [],
     sellerStats: [],
     dashboardHighlights: [],
@@ -28,14 +30,22 @@ export const useDashboardStore = create((set, get) => ({
         get().sellerServices.find((service) => service.id === id),
 
     fetchSellerServices: async () => {
-        set({ isLoading: true, error: null });
+        set({ isLoading: true, isSellerServicesLoading: true, error: null });
 
         try {
             const services = await apiRequest("/api/seller/services");
-            set({ sellerServices: services, isLoading: false });
+            set({
+                sellerServices: services,
+                isLoading: false,
+                isSellerServicesLoading: false,
+            });
             return services;
         } catch (error) {
-            set({ error: error.message, isLoading: false });
+            set({
+                error: error.message,
+                isLoading: false,
+                isSellerServicesLoading: false,
+            });
             return get().sellerServices;
         }
     },
@@ -175,15 +185,36 @@ export const useDashboardStore = create((set, get) => ({
         }
     },
 
+    changeSellerServiceStatus: async (id, action) => {
+        const service = await apiRequest(`/api/seller/services/${id}/status`, {
+            method: "PATCH",
+            body: { action },
+        });
+
+        set((state) => ({
+            sellerServices: upsertById(state.sellerServices, service),
+        }));
+
+        return service;
+    },
+
+    deleteSellerService: async (id) => {
+        await apiRequest(`/api/seller/services/${id}`, {
+            method: "DELETE",
+        });
+
+        set((state) => ({
+            sellerServices: state.sellerServices.filter(
+                (service) => service.id !== id,
+            ),
+        }));
+    },
+
     fetchOrders: async (role = "buyer") => {
         try {
             const orders = await apiRequest(`/api/orders?role=${role}`);
 
-            set(
-                role === "seller"
-                    ? { sellerOrders: orders }
-                    : { orders },
-            );
+            set(role === "seller" ? { sellerOrders: orders } : { orders });
 
             return orders;
         } catch (error) {
@@ -193,6 +224,8 @@ export const useDashboardStore = create((set, get) => ({
     },
 
     fetchConversations: async (filter = "all") => {
+        set({ isConversationsLoading: true, error: null });
+
         try {
             const query = filter && filter !== "all" ? `?filter=${filter}` : "";
             const threads = normalizeConversations(
@@ -205,11 +238,12 @@ export const useDashboardStore = create((set, get) => ({
                 sellerMessageThreads: threads,
                 messages: previews,
                 sellerMessages: previews,
+                isConversationsLoading: false,
             });
 
             return threads;
         } catch (error) {
-            set({ error: error.message });
+            set({ error: error.message, isConversationsLoading: false });
             return get().buyerMessageThreads;
         }
     },
@@ -217,9 +251,11 @@ export const useDashboardStore = create((set, get) => ({
     fetchSavedMessages: async (conversationId) => {
         if (!conversationId) return [];
 
-        return (await apiRequest(
-            `/api/conversations/${conversationId}/saved-messages`,
-        )).map(normalizeMessage);
+        return (
+            await apiRequest(
+                `/api/conversations/${conversationId}/saved-messages`,
+            )
+        ).map(normalizeMessage);
     },
 
     saveMessage: async (messageId) => {
@@ -286,12 +322,11 @@ export const useDashboardStore = create((set, get) => ({
 
     sendMessage: async (conversationId, text) => {
         const clientId = createClientId();
-        const message = normalizeMessage(await apiRequest(
-            `/api/conversations/${conversationId}/messages`,
-            {
+        const message = normalizeMessage(
+            await apiRequest(`/api/conversations/${conversationId}/messages`, {
                 body: { text, clientId },
-            },
-        ));
+            }),
+        );
 
         set((state) => {
             const threads = state.buyerMessageThreads.map((thread) =>
@@ -459,9 +494,7 @@ function normalizeConversations(conversations) {
 function normalizeConversation(conversation) {
     const messages = (conversation?.messages || []).map(normalizeMessage);
     const fallbackName =
-        conversation?.counterpart?.name ||
-        conversation?.name ||
-        "Conversation";
+        conversation?.counterpart?.name || conversation?.name || "Conversation";
 
     return {
         id: conversation?.id,
@@ -484,9 +517,7 @@ function normalizeConversation(conversation) {
         unread: Number(conversation?.unread || 0),
         priority: conversation?.priority || "",
         preview:
-            conversation?.preview ||
-            messages[messages.length - 1]?.text ||
-            "",
+            conversation?.preview || messages[messages.length - 1]?.text || "",
         messages,
         context: conversation?.context || {},
         counterpart: conversation?.counterpart || null,
@@ -556,16 +587,15 @@ function replaceThreadMessageState(state, message) {
 
 function normalizeSellerService(draft, services, existingService = null) {
     const basicPackage = draft.packages?.[0] || {};
-    const title = draft.title?.trim() || existingService?.title || "Untitled Gig";
+    const title =
+        draft.title?.trim() || existingService?.title || "Untitled Gig";
     const category =
         draft.category?.trim() ||
         existingService?.category ||
         "Programming & Tech";
 
     return {
-        id:
-            existingService?.id ||
-            createUniqueServiceId(title, services || []),
+        id: existingService?.id || createUniqueServiceId(title, services || []),
         title,
         category,
         rating: existingService?.rating || "0.0",
@@ -585,6 +615,7 @@ function normalizeSellerService(draft, services, existingService = null) {
         conversion: existingService?.conversion || "New listing",
         status: existingService?.status || "Live",
         statusClass: existingService?.statusClass || "status-completed",
+        statusKey: existingService?.statusKey || "live",
     };
 }
 
