@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Events\OrderStatusUpdated;
+use App\Http\Requests\Admin\UpdateAdminOrderStatusRequest;
 use App\Models\Order;
+use App\Services\AdminOrderStatusService;
 use Illuminate\Http\Request;
 
 class OrderController extends AdminController
@@ -64,11 +65,6 @@ class OrderController extends AdminController
             'pageEyebrow' => 'Delivery operations',
             'pageDescription' => 'Track order status, due dates, revision risk, cancellations, and buyer experience.',
             'searchPlaceholder' => 'Search orders, buyers, sellers',
-            'pageActions' => [
-                ['label' => 'Late-risk queue', 'route' => 'admin.orders', 'meta' => number_format($lateOrders).' orders'],
-                ['label' => 'Active orders', 'route' => 'admin.orders', 'meta' => number_format($activeOrders).' open'],
-                ['label' => 'Export orders', 'route' => 'admin.orders', 'meta' => 'CSV later'],
-            ],
             'stats' => [
                 ['label' => 'Orders today', 'value' => number_format($todayOrders), 'meta' => $this->money((int) Order::whereDate('created_at', now()->toDateString())->sum('price_cents'))],
                 ['label' => 'Late risk', 'value' => number_format($lateOrders), 'meta' => 'Needs follow-up'],
@@ -93,36 +89,45 @@ class OrderController extends AdminController
                 ['step' => '2', 'label' => 'Contact late-risk sellers', 'meta' => number_format($lateOrders).' orders'],
                 ['step' => '3', 'label' => 'Audit cancellation reasons', 'meta' => number_format($cancelled).' cancelled'],
             ],
-            'statusOptions' => [
-                'Pending Payment Review',
-                'Payment Rejected',
-                'Pending Requirements',
-                'In Progress',
-                'Revision Requested',
-                'Delivered',
-                'Completed',
-                'Cancelled',
+        ]);
+    }
+
+    public function show(Order $order)
+    {
+        $order->load([
+            'buyer',
+            'seller',
+            'gig',
+            'activities' => fn ($activities) => $activities->with('actor')->latest(),
+            'manualPaymentSubmission.method',
+            'manualPaymentSubmission.reviewer',
+            'disputes.assignedTo',
+        ]);
+
+        return $this->panelView('admin.pages.order-details', [
+            'pageTitle' => 'Order #'.$order->code,
+            'pageEyebrow' => 'Order details',
+            'pageDescription' => 'Review the buyer, seller, payment evidence, requirements, and activity before changing an order.',
+            'searchPlaceholder' => 'Search orders, buyers, sellers',
+            'order' => $order,
+            'statusOptions' => $this->statusOptions(),
+            'stats' => [
+                ['label' => 'Order value', 'value' => $this->money((int) $order->price_cents), 'meta' => 'Buyer amount'],
+                ['label' => 'Seller earnings', 'value' => $this->money((int) $order->earnings_cents), 'meta' => 'Current order record'],
+                ['label' => 'Due date', 'value' => $order->due_date?->format('M j') ?? 'None', 'meta' => $order->due_date?->diffForHumans() ?? 'No delivery date'],
+                ['label' => 'Activity', 'value' => number_format($order->activities->count()), 'meta' => 'Audit entries'],
             ],
         ]);
     }
 
-    public function updateStatus(Request $request, Order $order)
-    {
-        $data = $request->validate([
-            'status' => ['required', 'string', 'in:Pending Payment Review,Payment Rejected,Pending Requirements,In Progress,Revision Requested,Delivered,Completed,Cancelled'],
-        ]);
+    public function updateStatus(
+        UpdateAdminOrderStatusRequest $request,
+        Order $order,
+        AdminOrderStatusService $statuses
+    ) {
+        $statuses->update($order, $request->user(), $request->validated()['status']);
 
-        $order->forceFill([
-            'status' => $data['status'],
-            'status_class' => $this->orderStatusClass($data['status']),
-        ])->save();
-
-        collect([$order->buyer_id, $order->seller_id])
-            ->filter()
-            ->unique()
-            ->each(fn (int $recipientId) => event(new OrderStatusUpdated($order->fresh(['buyer', 'seller']), $recipientId)));
-
-        return back()->withNotify('success', 'Order #'.$order->code.' is now '.$data['status'].'.', 'Order updated');
+        return back()->withNotify('success', 'Order #'.$order->code.' is now '.$request->validated()['status'].'.', 'Order updated');
     }
 
     private function lateOrdersQuery()
@@ -143,6 +148,20 @@ class OrderController extends AdminController
             ['label' => 'On-time delivery', 'value' => $onTime],
             ['label' => 'Delivered orders', 'value' => (int) round(($delivered / $total) * 100)],
             ['label' => 'Revision pressure', 'value' => (int) round(($revision / $total) * 100)],
+        ];
+    }
+
+    private function statusOptions(): array
+    {
+        return [
+            'Pending Payment Review',
+            'Payment Rejected',
+            'Pending Requirements',
+            'In Progress',
+            'Revision Requested',
+            'Delivered',
+            'Completed',
+            'Cancelled',
         ];
     }
 }

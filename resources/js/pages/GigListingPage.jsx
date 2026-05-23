@@ -6,8 +6,12 @@ import {
     listingSortOptions,
     websiteCategoryPage,
 } from "../data/gigListingData.js";
-import { profilePathForSeller } from "../data/userProfileData.js";
+import {
+    initialsFromName,
+    profilePathForSeller,
+} from "../utils/profilePaths.js";
 import { useDismissOnInteractOutside } from "../hooks/useDismissOnInteractOutside.js";
+import FavoriteButton from "../components/common/FavoriteButton.jsx";
 import { Icon } from "../components/common/Icons.jsx";
 import Footer from "../components/layout/Footer.jsx";
 import Header from "../components/layout/Header.jsx";
@@ -43,7 +47,7 @@ function GigListingPage({ onNavigate }) {
     const [filters, setFilters] = useState(defaultFilters);
     const [draftFilters, setDraftFilters] = useState(defaultFilters);
     const [activePanel, setActivePanel] = useState(null);
-    const [activePage, setActivePage] = useState(4);
+    const [activePage, setActivePage] = useState(1);
     const [isHistoryHidden, setIsHistoryHidden] = useState(false);
     const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
     const filterRef = useRef(null);
@@ -78,6 +82,13 @@ function GigListingPage({ onNavigate }) {
         () => getPagedGigs(filteredGigs, activePage),
         [activePage, filteredGigs],
     );
+    const pageCount = Math.max(1, Math.ceil(filteredGigs.length / pageSize));
+
+    useEffect(() => {
+        if (activePage > pageCount) {
+            setActivePage(pageCount);
+        }
+    }, [activePage, pageCount]);
     const hasFilters = hasActiveFilters(filters);
     const resultLabel = hasFilters
         ? `${filteredGigs.length} results`
@@ -259,6 +270,7 @@ function GigListingPage({ onNavigate }) {
                             <GigGrid gigs={displayedGigs} />
                             <ListingPagination
                                 activePage={activePage}
+                                pageCount={pageCount}
                                 onPageChange={setActivePage}
                             />
                         </>
@@ -312,16 +324,13 @@ function GigListingPage({ onNavigate }) {
         </div>
     );
 }
-function ListingPagination({ activePage, onPageChange }) {
+const pageSize = 8;
+
+function ListingPagination({ activePage, onPageChange, pageCount }) {
     const { t } = useTranslation();
-    const pages = Array.from(
-        {
-            length: 10,
-        },
-        (_, index) => index + 1,
-    );
+    const pages = Array.from({ length: pageCount }, (_, index) => index + 1);
     const changePage = (page) => {
-        const nextPage = Math.min(Math.max(page, 1), pages.length);
+        const nextPage = Math.min(Math.max(page, 1), pageCount);
         onPageChange(nextPage);
         window.scrollTo({
             top: 160,
@@ -836,10 +845,10 @@ function GigCard({ gig }) {
             navigate(
                 `/?auth=login&redirect=${encodeURIComponent(`/gigs/${gig.id}`)}`,
             );
-            return;
+            return null;
         }
 
-        await toggleSavedService(gig);
+        return toggleSavedService(gig);
     };
 
     return (
@@ -852,15 +861,12 @@ function GigCard({ gig }) {
                 >
                     <img src={gig.image} alt={`${gig.title} preview`} />
                 </Link>
-                <button
-                    className={`gig-favorite-button${gig.saved ? " is-favorite" : ""}`}
-                    type="button"
-                    aria-label={`${gig.saved ? "Remove" : "Save"} ${gig.title}`}
-                    aria-pressed={Boolean(gig.saved)}
-                    onClick={toggleSaved}
-                >
-                    <Icon name="heart" />
-                </button>
+                <FavoriteButton
+                    active={Boolean(gig.saved)}
+                    className="gig-favorite-button"
+                    label={`${gig.saved ? "Remove" : "Save"} ${gig.title}`}
+                    onToggle={toggleSaved}
+                />
             </div>
             <div className="gig-listing-body">
                 <div className="gig-seller-row">
@@ -875,7 +881,11 @@ function GigCard({ gig }) {
                         }
                     >
                         <span className="gig-avatar">
-                            <img src={gig.avatar} alt="" />
+                            {gig.avatar ? (
+                                <img src={gig.avatar} alt="" />
+                            ) : (
+                                <span>{gig.sellerInitials || initialsFromName(gig.seller)}</span>
+                            )}
                         </span>
                         <strong>{gig.seller}</strong>
                     </Link>
@@ -957,7 +967,7 @@ function getScopedGigs({ isSearchPage, query, pathname, listingGigs }) {
     return listingGigs.filter(
         (gig) =>
             websiteCategories.includes(gig.categoryId) ||
-            gig.searchText.includes("website"),
+            String(gig.searchText || "").includes("website"),
     );
 }
 function applyFilters(gigs, filters) {
@@ -967,14 +977,14 @@ function applyFilters(gigs, filters) {
         if (
             filters.serviceOptions.length &&
             !filters.serviceOptions.every((option) =>
-                gig.serviceOptions.includes(option),
+                (gig.serviceOptions || []).includes(option),
             )
         )
             return false;
         if (
             filters.sellerDetails.length &&
             !filters.sellerDetails.every((detail) =>
-                gig.sellerDetails.includes(detail),
+                (gig.sellerDetails || []).includes(detail),
             )
         )
             return false;
@@ -1005,10 +1015,9 @@ function sortGigs(gigs, sort) {
     return sorted;
 }
 function getPagedGigs(gigs, activePage) {
-    const pageSize = 8;
     if (gigs.length <= pageSize) return gigs;
-    const start = ((activePage - 1) * pageSize) % gigs.length;
-    return [...gigs.slice(start), ...gigs.slice(0, start)].slice(0, pageSize);
+    const start = (activePage - 1) * pageSize;
+    return gigs.slice(start, start + pageSize);
 }
 function clearFilterGroup(filters, panel) {
     if (panel === "category")

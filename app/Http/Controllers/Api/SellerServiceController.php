@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\SellerServiceResource;
 use App\Models\Gig;
+use App\Services\GigMediaSyncService;
 use App\Services\SellerGigLifecycleService;
 use App\Support\MarketplaceNotifier;
 use Illuminate\Http\Request;
@@ -18,13 +19,18 @@ class SellerServiceController extends Controller
     {
         return SellerServiceResource::collection(
             Gig::query()
+                ->with('media')
                 ->where('seller_id', $request->user()->id)
                 ->latest()
                 ->get()
         );
     }
 
-    public function store(Request $request, MarketplaceNotifier $notifier): SellerServiceResource
+    public function store(
+        Request $request,
+        MarketplaceNotifier $notifier,
+        GigMediaSyncService $mediaSync
+    ): SellerServiceResource
     {
         $payload = $request->validate([
             'title' => ['required', 'string', 'max:160'],
@@ -34,10 +40,20 @@ class SellerServiceController extends Controller
             'packages' => ['nullable', 'array'],
             'extras' => ['nullable', 'array'],
             'requirements' => ['nullable', 'array'],
+            'description' => ['nullable', 'string', 'max:10000'],
+            'faqs' => ['nullable', 'array'],
             'galleryImages' => ['nullable', 'array'],
+            'media' => ['nullable', 'array', 'max:12'],
+            'media.*.type' => ['nullable', 'string', 'in:image,video,document'],
+            'media.*.url' => ['required_with:media', 'string', 'max:1500000'],
+            'media.*.thumbnailUrl' => ['nullable', 'string', 'max:1500000'],
+            'media.*.altText' => ['nullable', 'string', 'max:255'],
+            'media.*.primary' => ['nullable', 'boolean'],
+            'media.*.metadata' => ['nullable', 'array'],
         ]);
 
         $gig = Gig::create($this->attributesFromPayload($payload, $request));
+        $gig = $mediaSync->sync($gig, $payload['media'] ?? [], $payload['galleryImages'] ?? []);
 
         $notifier->notify(
             $request->user(),
@@ -54,10 +70,15 @@ class SellerServiceController extends Controller
     {
         $this->authorizeSeller($request, $gig);
 
-        return SellerServiceResource::make($gig);
+        return SellerServiceResource::make($gig->load('media'));
     }
 
-    public function update(Request $request, Gig $gig, MarketplaceNotifier $notifier): SellerServiceResource
+    public function update(
+        Request $request,
+        Gig $gig,
+        MarketplaceNotifier $notifier,
+        GigMediaSyncService $mediaSync
+    ): SellerServiceResource
     {
         $this->authorizeSeller($request, $gig);
 
@@ -69,10 +90,20 @@ class SellerServiceController extends Controller
             'packages' => ['nullable', 'array'],
             'extras' => ['nullable', 'array'],
             'requirements' => ['nullable', 'array'],
+            'description' => ['nullable', 'string', 'max:10000'],
+            'faqs' => ['nullable', 'array'],
             'galleryImages' => ['nullable', 'array'],
+            'media' => ['nullable', 'array', 'max:12'],
+            'media.*.type' => ['nullable', 'string', 'in:image,video,document'],
+            'media.*.url' => ['required_with:media', 'string', 'max:1500000'],
+            'media.*.thumbnailUrl' => ['nullable', 'string', 'max:1500000'],
+            'media.*.altText' => ['nullable', 'string', 'max:255'],
+            'media.*.primary' => ['nullable', 'boolean'],
+            'media.*.metadata' => ['nullable', 'array'],
         ]);
 
         $gig->update($this->attributesFromPayload($payload, $request, $gig));
+        $gig = $mediaSync->sync($gig, $payload['media'] ?? [], $payload['galleryImages'] ?? $gig->gallery_images ?? []);
 
         $notifier->notify(
             $request->user(),
@@ -82,7 +113,7 @@ class SellerServiceController extends Controller
             "/dashboard/seller/services/{$gig->slug}/edit",
         );
 
-        return SellerServiceResource::make($gig->refresh());
+        return SellerServiceResource::make($gig->refresh()->load('media'));
     }
 
     public function updateStatus(
@@ -109,7 +140,7 @@ class SellerServiceController extends Controller
             "/dashboard/seller/services/{$gig->slug}/edit",
         );
 
-        return SellerServiceResource::make($gig);
+        return SellerServiceResource::make($gig->load('media'));
     }
 
     public function destroy(
@@ -145,15 +176,26 @@ class SellerServiceController extends Controller
         $category = trim($payload['category'] ?? $existing?->category_label ?? 'Programming & Tech');
         $tags = $payload['tags'] ?? $existing?->service_options ?? [];
         $packages = $payload['packages'] ?? $existing?->packages ?? [];
-        $galleryImages = $payload['galleryImages'] ?? $existing?->gallery_images ?? [];
+        $mediaImages = collect($payload['media'] ?? [])
+            ->filter(fn ($item) => ($item['type'] ?? 'image') === 'image')
+            ->pluck('url')
+            ->filter()
+            ->values()
+            ->all();
+        $galleryImages = $payload['galleryImages'] ?? [];
+
+        if (! $galleryImages) {
+            $galleryImages = $mediaImages ?: ($existing?->gallery_images ?? []);
+        }
         $basePackage = $packages[0] ?? [];
+        $metadata = $existing?->metadata ?? [];
 
         return [
             'seller_id' => $request->user()->id,
             'slug' => $existing?->slug ?? $this->uniqueSlug($title),
             'title' => $title,
             'seller_name' => $request->user()->name,
-            'seller_avatar' => $existing?->seller_avatar,
+            'seller_avatar' => $request->user()->avatar ?: $existing?->seller_avatar,
             'seller_level' => $existing?->seller_level ?? 'Level 2',
             'badge' => $existing?->badge,
             'image' => $galleryImages[0] ?? $existing?->image ?? '/assets/img/gig_images/1.png',
@@ -180,7 +222,11 @@ class SellerServiceController extends Controller
             'requirements' => $payload['requirements'] ?? $existing?->requirements ?? [],
             'gallery_images' => $galleryImages ?: [$existing?->image ?? '/assets/img/gig_images/1.png'],
             'metadata' => [
+                ...$metadata,
                 'subcategory' => $payload['subcategory'] ?? $existing?->metadata['subcategory'] ?? null,
+                'description' => $payload['description'] ?? $existing?->metadata['description'] ?? null,
+                'faqs' => $payload['faqs'] ?? $existing?->metadata['faqs'] ?? [],
+                'relatedTags' => array_values(array_filter($tags)),
             ],
         ];
     }

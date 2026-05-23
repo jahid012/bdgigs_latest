@@ -14,6 +14,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class MarketplaceApiTest extends TestCase
@@ -79,12 +80,32 @@ class MarketplaceApiTest extends TestCase
                 ['id' => 'basic', 'label' => 'Basic', 'price' => '125', 'delivery' => '3 Days Delivery'],
             ],
             'galleryImages' => ['/assets/img/gig_images/1.png'],
+            'media' => [
+                [
+                    'type' => 'image',
+                    'url' => '/assets/img/gig_images/1.png',
+                    'altText' => 'Dynamic Laravel Marketplace Setup preview',
+                    'primary' => true,
+                ],
+                [
+                    'type' => 'video',
+                    'url' => '/uploads/gig-media/demo.mp4',
+                    'thumbnailUrl' => '/assets/img/gig_images/1.png',
+                    'altText' => 'Dynamic Laravel Marketplace Setup video',
+                ],
+            ],
+            'description' => 'Database backed marketplace setup.',
+            'faqs' => [
+                ['question' => 'Do you support Laravel?', 'answer' => 'Yes.'],
+            ],
         ];
 
         $created = $this->actingAs($this->user)
             ->postJson('/api/seller/services', $payload)
             ->assertCreated()
             ->assertJsonPath('data.title', 'Dynamic Laravel Marketplace Setup')
+            ->assertJsonPath('data.media.0.type', 'image')
+            ->assertJsonPath('data.videos.0.type', 'video')
             ->json('data');
 
         $this->actingAs($this->user)
@@ -99,6 +120,22 @@ class MarketplaceApiTest extends TestCase
             'slug' => $created['id'],
             'title' => 'Dynamic Laravel Marketplace Build',
         ]);
+        $this->assertDatabaseHas('gig_media', [
+            'url' => '/assets/img/gig_images/1.png',
+            'type' => 'image',
+        ]);
+    }
+
+    public function test_seller_can_upload_gig_media_before_saving_service(): void
+    {
+        $this->actingAs($this->user)
+            ->post('/api/seller/services/media', [
+                'type' => 'image',
+                'file' => UploadedFile::fake()->create('preview.jpg', 64, 'image/jpeg'),
+            ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.type', 'image')
+            ->assertJsonPath('data.originalName', 'preview.jpg');
     }
 
     public function test_user_cannot_update_another_sellers_service(): void

@@ -140,7 +140,7 @@ export const useDashboardStore = create((set, get) => ({
             return service;
         } catch (error) {
             set({ error: error.message });
-            return get().addSellerService(draft);
+            throw error;
         }
     },
 
@@ -181,7 +181,7 @@ export const useDashboardStore = create((set, get) => ({
             return service;
         } catch (error) {
             set({ error: error.message });
-            return get().updateSellerService(id, draft);
+            throw error;
         }
     },
 

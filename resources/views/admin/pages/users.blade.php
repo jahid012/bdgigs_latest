@@ -13,26 +13,41 @@
                     <p>Review account health, profile type, verification, and region.</p>
                 </div>
             </div>
-            <form class="admin-user-search-form" method="GET" action="{{ route('admin.users') }}">
-                <input type="hidden" name="type" value="{{ $currentFilter }}">
+            <form class="admin-user-filter-form" method="GET" action="{{ route('admin.users') }}">
                 <label>
                     <span>User search</span>
-                    <input type="search" name="q" value="{{ $searchQuery }}" placeholder="Search name, email, or country">
+                    <input type="search" name="q" value="{{ $searchQuery }}" placeholder="Search name, username, email, or country">
                 </label>
-                <button type="submit">Search users</button>
-                @if ($searchQuery !== '' || $currentFilter !== 'all')
+                <label>
+                    <span>Marketplace profile</span>
+                    <select name="type">
+                        @foreach ($filters as $filter)
+                            <option value="{{ $filter['value'] }}" @selected($currentFilter === $filter['value'])>
+                                {{ $filter['label'] }} ({{ number_format($filter['count']) }})
+                            </option>
+                        @endforeach
+                    </select>
+                </label>
+                <label>
+                    <span>Account state</span>
+                    <select name="status">
+                        @foreach ($statusFilters as $filter)
+                            <option value="{{ $filter['value'] }}" @selected($currentStatus === $filter['value'])>
+                                {{ $filter['label'] }}
+                            </option>
+                        @endforeach
+                    </select>
+                </label>
+                <div>
+                    <button type="submit">Apply filters</button>
+                    @if ($searchQuery !== '' || $currentFilter !== 'all' || $currentStatus !== 'all')
                     <a href="{{ route('admin.users') }}">Clear</a>
-                @endif
+                    @endif
+                </div>
             </form>
-            <div class="admin-filter-row">
-                @foreach ($filters as $filter)
-                    <a
-                        class="{{ $currentFilter === $filter['value'] ? 'is-active' : '' }}"
-                        href="{{ request()->fullUrlWithQuery(['type' => $filter['value'], 'page' => 1]) }}"
-                    >
-                        {{ $filter['label'] }} <span>{{ number_format($filter['count']) }}</span>
-                    </a>
-                @endforeach
+            <div class="admin-filter-summary">
+                <strong>{{ number_format($pagination['total']) }}</strong>
+                <span>users match the current search, profile, and account state.</span>
             </div>
             <div class="admin-table-wrap">
                 <table>
@@ -51,7 +66,7 @@
                     <tbody>
                         @forelse ($users as $user)
                             <tr>
-                                <td>{{ $user['name'] }}</td>
+                                <td><a class="admin-user-table-name" href="{{ route('admin.users.show', $user['id']) }}">{{ $user['name'] }}</a></td>
                                 <td>{{ $user['email'] }}</td>
                                 <td>{{ $user['profile_type'] }}</td>
                                 <td>{{ $user['seller_level'] }}</td>
@@ -59,27 +74,37 @@
                                 <td><span class="admin-status-badge {{ $user['status_class'] }}">{{ $user['status'] }}</span></td>
                                 <td>{{ $user['joined'] }}</td>
                                 <td>
-                                    <div class="admin-row-actions">
-                                        @can('users.verify')
-                                            <form method="POST" action="{{ route('admin.users.verify', $user['id']) }}">
-                                                @csrf
-                                                <button type="submit">Verify</button>
-                                            </form>
-                                        @endcan
-                                        @can('users.suspend')
-                                            @if ($user['can_restore'])
-                                                <form method="POST" action="{{ route('admin.users.restore', $user['id']) }}">
+                                    <details class="admin-action-menu">
+                                        <summary>Actions</summary>
+                                        <div>
+                                            <a href="{{ route('admin.users.show', $user['id']) }}">View details</a>
+                                            @if ($user['can_impersonate'])
+                                                <form method="POST" action="{{ route('admin.users.impersonate', $user['id']) }}">
                                                     @csrf
-                                                    <button type="submit">Restore</button>
-                                                </form>
-                                            @elseif ($user['can_suspend'])
-                                                <form method="POST" action="{{ route('admin.users.suspend', $user['id']) }}">
-                                                    @csrf
-                                                    <button type="submit">Suspend</button>
+                                                    <button type="submit">Login as user</button>
                                                 </form>
                                             @endif
-                                        @endcan
-                                    </div>
+                                            @can('users.verify')
+                                                <form method="POST" action="{{ route('admin.users.verify', $user['id']) }}">
+                                                    @csrf
+                                                    <button type="submit">Verify account</button>
+                                                </form>
+                                            @endcan
+                                            @can('users.suspend')
+                                                @if ($user['can_restore'])
+                                                    <form method="POST" action="{{ route('admin.users.restore', $user['id']) }}">
+                                                        @csrf
+                                                        <button type="submit">Restore account</button>
+                                                    </form>
+                                                @elseif ($user['can_suspend'])
+                                                    <form method="POST" action="{{ route('admin.users.suspend', $user['id']) }}">
+                                                        @csrf
+                                                        <button class="is-danger" type="submit">Suspend account</button>
+                                                    </form>
+                                                @endif
+                                            @endcan
+                                        </div>
+                                    </details>
                                 </td>
                             </tr>
                         @empty

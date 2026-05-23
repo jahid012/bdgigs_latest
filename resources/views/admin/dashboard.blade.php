@@ -53,20 +53,7 @@
     </section>
 
     <section class="admin-dashboard-grid">
-        <article class="admin-panel admin-revenue-panel">
-            <div class="admin-panel-head">
-                <div>
-                    <h2>Revenue trend</h2>
-                    <p>Last 8 weeks marketplace performance</p>
-                </div>
-                <button type="button">Export</button>
-            </div>
-            <div class="admin-chart" aria-label="Revenue chart">
-                @foreach (($revenueTrend ?? [8]) as $height)
-                    <span style="height: {{ $height }}%"></span>
-                @endforeach
-            </div>
-        </article>
+        @include('admin.partials.line-chart', ['chart' => $revenueTrend])
 
         <article class="admin-panel">
             <div class="admin-panel-head">
@@ -173,3 +160,7 @@
         </article>
     </section>
 @endsection
+
+@push('scripts')
+    @include('admin.partials.line-chart-scripts')
+@endpush

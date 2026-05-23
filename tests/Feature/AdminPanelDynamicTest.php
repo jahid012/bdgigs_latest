@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Events\OrderStatusUpdated;
+use App\Models\Dispute;
 use App\Models\Gig;
 use App\Models\ManualPaymentMethod;
 use App\Models\ManualPaymentSubmission;
@@ -50,7 +51,7 @@ class AdminPanelDynamicTest extends TestCase
     public function test_dynamic_admin_pages_render_database_records(): void
     {
         $this->actingAs($this->admin)
-            ->get(route('admin.users'))
+            ->get(route('admin.users', ['q' => 'test@example.com']))
             ->assertOk()
             ->assertSee('test@example.com');
 
@@ -60,9 +61,29 @@ class AdminPanelDynamicTest extends TestCase
             ->assertSee(Gig::where('slug', 'demo-gig-001')->firstOrFail()->title);
 
         $this->actingAs($this->admin)
-            ->get(route('admin.orders'))
+            ->get(route('admin.orders', ['q' => 'BO-001']))
             ->assertOk()
             ->assertSee('#BO-001');
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.disputes'))
+            ->assertOk()
+            ->assertSee('DSP-0001');
+    }
+
+    public function test_admin_dashboard_uses_chart_js_data_and_quick_actions_are_removed(): void
+    {
+        $this->actingAs($this->admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('data-admin-line-chart', false)
+            ->assertDontSee('Quick actions');
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.settings'))
+            ->assertOk()
+            ->assertSee('admin-settings-actions', false)
+            ->assertDontSee('Quick actions');
     }
 
     public function test_admin_pages_respect_page_permissions(): void
@@ -99,6 +120,30 @@ class AdminPanelDynamicTest extends TestCase
             ->assertSee('Delivered');
     }
 
+    public function test_admin_can_view_user_details_and_impersonate_a_marketplace_user(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'Impersonated Buyer',
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.users.show', $user))
+            ->assertOk()
+            ->assertSee('Impersonated Buyer')
+            ->assertSee('Login as this user');
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.users.impersonate', $user))
+            ->assertRedirect('/dashboard');
+
+        $this->assertAuthenticatedAs($user);
+
+        $this->post(route('admin.impersonation.stop'))
+            ->assertRedirect(route('admin.users.show', $user));
+
+        $this->assertAuthenticatedAs($this->admin);
+    }
+
     public function test_admin_can_verify_suspend_and_restore_users(): void
     {
         $user = User::create([
@@ -133,6 +178,12 @@ class AdminPanelDynamicTest extends TestCase
         $gig = Gig::where('slug', 'demo-gig-001')->firstOrFail();
 
         $this->actingAs($this->admin)
+            ->get(route('admin.gigs.show', $gig))
+            ->assertOk()
+            ->assertSee($gig->title)
+            ->assertSee('Moderation');
+
+        $this->actingAs($this->admin)
             ->patch(route('admin.gigs.status', $gig), [
                 'action' => 'reject',
             ])
@@ -163,6 +214,11 @@ class AdminPanelDynamicTest extends TestCase
             ->assertOk()
             ->assertSee($gig->title)
             ->assertSee('Deleted');
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.gigs.show', $gig->slug))
+            ->assertOk()
+            ->assertSee('soft deleted');
     }
 
     public function test_admin_can_update_order_status_and_dispatch_event(): void
@@ -194,13 +250,75 @@ class AdminPanelDynamicTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)
+            ->get(route('admin.orders.show', $order->code))
+            ->assertOk()
+            ->assertSee('Order #'.$order->code)
+            ->assertSee('Order action');
+
+        $this->actingAs($this->admin)
             ->patch(route('admin.orders.status', $order), [
                 'status' => 'Delivered',
             ])
             ->assertRedirect();
 
         $this->assertSame('Delivered', $order->fresh()->status);
+        $this->assertDatabaseHas('order_activities', [
+            'order_id' => $order->id,
+            'type' => 'admin_status_update',
+        ]);
         Event::assertDispatched(OrderStatusUpdated::class, 2);
+    }
+
+    public function test_admin_can_open_paginate_and_resolve_a_dispute_case(): void
+    {
+        $order = Order::where('code', 'BO-001')->firstOrFail();
+
+        Dispute::factory()->count(9)->create();
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.disputes', ['status' => 'all']))
+            ->assertOk()
+            ->assertSee('Disputes pagination');
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.orders.disputes.store', $order), [
+                'reason' => 'Admin delivery review',
+                'description' => 'The buyer asked for a scope decision.',
+                'priority' => 'critical',
+            ])
+            ->assertRedirect();
+
+        $dispute = Dispute::where('order_id', $order->id)
+            ->where('reason', 'Admin delivery review')
+            ->firstOrFail();
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.disputes.show', $dispute))
+            ->assertOk()
+            ->assertSee($dispute->case_code)
+            ->assertSee('Case action');
+
+        $this->actingAs($this->admin)
+            ->patch(route('admin.disputes.update', $dispute), [
+                'status' => 'resolved',
+                'priority' => 'high',
+                'assigned_to_id' => $this->admin->id,
+                'resolution' => 'Admin resolved the scope disagreement.',
+                'note' => 'Evidence reviewed.',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('disputes', [
+            'id' => $dispute->id,
+            'status' => 'resolved',
+            'priority' => 'high',
+            'assigned_to_id' => $this->admin->id,
+            'resolved_by_id' => $this->admin->id,
+        ]);
+        $this->assertDatabaseHas('dispute_activities', [
+            'dispute_id' => $dispute->id,
+            'type' => 'resolved',
+        ]);
     }
 
     public function test_admin_can_approve_manual_payment_submission(): void
@@ -234,5 +352,70 @@ class AdminPanelDynamicTest extends TestCase
 
         $this->assertSame('approved', $submission->fresh()->status);
         $this->assertSame('Pending Requirements', $submission->order->fresh()->status);
+    }
+
+    public function test_admin_can_review_and_mark_manual_withdrawal_paid(): void
+    {
+        $seller = User::factory()->create();
+        $buyer = User::factory()->create();
+        Order::create([
+            'code' => 'ADMIN-WD-1',
+            'buyer_id' => $buyer->id,
+            'seller_id' => $seller->id,
+            'service' => 'Manual withdrawal earning',
+            'buyer_name' => $buyer->name,
+            'seller_name' => $seller->name,
+            'status' => 'Completed',
+            'status_class' => 'status-completed',
+            'price_cents' => 15000,
+            'earnings_cents' => 12500,
+        ]);
+
+        $methodId = $this->actingAs($seller)
+            ->postJson('/api/seller/payout-methods', [
+                'type' => 'mobile_wallet',
+                'label' => 'Wallet',
+                'accountHolder' => $seller->name,
+                'accountNumber' => 'WALLET-100',
+            ])
+            ->assertCreated()
+            ->json('data.id');
+        $withdrawalCode = $this->actingAs($seller)
+            ->postJson('/api/seller/withdrawals', [
+                'payoutMethodId' => $methodId,
+                'amount' => 80,
+            ])
+            ->assertCreated()
+            ->json('data.code');
+
+        $withdrawal = \App\Models\WithdrawalRequest::where('code', $withdrawalCode)->firstOrFail();
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.withdrawals'))
+            ->assertOk()
+            ->assertSee($withdrawalCode);
+
+        $this->actingAs($this->admin)
+            ->patch(route('admin.withdrawals.review', $withdrawal), [
+                'action' => 'approve',
+                'note' => 'Seller payout details checked.',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('approved', $withdrawal->fresh()->status);
+
+        $this->actingAs($this->admin)
+            ->patch(route('admin.withdrawals.review', $withdrawal), [
+                'action' => 'mark_paid',
+                'payment_reference' => 'PAYOUT-TX-100',
+                'note' => 'Transfer sent.',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('withdrawal_requests', [
+            'code' => $withdrawalCode,
+            'status' => 'paid',
+            'payment_reference' => 'PAYOUT-TX-100',
+        ]);
     }
 }

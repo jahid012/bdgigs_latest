@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Icon } from "../components/common/Icons.jsx";
 import { useToast } from "../components/common/ToastProvider.jsx";
+import { apiRequest } from "../api/apiClient.js";
 import {
     deliveryOptions,
     gigEditorCategories,
@@ -837,18 +838,89 @@ function RequirementsStep({ form, onUpdate, notify }) {
 }
 
 function GalleryStep({ form, onUpdate, notify }) {
-    const updateGalleryImage = (index, file) => {
+    const uploadMedia = async (file, type) => {
         if (!file) return;
 
-        const previewUrl = URL.createObjectURL(file);
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("type", type);
+
+        return apiRequest("/api/seller/services/media", {
+            body: formData,
+        });
+    };
+    const updateGalleryImage = async (index, file) => {
+        if (!file) return;
+
+        let uploadedMedia = null;
+
+        try {
+            uploadedMedia = await uploadMedia(file, "image");
+        } catch {
+            notify.error("Image upload failed. Please try again.");
+            return;
+        }
+
         onUpdate((currentForm) => ({
             ...currentForm,
-            galleryImages: currentForm.galleryImages.map((image, imageIndex) =>
-                imageIndex === index ? previewUrl : image,
-            ),
+            ...replaceMediaAtIndex(currentForm, uploadedMedia, index, "image"),
         }));
         notify.success("Gallery image updated.");
     };
+    const updateSingleVideo = async (file) => {
+        if (!file) return;
+
+        let uploadedMedia = null;
+
+        try {
+            uploadedMedia = await uploadMedia(file, "video");
+        } catch {
+            notify.error("Video upload failed. Please try again.");
+            return;
+        }
+
+        onUpdate((currentForm) => ({
+            ...currentForm,
+            media: [
+                ...(currentForm.media || []).filter(
+                    (item) => item.type !== "video",
+                ),
+                uploadedMedia,
+            ],
+        }));
+        notify.success("Video uploaded.");
+    };
+    const updateDocument = async (file) => {
+        if (!file) return;
+
+        let uploadedMedia = null;
+
+        try {
+            uploadedMedia = await uploadMedia(file, "document");
+        } catch {
+            notify.error("Document upload failed. Please try again.");
+            return;
+        }
+
+        onUpdate((currentForm) => ({
+            ...currentForm,
+            media: [
+                ...(currentForm.media || []).filter(
+                    (item) => item.type !== "document",
+                ),
+                uploadedMedia,
+            ].slice(0, 12),
+        }));
+        notify.success("Document uploaded.");
+    };
+    const gallerySlots = Array.from(
+        { length: 3 },
+        (_, index) => form.galleryImages[index] || "",
+    );
+    const video = form.media?.find((item) => item.type === "video");
+    const documents = (form.media || []).filter(
+        (item) => item.type === "document",
+    );
 
     return (
         <section className="gallery-editor">
@@ -880,14 +952,24 @@ function GalleryStep({ form, onUpdate, notify }) {
                     services.
                 </p>
                 <div className="gallery-image-grid">
-                    {form.galleryImages.map((image, index) => (
-                        <label className="gallery-image-tile" key={image}>
-                            <img
-                                src={image}
-                                alt={`Gig gallery example ${index + 1}`}
-                                loading="lazy"
-                                decoding="async"
-                            />
+                    {gallerySlots.map((image, index) => (
+                        <label
+                            className={`gallery-image-tile${image ? "" : " is-empty"}`}
+                            key={`gallery-slot-${index}`}
+                        >
+                            {image ? (
+                                <img
+                                    src={image}
+                                    alt={`Gig gallery example ${index + 1}`}
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            ) : (
+                                <span>
+                                    <Icon name="plus" />
+                                    Upload image
+                                </span>
+                            )}
                             {index === 0 ? <span>Primary</span> : null}
                             <input
                                 type="file"
@@ -918,8 +1000,9 @@ function GalleryStep({ form, onUpdate, notify }) {
                     accept="video/*"
                     icon="video"
                     label="Drag & drop a Video or"
-                    onChange={() => notify.success("Video selected.")}
+                    onChange={updateSingleVideo}
                 />
+                {video ? <em>{video.originalName || "Video uploaded"}</em> : null}
             </section>
 
             <section className="gallery-section">
@@ -933,13 +1016,37 @@ function GalleryStep({ form, onUpdate, notify }) {
                         accept="application/pdf"
                         icon="document"
                         label="Drag & drop a PDF or"
-                        onChange={() => notify.success("Document selected.")}
+                        onChange={updateDocument}
                     />
-                    <div className="empty-document-slot" aria-hidden="true"></div>
+                    <div className="empty-document-slot">
+                        {documents.length ? (
+                            <span>{documents.length} document uploaded</span>
+                        ) : null}
+                    </div>
                 </div>
             </section>
         </section>
     );
+}
+
+function replaceMediaAtIndex(form, uploadedMedia, index, type) {
+    const media = form.media || [];
+    const targetMedia = media.filter((item) => item.type === type);
+    const otherMedia = media.filter((item) => item.type !== type);
+    const nextTargetMedia = Array.from({ length: 3 }, (_, slotIndex) =>
+        slotIndex === index ? uploadedMedia : targetMedia[slotIndex],
+    ).filter(Boolean);
+
+    return {
+        media: [
+            ...nextTargetMedia.map((item, itemIndex) => ({
+                ...item,
+                primary: itemIndex === 0,
+            })),
+            ...otherMedia,
+        ],
+        galleryImages: nextTargetMedia.map((item) => item.url),
+    };
 }
 
 function AddQuestionPanel({

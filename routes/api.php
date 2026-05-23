@@ -12,6 +12,9 @@ use App\Http\Controllers\Api\PresenceController;
 use App\Http\Controllers\Api\PushSubscriptionController;
 use App\Http\Controllers\Api\SavedServiceController;
 use App\Http\Controllers\Api\SellerServiceController;
+use App\Http\Controllers\Api\SellerServiceMediaController;
+use App\Http\Controllers\Api\SellerPayoutMethodController;
+use App\Http\Controllers\Api\SellerWithdrawalController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\UserSettingsController;
 use Illuminate\Support\Facades\Route;
@@ -37,6 +40,12 @@ Route::prefix('api')->name('api.')->group(function () {
         Route::patch('/billing/profile', [BillingController::class, 'update'])->name('billing.profile.update');
         Route::get('/billing/summary', [BillingController::class, 'buyerSummary'])->name('billing.summary');
         Route::get('/seller/earnings', [BillingController::class, 'sellerEarnings'])->name('seller.earnings');
+        Route::get('/seller/payout-methods', [SellerPayoutMethodController::class, 'index'])->name('seller.payout-methods.index');
+        Route::post('/seller/payout-methods', [SellerPayoutMethodController::class, 'store'])->name('seller.payout-methods.store');
+        Route::patch('/seller/payout-methods/{method}', [SellerPayoutMethodController::class, 'update'])->name('seller.payout-methods.update');
+        Route::get('/seller/withdrawals', [SellerWithdrawalController::class, 'index'])->name('seller.withdrawals.index');
+        Route::post('/seller/withdrawals', [SellerWithdrawalController::class, 'store'])->name('seller.withdrawals.store');
+        Route::post('/seller/withdrawals/{withdrawal}/cancel', [SellerWithdrawalController::class, 'cancel'])->name('seller.withdrawals.cancel');
 
         Route::get('/user/settings', [UserSettingsController::class, 'show'])->name('user.settings');
         Route::patch('/user/settings/notifications', [UserSettingsController::class, 'notifications'])->name('user.settings.notifications');
@@ -46,6 +55,7 @@ Route::prefix('api')->name('api.')->group(function () {
         Route::post('/user/settings/deactivate', [UserSettingsController::class, 'deactivate'])->name('user.settings.deactivate');
 
         Route::get('/seller/services', [SellerServiceController::class, 'index'])->name('seller.services.index');
+        Route::post('/seller/services/media', [SellerServiceMediaController::class, 'store'])->name('seller.services.media.store');
         Route::post('/seller/services', [SellerServiceController::class, 'store'])->name('seller.services.store');
         Route::get('/seller/services/{gig:slug}', [SellerServiceController::class, 'show'])->name('seller.services.show');
         Route::patch('/seller/services/{gig:slug}', [SellerServiceController::class, 'update'])->name('seller.services.update');

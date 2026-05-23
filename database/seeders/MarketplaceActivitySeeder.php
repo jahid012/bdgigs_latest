@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Conversation;
+use App\Models\Dispute;
 use App\Models\Gig;
 use App\Models\Order;
 use App\Models\User;
@@ -36,6 +37,7 @@ class MarketplaceActivitySeeder extends Seeder
 
         $this->seedOrders($user);
         $this->seedConversations($user);
+        $this->seedDisputes();
         $this->seedNotifications($user);
     }
 
@@ -141,6 +143,39 @@ class MarketplaceActivitySeeder extends Seeder
                 $notification + ['user_id' => $user->id],
             );
         }
+    }
+
+    private function seedDisputes(): void
+    {
+        $order = Order::where('code', 'SO-001')->first();
+
+        if (! $order) {
+            return;
+        }
+
+        $conversation = Conversation::where('public_id', 'seller-thread-1')->first();
+        $dispute = Dispute::updateOrCreate(
+            ['case_code' => 'DSP-0001'],
+            [
+                'order_id' => $order->id,
+                'conversation_id' => $conversation?->id,
+                'opened_by_id' => $order->buyer_id,
+                'assigned_to_id' => null,
+                'reason' => 'Seeded delivery scope review',
+                'description' => 'Buyer and seller need an admin decision on the current seeded delivery scope.',
+                'priority' => 'high',
+                'status' => 'open',
+                'metadata' => ['source' => 'activity-seeder'],
+            ],
+        );
+
+        $dispute->activities()->firstOrCreate(
+            ['type' => 'opened', 'title' => 'Dispute seeded for review'],
+            [
+                'actor_id' => null,
+                'detail' => 'Use this case to test the persisted dispute workflow.',
+            ],
+        );
     }
 
     private function statusState(int $index): array

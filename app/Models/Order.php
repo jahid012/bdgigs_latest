@@ -62,4 +62,9 @@ class Order extends Model
     {
         return $this->hasOne(ManualPaymentSubmission::class);
     }
+
+    public function disputes(): HasMany
+    {
+        return $this->hasMany(Dispute::class);
+    }
 }

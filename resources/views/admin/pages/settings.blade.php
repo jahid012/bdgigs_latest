@@ -16,11 +16,6 @@
                         These controls are stored in the database and read through cache by the platform settings helpers.
                     </p>
                 </div>
-                @can('settings.update')
-                    <button type="submit">Save changes</button>
-                @else
-                    <button type="button" disabled>View only</button>
-                @endcan
             </article>
 
             @foreach ($settingGroups as $group)
@@ -101,6 +96,18 @@
                     </div>
                 </article>
             @endforeach
+
+            <article class="admin-panel admin-settings-actions">
+                <div>
+                    <strong>Marketplace settings</strong>
+                    <p>Review the changed fields above before saving the live configuration.</p>
+                </div>
+                @can('settings.update')
+                    <button type="submit">Save changes</button>
+                @else
+                    <button type="button" disabled>View only</button>
+                @endcan
+            </article>
         </form>
 
         <aside class="admin-settings-sidebar">

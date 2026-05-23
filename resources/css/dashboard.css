@@ -10544,6 +10544,20 @@ body.dashboard-page .btn {
   font-weight: 900;
 }
 
+.gallery-image-tile.is-empty {
+  display: grid;
+  place-items: center;
+  border-style: dashed;
+}
+
+.gallery-image-tile.is-empty > span {
+  position: static;
+  display: inline-flex;
+  gap: 0.35rem;
+  background: transparent;
+  color: #475467;
+}
+
 .gallery-image-tile input,
 .upload-box input {
   position: absolute;
@@ -10724,6 +10738,174 @@ body.dashboard-page .btn {
   color: var(--color-primary-dark);
   font-size: 0.8rem;
   font-weight: 850;
+}
+
+.seller-withdrawal-workspace {
+  margin-bottom: 1.4rem;
+}
+
+.seller-withdrawal-grid {
+  display: grid;
+  gap: 0.78rem;
+}
+
+.seller-withdrawal-form,
+.seller-withdrawal-list {
+  display: grid;
+  gap: 0.72rem;
+  min-width: 0;
+  align-content: start;
+  padding: 1rem;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  border-radius: var(--dashboard-radius);
+  background: #ffffff;
+}
+
+.seller-withdrawal-form h2,
+.seller-withdrawal-list h2 {
+  margin: 0;
+  color: var(--color-dark);
+  font-size: 0.98rem;
+}
+
+.seller-withdrawal-form p,
+.seller-withdrawal-list p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  font-weight: 720;
+}
+
+.seller-withdrawal-form label {
+  display: grid;
+  gap: 0.32rem;
+  color: var(--color-dark);
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.seller-withdrawal-form input,
+.seller-withdrawal-form select,
+.seller-withdrawal-form textarea {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 0.72rem;
+  border: 1px solid rgba(148, 163, 184, 0.82);
+  border-radius: var(--dashboard-radius);
+  background: #ffffff;
+  color: var(--color-dark);
+  outline: 0;
+  font-size: 0.8rem;
+  font-weight: 720;
+}
+
+.seller-withdrawal-form textarea {
+  min-height: 82px;
+  padding-block: 0.62rem;
+  resize: vertical;
+}
+
+.seller-withdrawal-form input:focus,
+.seller-withdrawal-form select:focus,
+.seller-withdrawal-form textarea:focus {
+  border-color: rgba(29, 191, 115, 0.5);
+  box-shadow: 0 0 0 3px rgba(29, 191, 115, 0.1);
+}
+
+.seller-withdrawal-form small {
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 760;
+}
+
+.seller-withdrawal-form .finance-primary-button {
+  width: max-content;
+}
+
+.seller-payout-method-list,
+.seller-withdrawal-request-list {
+  display: grid;
+  gap: 0.48rem;
+}
+
+.seller-payout-method-list article {
+  display: grid;
+  gap: 0.12rem;
+  padding: 0.68rem;
+  border-radius: var(--dashboard-radius);
+  background: #f8fafc;
+}
+
+.seller-payout-method-list strong,
+.seller-withdrawal-request-list strong {
+  color: var(--color-dark);
+  font-size: 0.8rem;
+}
+
+.seller-payout-method-list span,
+.seller-withdrawal-request-list span {
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 760;
+}
+
+.seller-withdrawal-request-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.42rem 0.62rem;
+  align-items: center;
+  padding: 0.68rem;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: var(--dashboard-radius);
+}
+
+.seller-withdrawal-request-list article > div {
+  display: grid;
+  min-width: 0;
+}
+
+.seller-withdrawal-request-list b {
+  color: var(--color-dark);
+  font-size: 0.82rem;
+}
+
+.seller-withdrawal-request-list em {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 0 0.46rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.seller-withdrawal-request-list em[data-status="paid"] {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.seller-withdrawal-request-list em[data-status="cancelled"],
+.seller-withdrawal-request-list em[data-status="rejected"] {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.seller-withdrawal-request-list button {
+  grid-column: 1 / -1;
+  width: max-content;
+  min-height: 30px;
+  padding: 0 0.58rem;
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  border-radius: var(--dashboard-radius);
+  background: #ffffff;
+  color: var(--color-dark);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 900;
 }
 
 .earnings-summary-grid {
@@ -11428,40 +11610,6 @@ body.dashboard-page .btn {
   border-radius: 18px 18px 6px;
 }
 
-.conversation-details-skeleton {
-  display: grid;
-  gap: 0.72rem;
-  align-content: start;
-  min-height: 100%;
-}
-
-.conversation-details-skeleton .details-card {
-  display: grid;
-  gap: 0.52rem;
-}
-
-.conversation-details-skeleton-title {
-  width: min(100%, 144px);
-  height: 14px;
-  margin-bottom: 0.1rem;
-}
-
-.conversation-details-skeleton-line {
-  height: 12px;
-}
-
-.conversation-details-skeleton-line.short {
-  width: 68%;
-}
-
-.conversation-details-skeleton-row {
-  height: 30px;
-}
-
-.conversation-details-skeleton-file {
-  height: 48px;
-}
-
 .saved-services-empty-page {
   display: grid;
   min-height: min(620px, 62vh);
@@ -11601,6 +11749,10 @@ body.dashboard-page .btn {
 @media (min-width: 768px) {
   .earnings-summary-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .seller-withdrawal-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   }
 
   .billing-balance-grid,

@@ -1,5 +1,9 @@
 import { useEffect } from "react";
-import { profilePathForSeller } from "../../data/userProfileData.js";
+import {
+    initialsFromName,
+    profilePathForSeller,
+} from "../../utils/profilePaths.js";
+import FavoriteButton from "../common/FavoriteButton.jsx";
 import { Icon, Rating } from "../common/Icons.jsx";
 import { useTranslation } from "react-i18next";
 import { useMarketplaceStore } from "../../stores/useMarketplaceStore.js";
@@ -21,15 +25,19 @@ function FeaturedServices({ onNavigate }) {
         fetchGigs();
     }, [fetchGigs]);
 
+    if (visibleServices.length === 0) {
+        return null;
+    }
+
     const toggleFavorite = async (service) => {
         if (!currentUser?.authenticated) {
             onNavigate(
                 `/?auth=login&redirect=${encodeURIComponent(`/gigs/${service.id}`)}`,
             );
-            return;
+            return null;
         }
 
-        await toggleSavedService(service);
+        return toggleSavedService(service);
     };
     const openService = (service) => {
         onNavigate(`/gigs/${service.id}`);
@@ -80,23 +88,30 @@ function FeaturedServices({ onNavigate }) {
                                     >
                                         <Icon name="play" />
                                     </button>
-                                    <button
-                                        className={`gig-favorite-button${service.saved ? " is-favorite" : ""}`}
-                                        type="button"
-                                        aria-label={`${service.saved ? "Remove" : "Save"} ${service.title}`}
-                                        aria-pressed={Boolean(service.saved)}
-                                        onClick={(event) => {
-                                            event.stopPropagation();
-                                            toggleFavorite(service);
-                                        }}
-                                    >
-                                        <Icon name="heart" />
-                                    </button>
+                                    <FavoriteButton
+                                        active={Boolean(service.saved)}
+                                        className="gig-favorite-button"
+                                        label={`${service.saved ? "Remove" : "Save"} ${service.title}`}
+                                        stopPropagation
+                                        onToggle={() =>
+                                            toggleFavorite(service)
+                                        }
+                                    />
                                 </div>
 
                                 <div className="gig-seller-row">
                                     <span className="gig-seller-avatar">
-                                        {service.initials}
+                                        {service.avatar ? (
+                                            <img
+                                                src={service.avatar}
+                                                alt=""
+                                                loading="lazy"
+                                                decoding="async"
+                                            />
+                                        ) : (
+                                            service.sellerInitials ||
+                                            initialsFromName(service.seller)
+                                        )}
                                     </span>
                                     <a
                                         href={
@@ -155,13 +170,6 @@ function FeaturedServices({ onNavigate }) {
                             </article>
                         );
                     })}
-
-                    {visibleServices.length === 0 ? (
-                        <p className="messages-empty">
-                            Featured services will appear after admins choose
-                            them from the live gig catalog.
-                        </p>
-                    ) : null}
 
                     <button
                         className="gig-carousel-button"

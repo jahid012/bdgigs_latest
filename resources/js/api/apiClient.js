@@ -17,6 +17,7 @@ export async function apiRequest(path, options = {}) {
         method = body ? "POST" : "GET",
         raw = false,
     } = options;
+    const isFormData = body instanceof FormData;
     const response = await fetch(path, {
         method,
         credentials: "same-origin",
@@ -24,10 +25,10 @@ export async function apiRequest(path, options = {}) {
             Accept: "application/json",
             "X-Requested-With": "XMLHttpRequest",
             ...csrfHeader(),
-            ...(body ? { "Content-Type": "application/json" } : {}),
+            ...(body && !isFormData ? { "Content-Type": "application/json" } : {}),
             ...headers,
         },
-        body: body ? JSON.stringify(body) : undefined,
+        body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
     });
 
     if (response.status === 204) {

@@ -634,19 +634,32 @@
 }
 
 .gig-avatar {
-  display: inline-block;
+  display: inline-grid;
   width: 20px;
   height: 20px;
+  place-items: center;
   overflow: hidden;
   flex: 0 0 auto;
   border-radius: 50%;
   background: #e4e5e7;
+  color: #475569;
+  font-size: 0.55rem;
+  font-weight: 800;
+}
+
+.gig-avatar img,
+.gig-avatar span {
+  width: 100%;
+  height: 100%;
 }
 
 .gig-avatar img {
-  width: 100%;
-  height: 100%;
   object-fit: cover;
+}
+
+.gig-avatar span {
+  display: grid;
+  place-items: center;
 }
 
 .gig-seller-profile-link {

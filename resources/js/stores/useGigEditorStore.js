@@ -75,11 +75,11 @@ function createInitialDraft(service = null) {
         requirements: service.requirements?.length
             ? service.requirements
             : draft.requirements,
-        galleryImages: [
-            ...(service.galleryImages?.length
-                ? service.galleryImages
-                : [service.image]),
-            ...draft.galleryImages.filter((image) => image !== service.image),
-        ].slice(0, 3),
+        description: service.description || draft.description,
+        faqs: service.faqs?.length ? service.faqs : draft.faqs,
+        media: service.media?.length ? service.media : draft.media,
+        galleryImages: service.galleryImages?.length
+            ? service.galleryImages.slice(0, 3)
+            : draft.galleryImages,
     };
 }

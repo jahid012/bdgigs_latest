@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Gig extends Model
@@ -80,5 +81,15 @@ class Gig extends Model
     public function savedByUsers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'saved_services')->withTimestamps();
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function media(): HasMany
+    {
+        return $this->hasMany(GigMedia::class)->orderBy('sort_order')->orderBy('id');
     }
 }

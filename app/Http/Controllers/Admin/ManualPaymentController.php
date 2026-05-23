@@ -49,10 +49,6 @@ class ManualPaymentController extends AdminController
             'pageEyebrow' => 'Payment review',
             'pageDescription' => 'Approve buyer payment references before manually paid orders move into delivery.',
             'searchPlaceholder' => 'Search order, buyer, or payment reference',
-            'pageActions' => [
-                ['label' => 'Order operations', 'route' => 'admin.orders', 'meta' => 'Delivery queue'],
-                ['label' => 'Payments overview', 'route' => 'admin.payments', 'meta' => 'Finance'],
-            ],
             'stats' => [
                 ['label' => 'Pending review', 'value' => number_format(ManualPaymentSubmission::where('status', 'pending')->count()), 'meta' => 'Needs decision'],
                 ['label' => 'Approved', 'value' => number_format(ManualPaymentSubmission::where('status', 'approved')->count()), 'meta' => 'Released to requirements'],

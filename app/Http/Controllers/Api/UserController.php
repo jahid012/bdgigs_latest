@@ -105,6 +105,6 @@ class UserController extends Controller
         abort_unless($user, 404);
         abort_unless($user->sellerProfile || $user->gigs()->exists(), 404);
 
-        return PublicSellerProfileResource::make($user->loadMissing(['sellerProfile', 'gigs']));
+        return PublicSellerProfileResource::make($user->loadMissing(['sellerProfile', 'gigs.media']));
     }
 }

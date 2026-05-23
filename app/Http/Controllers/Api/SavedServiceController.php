@@ -14,7 +14,11 @@ class SavedServiceController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         return SavedServiceResource::collection(
-            $request->user()->savedServices()->latest('saved_services.created_at')->get()
+            $request->user()
+                ->savedServices()
+                ->with(['seller', 'media'])
+                ->latest('saved_services.created_at')
+                ->get()
         );
     }
 
@@ -22,7 +26,7 @@ class SavedServiceController extends Controller
     {
         $request->user()->savedServices()->syncWithoutDetaching([$gig->id]);
 
-        return SavedServiceResource::make($gig);
+        return SavedServiceResource::make($gig->load(['seller', 'media']));
     }
 
     public function destroy(Request $request, Gig $gig): Response

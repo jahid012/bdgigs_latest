@@ -77,6 +77,11 @@ class Conversation extends Model
         return $this->hasMany(ConversationParticipant::class);
     }
 
+    public function disputes(): HasMany
+    {
+        return $this->hasMany(Dispute::class);
+    }
+
     public function participantUsers(): HasManyThrough
     {
         return $this->hasManyThrough(

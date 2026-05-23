@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\WithdrawalController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix(config('admin.route_prefix', 'admin'))
@@ -21,6 +22,7 @@ Route::prefix(config('admin.route_prefix', 'admin'))
 
         Route::middleware('auth')->group(function () {
             Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+            Route::post('/impersonation/stop', [UserController::class, 'stopImpersonating'])->name('impersonation.stop');
         });
 
         Route::middleware(['auth', 'permission:admin.access'])->group(function () {
@@ -29,22 +31,31 @@ Route::prefix(config('admin.route_prefix', 'admin'))
             Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
             Route::get('/users', [UserController::class, 'index'])->middleware('permission:users.view')->name('users');
+            Route::get('/users/{user}', [UserController::class, 'show'])->middleware('permission:users.view')->name('users.show');
+            Route::post('/users/{user}/impersonate', [UserController::class, 'impersonate'])->middleware('permission:users.impersonate')->name('users.impersonate');
             Route::post('/users/{user}/verify', [UserController::class, 'verify'])->middleware('permission:users.verify')->name('users.verify');
             Route::post('/users/{user}/suspend', [UserController::class, 'suspend'])->middleware('permission:users.suspend')->name('users.suspend');
             Route::post('/users/{user}/restore', [UserController::class, 'restore'])->middleware('permission:users.suspend')->name('users.restore');
             Route::post('/users/{user}/roles', [RoleController::class, 'updateUserRoles'])->middleware('permission:roles.manage')->name('users.roles.update');
 
             Route::get('/gigs', [GigController::class, 'index'])->middleware('permission:gigs.view')->name('gigs');
+            Route::get('/gigs/{gig}', [GigController::class, 'show'])->middleware('permission:gigs.view')->name('gigs.show');
             Route::patch('/gigs/{gig}/status', [GigController::class, 'updateStatus'])->middleware('permission:gigs.review|gigs.publish')->name('gigs.status');
             Route::patch('/gigs/{gig}/featured', [GigController::class, 'toggleFeatured'])->middleware('permission:gigs.publish')->name('gigs.featured');
 
             Route::get('/orders', [OrderController::class, 'index'])->middleware('permission:orders.view')->name('orders');
+            Route::get('/orders/{order:code}', [OrderController::class, 'show'])->middleware('permission:orders.view')->name('orders.show');
             Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->middleware('permission:orders.manage')->name('orders.status');
+            Route::post('/orders/{order}/disputes', [DisputeController::class, 'store'])->middleware('permission:disputes.resolve')->name('orders.disputes.store');
 
             Route::get('/payments', [PaymentController::class, 'index'])->middleware('permission:payments.view')->name('payments');
             Route::get('/manual-payments', [ManualPaymentController::class, 'index'])->middleware('permission:manual-payments.view')->name('manual-payments');
             Route::patch('/manual-payments/{submission}/review', [ManualPaymentController::class, 'review'])->middleware('permission:manual-payments.approve')->name('manual-payments.review');
+            Route::get('/withdrawals', [WithdrawalController::class, 'index'])->middleware('permission:withdrawals.view')->name('withdrawals');
+            Route::patch('/withdrawals/{withdrawal}/review', [WithdrawalController::class, 'review'])->middleware('permission:withdrawals.review|withdrawals.pay')->name('withdrawals.review');
             Route::get('/disputes', [DisputeController::class, 'index'])->middleware('permission:disputes.view')->name('disputes');
+            Route::get('/disputes/{dispute:case_code}', [DisputeController::class, 'show'])->middleware('permission:disputes.view')->name('disputes.show');
+            Route::patch('/disputes/{dispute:case_code}', [DisputeController::class, 'update'])->middleware('permission:disputes.resolve')->name('disputes.update');
             Route::get('/reports', [ReportController::class, 'index'])->middleware('permission:reports.view')->name('reports');
 
             Route::get('/settings', [SettingController::class, 'edit'])->middleware('permission:settings.view')->name('settings');

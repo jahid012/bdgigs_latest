@@ -236,9 +236,7 @@ function SavedServicesPage({ onNavigate }) {
                                     )}
                                     service={service}
                                     onOpen={() =>
-                                        setNotice(
-                                            `${service.title} opened for comparison.`,
-                                        )
+                                        onNavigate(`/gigs/${service.id}`)
                                     }
                                     onRemove={async () => {
                                         await removeSavedService(service.id);
@@ -395,7 +393,7 @@ function SavedServiceRow({ onOpen, onRemove, onSelect, selected, service }) {
             </button>
             <a
                 className="saved-service-thumb"
-                href="/#services"
+                href={`/gigs/${service.id}`}
                 onClick={(event) => {
                     event.preventDefault();
                     onOpen();

@@ -230,4 +230,65 @@ class DynamicDashboardApiTest extends TestCase
             'status' => 'pending',
         ]);
     }
+
+    public function test_seller_manual_withdrawal_reserves_and_releases_available_balance(): void
+    {
+        $seller = User::factory()->create();
+        $buyer = User::factory()->create();
+        Order::create([
+            'code' => 'WITHDRAW-100',
+            'buyer_id' => $buyer->id,
+            'seller_id' => $seller->id,
+            'service' => 'Withdrawable delivery',
+            'buyer_name' => $buyer->name,
+            'seller_name' => $seller->name,
+            'status' => 'Delivered',
+            'status_class' => 'status-delivered',
+            'price_cents' => 12000,
+            'earnings_cents' => 10000,
+        ]);
+
+        $methodId = $this->actingAs($seller)
+            ->postJson('/api/seller/payout-methods', [
+                'type' => 'bank',
+                'label' => 'Seller bank',
+                'accountHolder' => 'Seller Holder',
+                'accountNumber' => 'BANK-001',
+            ])
+            ->assertCreated()
+            ->json('data.id');
+
+        $withdrawalCode = $this->actingAs($seller)
+            ->postJson('/api/seller/withdrawals', [
+                'payoutMethodId' => $methodId,
+                'amount' => 60,
+                'note' => 'Please pay manually.',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.statusKey', 'pending')
+            ->json('data.code');
+
+        $this->actingAs($seller)
+            ->getJson('/api/seller/earnings')
+            ->assertOk()
+            ->assertJsonPath('data.summary.availableFunds', '$40')
+            ->assertJsonPath('data.summary.clearing', '$60');
+
+        $this->actingAs($seller)
+            ->postJson('/api/seller/withdrawals', [
+                'payoutMethodId' => $methodId,
+                'amount' => 50,
+            ])
+            ->assertStatus(422);
+
+        $this->actingAs($seller)
+            ->postJson("/api/seller/withdrawals/{$withdrawalCode}/cancel")
+            ->assertOk()
+            ->assertJsonPath('data.statusKey', 'cancelled');
+
+        $this->actingAs($seller)
+            ->getJson('/api/seller/earnings')
+            ->assertOk()
+            ->assertJsonPath('data.summary.availableFunds', '$100');
+    }
 }

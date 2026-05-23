@@ -28,11 +28,6 @@ class PaymentController extends AdminController
             'pageEyebrow' => 'Finance desk',
             'pageDescription' => 'Monitor platform balance, payout readiness, holds, refunds, and transaction health.',
             'searchPlaceholder' => 'Search payouts, invoices, transactions',
-            'pageActions' => [
-                ['label' => 'Payment schema', 'route' => 'admin.payments', 'meta' => 'Part 3'],
-                ['label' => 'Delivered orders', 'route' => 'admin.orders', 'meta' => number_format($deliveredOrders->count()).' ready'],
-                ['label' => 'Finance report', 'route' => 'admin.reports', 'meta' => 'Dynamic'],
-            ],
             'stats' => [
                 ['label' => 'Gross order value', 'value' => $this->money($gross), 'meta' => 'From current orders'],
                 ['label' => 'Seller earnings', 'value' => $this->money($sellerEarnings), 'meta' => 'Estimated from orders'],

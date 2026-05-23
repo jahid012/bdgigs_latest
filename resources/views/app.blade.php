@@ -21,6 +21,18 @@
     @vite(['resources/css/app.css', 'resources/js/main.jsx'])
   </head>
   <body>
+    @if (session('admin_impersonator_id'))
+      <aside class="marketplace-impersonation-bar" aria-label="Admin impersonation session">
+        <div>
+          <strong>Admin preview active</strong>
+          <span>You are viewing bdgigs as {{ auth()->user()?->name ?: 'this user' }}.</span>
+        </div>
+        <form method="POST" action="{{ route('admin.impersonation.stop') }}">
+          @csrf
+          <button type="submit">Return to admin</button>
+        </form>
+      </aside>
+    @endif
     <div id="root"></div>
     @include('partials.notifications')
   </body>

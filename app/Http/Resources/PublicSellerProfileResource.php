@@ -26,6 +26,7 @@ class PublicSellerProfileResource extends JsonResource
             'name' => $this->name,
             'handle' => '@'.$this->username,
             'avatar' => $this->avatar,
+            'initials' => publicSellerInitials($this->name),
             'title' => $profile?->professional_title ?: '',
             'level' => $gigs->first()?->seller_level ?: 'New Seller',
             'rating' => $rating,
@@ -40,7 +41,7 @@ class PublicSellerProfileResource extends JsonResource
                 'id' => $gig->slug,
                 'title' => $gig->category_label ?: $gig->title,
                 'description' => $gig->title,
-                'image' => $gig->image,
+                'image' => $gig->media->firstWhere('type', 'image')?->url ?: $gig->image,
                 'price' => $gig->price_cents / 100,
             ])->values(),
             'portfolio' => $project ? [
@@ -66,4 +67,13 @@ class PublicSellerProfileResource extends JsonResource
             ],
         ];
     }
+}
+
+function publicSellerInitials(string $name): string
+{
+    return collect(explode(' ', trim($name)))
+        ->filter()
+        ->take(2)
+        ->map(fn (string $part) => mb_substr($part, 0, 1))
+        ->implode('');
 }

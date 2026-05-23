@@ -77,26 +77,47 @@ export const useMarketplaceStore = create((set, get) => ({
     },
 
     saveService: async (gigId) => {
-        const service = await apiRequest(`/api/saved-services/${gigId}`, {
-            method: "POST",
-        });
-        set((state) => ({
-            savedServices: upsertById(state.savedServices, service),
-            ...updateSavedGigState(state, [gigId], true),
-        }));
-        return service;
+        set((state) => updateSavedGigState(state, [gigId], true));
+
+        try {
+            const service = await apiRequest(`/api/saved-services/${gigId}`, {
+                method: "POST",
+            });
+            set((state) => ({
+                savedServices: upsertById(state.savedServices, service),
+                ...updateSavedGigState(state, [gigId], true),
+            }));
+            return service;
+        } catch (error) {
+            set((state) => ({
+                error: error.message,
+                ...updateSavedGigState(state, [gigId], false),
+            }));
+            throw error;
+        }
     },
 
     removeSavedService: async (gigId) => {
-        await apiRequest(`/api/saved-services/${gigId}`, {
-            method: "DELETE",
-        });
+        const previousSavedServices = get().savedServices;
         set((state) => ({
             savedServices: state.savedServices.filter(
                 (service) => service.id !== gigId,
             ),
             ...updateSavedGigState(state, [gigId], false),
         }));
+
+        try {
+            await apiRequest(`/api/saved-services/${gigId}`, {
+                method: "DELETE",
+            });
+        } catch (error) {
+            set((state) => ({
+                error: error.message,
+                savedServices: previousSavedServices,
+                ...updateSavedGigState(state, [gigId], true),
+            }));
+            throw error;
+        }
     },
 
     toggleSavedService: async (gig) => {

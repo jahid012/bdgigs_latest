@@ -44,43 +44,7 @@
                         <div>
                             <span class="admin-status-badge {{ $gig['status_class'] }}">{{ $gig['deleted'] ? 'Deleted' : $gig['status'] }}</span>
                             <b>{{ $gig['price'] }}</b>
-                            @if (! $gig['deleted'])
-                            <div class="admin-row-actions">
-                                @can('gigs.publish')
-                                    <form method="POST" action="{{ route('admin.gigs.featured', $gig['id']) }}">
-                                        @csrf
-                                        @method('PATCH')
-                                        <button type="submit">{{ $gig['featured'] ? 'Unfeature' : 'Feature' }}</button>
-                                    </form>
-                                    <form method="POST" action="{{ route('admin.gigs.status', $gig['id']) }}">
-                                        @csrf
-                                        @method('PATCH')
-                                        <input type="hidden" name="action" value="publish">
-                                        <button type="submit">Publish</button>
-                                    </form>
-                                    <form method="POST" action="{{ route('admin.gigs.status', $gig['id']) }}">
-                                        @csrf
-                                        @method('PATCH')
-                                        <input type="hidden" name="action" value="pause">
-                                        <button type="submit">Pause</button>
-                                    </form>
-                                @endcan
-                                @can('gigs.review')
-                                    <form method="POST" action="{{ route('admin.gigs.status', $gig['id']) }}">
-                                        @csrf
-                                        @method('PATCH')
-                                        <input type="hidden" name="action" value="request_edits">
-                                        <button type="submit">Request edits</button>
-                                    </form>
-                                    <form method="POST" action="{{ route('admin.gigs.status', $gig['id']) }}">
-                                        @csrf
-                                        @method('PATCH')
-                                        <input type="hidden" name="action" value="reject">
-                                        <button type="submit">Reject</button>
-                                    </form>
-                                @endcan
-                            </div>
-                            @endif
+                            <a class="admin-panel-link" href="{{ route('admin.gigs.show', $gig['id']) }}">View details</a>
                         </div>
                     </article>
                 @empty

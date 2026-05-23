@@ -28,7 +28,7 @@ class GigController extends Controller
             404
         );
 
-        $gig->load('seller');
+        $gig->load(['seller.sellerProfile', 'media']);
 
         if ($request->user()) {
             $gig->load([
@@ -42,7 +42,7 @@ class GigController extends Controller
     private function marketplaceQuery(Request $request)
     {
         $query = Gig::query()
-            ->with('seller')
+            ->with(['seller.sellerProfile', 'media'])
             ->whereIn('status', ['Live', 'Published']);
 
         if ($request->user()) {

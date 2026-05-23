@@ -5,6 +5,7 @@ import Footer from "../components/layout/Footer.jsx";
 import Header from "../components/layout/Header.jsx";
 import { apiRequest } from "../api/apiClient.js";
 import { useConversationLauncher } from "../hooks/useConversationLauncher.js";
+import { initialsFromName } from "../utils/profilePaths.js";
 import { useTranslation } from "react-i18next";
 const profileTabs = [
     {
@@ -55,6 +56,18 @@ function emptyPublicProfile(username = "") {
             sample: null,
         },
     };
+}
+
+function ProfileAvatar({ alt = "", profile }) {
+    if (profile.avatar) {
+        return <img src={profile.avatar} alt={alt} />;
+    }
+
+    return (
+        <span className="profile-avatar-fallback" aria-hidden={alt === ""}>
+            {profile.initials || initialsFromName(profile.name)}
+        </span>
+    );
 }
 
 function UserProfilePage({ onNavigate }) {
@@ -272,7 +285,10 @@ function ProfileHero({ onContact, onMoreAbout, profile, summaryRef }) {
         <header className="public-profile-hero" id="about">
             <div className="public-profile-primary">
                 <div className="public-profile-avatar-wrap">
-                    <img src={profile.avatar} alt={`${profile.name} profile`} />
+                    <ProfileAvatar
+                        profile={profile}
+                        alt={`${profile.name} profile`}
+                    />
                     <span
                         className="profile-online-dot"
                         aria-label={t("pages.userprofilepage.online")}
@@ -353,7 +369,7 @@ function ProfileHero({ onContact, onMoreAbout, profile, summaryRef }) {
                 </div>
                 <article className="profile-contact-card">
                     <div>
-                        <img src={profile.avatar} alt="" />
+                        <ProfileAvatar profile={profile} />
                         <span
                             className="profile-online-dot"
                             aria-hidden="true"
@@ -391,7 +407,7 @@ function ProfileStickyNav({ activeSection, isVisible, onContact, profile }) {
             <div className="container">
                 <div className="sticky-profile-person">
                     <div className="sticky-profile-avatar">
-                        <img src={profile.avatar} alt="" />
+                        <ProfileAvatar profile={profile} />
                         <span
                             className="profile-online-dot"
                             aria-hidden="true"
@@ -793,21 +809,21 @@ function ReviewsSection({ profile }) {
                                 <dd>{t("pages.userprofilepage.duration")}</dd>
                             </div>
                         </dl>
-                        <Link
-                            to={`/gigs/${profile.services[0]?.id || "ai-website-chatbot"}`}
-                        >
-                            <img
-                                src={
-                                    sample.serviceImage ||
-                                    profile.services[0]?.image
-                                }
-                                alt=""
-                            />
-                            <span>
-                                {sample.serviceTitle ||
-                                    profile.services[0]?.title}
-                            </span>
-                        </Link>
+                        {profile.services[0]?.id ? (
+                            <Link to={`/gigs/${profile.services[0].id}`}>
+                                <img
+                                    src={
+                                        sample.serviceImage ||
+                                        profile.services[0]?.image
+                                    }
+                                    alt=""
+                                />
+                                <span>
+                                    {sample.serviceTitle ||
+                                        profile.services[0]?.title}
+                                </span>
+                            </Link>
+                        ) : null}
                     </div>
                 </div>
                 <button className="profile-seller-response" type="button">
@@ -964,7 +980,7 @@ function ProfileContactPopup({ profile, onClose }) {
                     some time to get a response
                 </div>
                 <header>
-                    <img src={profile.avatar} alt="" />
+                    <ProfileAvatar profile={profile} />
                     <span
                         className="profile-online-dot"
                         aria-hidden="true"
@@ -1125,7 +1141,7 @@ function ProfileAboutSheet({
             >
                 <header className="profile-about-sheet-head">
                     <div className="profile-about-sheet-person">
-                        <img src={profile.avatar} alt="" />
+                        <ProfileAvatar profile={profile} />
                         <div>
                             <h2>
                                 {profile.name} <span>{profile.handle}</span>
@@ -1331,7 +1347,7 @@ function ProfileMessageBubble({ profile }) {
                 aria-label={`Send a message to ${profile.name}`}
             >
                 <header>
-                    <img src={profile.avatar} alt="" />
+                    <ProfileAvatar profile={profile} />
                     <span
                         className="profile-online-dot"
                         aria-hidden="true"
@@ -1430,7 +1446,7 @@ function ProfileMessageBubble({ profile }) {
             type="button"
             onClick={openComposer}
         >
-            <img src={profile.avatar} alt="" />
+            <ProfileAvatar profile={profile} />
             <span className="profile-online-dot" aria-hidden="true"></span>
             <div>
                 <strong>

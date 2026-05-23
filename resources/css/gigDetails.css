@@ -150,16 +150,21 @@
 }
 
 .gig-seller-mini-avatar {
-  display: block;
+  display: grid;
   width: 50px;
   height: 50px;
+  place-items: center;
   flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #e8fbf1;
+  color: #008a45;
+  font-weight: 900;
 }
 
 .gig-seller-mini-avatar img {
   width: 50px;
   height: 50px;
-  border-radius: 50%;
   object-fit: cover;
 }
 
@@ -219,7 +224,8 @@
   aspect-ratio: 1.67 / 1;
 }
 
-.gig-gallery img {
+.gig-gallery img,
+.gig-gallery video {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -258,6 +264,11 @@
   height: 18px;
 }
 
+.gig-gallery > button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
 .gig-gallery-thumbs {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -283,6 +294,23 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.gig-gallery-thumbs button {
+  position: relative;
+}
+
+.gig-gallery-thumbs button span {
+  position: absolute;
+  right: 0.35rem;
+  bottom: 0.35rem;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.72);
+  color: #ffffff;
 }
 
 .gig-detail-sidebar {
@@ -747,11 +775,24 @@
   margin-bottom: 1rem;
 }
 
-.seller-profile-header img {
+.seller-profile-header img,
+.seller-profile-avatar-fallback {
   width: 76px;
   height: 76px;
   border-radius: 50%;
+}
+
+.seller-profile-header img {
   object-fit: cover;
+}
+
+.seller-profile-avatar-fallback {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: #e8fbf1;
+  color: #008a45;
+  font-weight: 900;
 }
 
 .seller-profile-header strong {
@@ -1805,11 +1846,19 @@
   text-align: left;
 }
 
-.seller-message-bubble img {
+.seller-message-bubble img,
+.seller-message-bubble .seller-profile-avatar-fallback {
   width: 38px;
   height: 38px;
   border-radius: 50%;
+}
+
+.seller-message-bubble img {
   object-fit: cover;
+}
+
+.seller-message-bubble .seller-profile-avatar-fallback {
+  font-size: 0.78rem;
 }
 
 .seller-message-bubble strong {

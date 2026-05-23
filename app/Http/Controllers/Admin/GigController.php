@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Requests\Admin\UpdateAdminGigStatusRequest;
 use App\Models\Gig;
+use App\Services\AdminGigModerationService;
 use Illuminate\Http\Request;
 
 class GigController extends AdminController
@@ -57,11 +59,6 @@ class GigController extends AdminController
             'pageEyebrow' => 'Catalog moderation',
             'pageDescription' => 'Review gig quality, publishing readiness, category fit, and content safety.',
             'searchPlaceholder' => 'Search gigs, categories, sellers',
-            'pageActions' => [
-                ['label' => 'Review queue', 'route' => 'admin.gigs', 'meta' => number_format($pending).' pending'],
-                ['label' => 'Featured rotation', 'route' => 'admin.gigs', 'meta' => number_format($featured).' active'],
-                ['label' => 'Category audit', 'route' => 'admin.gigs', 'meta' => number_format(Gig::whereNotNull('category_label')->distinct()->count('category_label')).' categories'],
-            ],
             'stats' => [
                 ['label' => 'Published gigs', 'value' => number_format($published), 'meta' => number_format(Gig::whereDate('created_at', now()->toDateString())->count()).' new today'],
                 ['label' => 'Pending review', 'value' => number_format($pending), 'meta' => 'Need moderation'],
@@ -89,40 +86,42 @@ class GigController extends AdminController
         ]);
     }
 
-    public function updateStatus(Request $request, Gig $gig)
+    public function show(string $gig)
     {
-        $data = $request->validate([
-            'action' => ['required', 'string', 'in:publish,pause,reject,request_edits'],
+        $gig = Gig::withTrashed()
+            ->with('seller')
+            ->where('slug', $gig)
+            ->firstOrFail();
+        $gig->loadCount(['orders', 'savedByUsers']);
+
+        return $this->panelView('admin.pages.gig-details', [
+            'pageTitle' => $gig->title,
+            'pageEyebrow' => 'Gig details',
+            'pageDescription' => 'Inspect service content, package scope, gallery quality, and moderation state before acting.',
+            'searchPlaceholder' => 'Search gigs, categories, sellers',
+            'gig' => $gig,
+            'stats' => [
+                ['label' => 'Starting price', 'value' => $this->money((int) $gig->price_cents), 'meta' => $gig->delivery_days.' day delivery'],
+                ['label' => 'Saved by users', 'value' => number_format($gig->saved_by_users_count), 'meta' => 'Marketplace shortlists'],
+                ['label' => 'Orders', 'value' => number_format($gig->orders_count), 'meta' => 'Linked order records'],
+                ['label' => 'Reviews', 'value' => number_format((int) $gig->reviews), 'meta' => 'Rating '.number_format((float) $gig->rating, 1)],
+            ],
         ]);
-
-        if (in_array($data['action'], ['publish', 'pause'], true) && ! $request->user()->can('gigs.publish')) {
-            abort(403);
-        }
-
-        if (in_array($data['action'], ['reject', 'request_edits'], true) && ! $request->user()->can('gigs.review')) {
-            abort(403);
-        }
-
-        $status = match ($data['action']) {
-            'publish' => 'Published',
-            'pause' => 'Paused',
-            'reject' => 'Rejected',
-            'request_edits' => 'Needs edit',
-        };
-
-        $gig->forceFill([
-            'status' => $status,
-            'status_class' => $this->gigStatusClass($status),
-        ])->save();
-
-        return back()->withNotify('success', 'Gig status updated to '.$status.'.', 'Gig updated');
     }
 
-    public function toggleFeatured(Request $request, Gig $gig)
+    public function updateStatus(
+        UpdateAdminGigStatusRequest $request,
+        Gig $gig,
+        AdminGigModerationService $moderation
+    ) {
+        $gig = $moderation->updateStatus($gig, $request->validated()['action']);
+
+        return back()->withNotify('success', 'Gig status updated to '.$gig->status.'.', 'Gig updated');
+    }
+
+    public function toggleFeatured(Request $request, Gig $gig, AdminGigModerationService $moderation)
     {
-        $gig->forceFill([
-            'featured' => ! $gig->featured,
-        ])->save();
+        $gig = $moderation->toggleFeatured($gig);
 
         return back()->withNotify(
             'success',

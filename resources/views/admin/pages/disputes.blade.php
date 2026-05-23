@@ -10,8 +10,46 @@
             <div class="admin-panel-head">
                 <div>
                     <h2>Resolution queue</h2>
-                    <p>Prioritize cases by urgency, owner, and buyer/seller risk.</p>
+                    <p>Prioritize persisted cases by urgency, order context, and owner.</p>
                 </div>
+            </div>
+            <form class="admin-user-filter-form admin-dispute-filter-form" method="GET" action="{{ route('admin.disputes') }}">
+                <label>
+                    <span>Case search</span>
+                    <input type="search" name="q" value="{{ $searchQuery }}" placeholder="Search case, order, reason, buyer, or seller">
+                </label>
+                <label>
+                    <span>Status</span>
+                    <select name="status">
+                        @foreach ($statusFilters as $filter)
+                            <option value="{{ $filter['value'] }}" @selected($currentStatus === $filter['value'])>{{ $filter['label'] }}</option>
+                        @endforeach
+                    </select>
+                </label>
+                <label>
+                    <span>Priority</span>
+                    <select name="priority">
+                        @foreach ($priorityFilters as $filter)
+                            <option value="{{ $filter['value'] }}" @selected($currentPriority === $filter['value'])>{{ $filter['label'] }}</option>
+                        @endforeach
+                    </select>
+                </label>
+                <div>
+                    <button type="submit">Filter disputes</button>
+                    @if ($searchQuery !== '' || $currentStatus !== 'open' || $currentPriority !== 'all')
+                        <a href="{{ route('admin.disputes') }}">Clear</a>
+                    @endif
+                </div>
+            </form>
+            <div class="admin-filter-row">
+                @foreach ($statusFilters as $filter)
+                    <a
+                        class="{{ $currentStatus === $filter['value'] ? 'is-active' : '' }}"
+                        href="{{ request()->fullUrlWithQuery(['status' => $filter['value'], 'page' => 1]) }}"
+                    >
+                        {{ $filter['label'] }} <span>{{ number_format($filter['count']) }}</span>
+                    </a>
+                @endforeach
             </div>
             <div class="admin-table-wrap">
                 <table>
@@ -20,22 +58,36 @@
                             <th>Case</th>
                             <th>Order</th>
                             <th>Reason</th>
-                            <th>Owner</th>
                             <th>Priority</th>
+                            <th>Status</th>
+                            <th>Assigned</th>
+                            <th>Details</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($disputes as $dispute)
+                            @php
+                                $priorityClass = match ($dispute->priority) {
+                                    'critical' => 'status-cancelled',
+                                    'high' => 'status-delivered',
+                                    default => 'status-progress',
+                                };
+                                $statusClass = in_array($dispute->status, ['resolved', 'closed'], true)
+                                    ? 'status-completed'
+                                    : ($dispute->status === 'open' ? 'status-cancelled' : 'status-delivered');
+                            @endphp
                             <tr>
-                                <td>{{ $dispute['case'] }}</td>
-                                <td>{{ $dispute['order'] }}</td>
-                                <td>{{ $dispute['reason'] }}</td>
-                                <td>{{ $dispute['owner'] }}</td>
-                                <td><span>{{ $dispute['priority'] }}</span></td>
+                                <td>{{ $dispute->case_code }}</td>
+                                <td>#{{ $dispute->order?->code ?? 'Unavailable' }}</td>
+                                <td>{{ $dispute->reason }}</td>
+                                <td><span class="admin-status-badge {{ $priorityClass }}">{{ str($dispute->priority)->title() }}</span></td>
+                                <td><span class="admin-status-badge {{ $statusClass }}">{{ str($dispute->status)->replace('_', ' ')->title() }}</span></td>
+                                <td>{{ $dispute->assignedTo?->name ?? 'Unassigned' }}</td>
+                                <td><a class="admin-panel-link" href="{{ route('admin.disputes.show', $dispute) }}">View details</a></td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5">No priority conversation cases are open.</td>
+                                <td colspan="7">No disputes matched these filters.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -52,41 +104,12 @@
                 </div>
             </div>
             <ol class="admin-activity-list">
-                <li>Check order requirements and delivery files.</li>
-                <li>Request missing evidence from the correct party.</li>
-                <li>Offer revision window before refund decisions.</li>
-                <li>Escalate high-value cases to marketplace trust.</li>
+                <li>Open cases from order details when a conflict needs an audit trail.</li>
+                <li>Check order requirements, payment review, and linked conversation evidence.</li>
+                <li>Assign the case and move the status when waiting on a party.</li>
+                <li>Write the resolution before resolving or closing the case.</li>
             </ol>
         </aside>
     </section>
 
-    <section class="admin-workflow-grid">
-        <article class="admin-panel">
-            <div class="admin-panel-head">
-                <div>
-                    <h2>Resolution SLA</h2>
-                    <p>Current response health for open cases.</p>
-                </div>
-            </div>
-            <div class="admin-quality-bars">
-                <span style="--value: 74%"><b>Responded within 12h</b><em>74%</em></span>
-                <span style="--value: 46%"><b>Evidence complete</b><em>46%</em></span>
-                <span style="--value: 62%"><b>Eligible for mediation</b><em>62%</em></span>
-            </div>
-        </article>
-
-        <article class="admin-panel">
-            <div class="admin-panel-head">
-                <div>
-                    <h2>Risk buckets</h2>
-                    <p>Prioritize by buyer impact and order value.</p>
-                </div>
-            </div>
-            <div class="admin-card-list compact">
-                @foreach ($riskBuckets as $bucket)
-                    <article class="admin-mini-card"><div><strong>{{ $bucket['label'] }}</strong><p>{{ $bucket['meta'] }}</p></div><b>{{ $bucket['tone'] }}</b></article>
-                @endforeach
-            </div>
-        </article>
-    </section>
 @endsection

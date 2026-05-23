@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FinanceNotice } from "../FinanceControls.jsx";
 import { Icon } from "../../common/Icons.jsx";
-import { profilePathForSeller } from "../../../data/userProfileData.js";
+import { profilePathForSeller } from "../../../utils/profilePaths.js";
 import { apiRequest } from "../../../api/apiClient.js";
 
 const sellerProfile = {
@@ -188,6 +188,36 @@ function formToProject(form) {
     };
 }
 
+function identityFromProfile(profile) {
+    return {
+        name: profile.name,
+        handle: profile.handle,
+        username: profile.username,
+        avatar: profile.avatar,
+        location: profile.location,
+        rating: profile.rating,
+        reviews: profile.reviews,
+    };
+}
+
+function optimisticIdentityUpdates(updates) {
+    const optimisticUpdates = {};
+
+    if (Object.prototype.hasOwnProperty.call(updates, "name")) {
+        optimisticUpdates.name = updates.name;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updates, "avatar")) {
+        optimisticUpdates.avatar = updates.avatar;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updates, "country")) {
+        optimisticUpdates.location = updates.country;
+    }
+
+    return optimisticUpdates;
+}
+
 function SellerProfileManagerPage({ initialMode = "profile" }) {
     const navigate = useNavigate();
     const [notice, setNotice] = useState("");
@@ -238,7 +268,11 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
         [about, identityProfile, professionalTitle, sellerLanguages],
     );
     const sellerPublicProfilePath = useMemo(
-        () => profilePathForSeller(displayProfile.handle || displayProfile.name),
+        () =>
+            profilePathForSeller(
+                displayProfile.name,
+                displayProfile.username || displayProfile.handle,
+            ),
         [displayProfile],
     );
 
@@ -262,12 +296,7 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
             .then((profile) => {
                 setIdentityProfile((current) => ({
                     ...current,
-                    name: profile.name,
-                    handle: profile.handle,
-                    avatar: profile.avatar,
-                    location: profile.location,
-                    rating: profile.rating,
-                    reviews: profile.reviews,
+                    ...identityFromProfile(profile),
                 }));
                 setProfessionalTitle(profile.title || "");
                 setSellerLanguages(profile.languages || []);
@@ -418,6 +447,32 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
         navigate(sellerPublicProfilePath);
     };
 
+    const saveIdentityProfile = (
+        updates,
+        successMessage = "Profile details updated.",
+    ) => {
+        setIdentityProfile((current) => ({
+            ...current,
+            ...optimisticIdentityUpdates(updates),
+        }));
+        setActiveEditor("");
+
+        apiRequest("/api/user/profile/seller", {
+            method: "PATCH",
+            body: updates,
+        })
+            .then((profile) => {
+                setIdentityProfile((current) => ({
+                    ...current,
+                    ...identityFromProfile(profile),
+                }));
+                setNotice(successMessage);
+            })
+            .catch((error) =>
+                setNotice(error.message || "Profile could not be saved."),
+            );
+    };
+
     if (mode === "project-form") {
         return (
             <ProjectFormView
@@ -484,6 +539,7 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
                         profile={displayProfile}
                         onCancelEditor={() => setActiveEditor("")}
                         onEdit={openEditor}
+                        onIdentitySave={saveIdentityProfile}
                         onLanguagesChange={setSellerLanguages}
                         onNotice={setNotice}
                         onPreview={openSellerPreview}
@@ -622,14 +678,43 @@ function SellerEditorHero({
     profile,
     onCancelEditor,
     onEdit,
+    onIdentitySave,
     onLanguagesChange,
     onNotice,
     onPreview,
     onShare,
     onTitleChange,
 }) {
+    const avatarInputRef = useRef(null);
+    const isNameEditing = activeEditor === "name";
     const isTitleEditing = activeEditor === "title";
     const isLanguagesEditing = activeEditor === "languages";
+
+    const handleAvatarChange = (event) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+
+        if (!file) {
+            return;
+        }
+
+        if (!file.type.startsWith("image/")) {
+            onNotice("Please choose an image file.");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            if (reader.result) {
+                onIdentitySave(
+                    { avatar: reader.result },
+                    "Profile photo updated.",
+                );
+            }
+        };
+        reader.onerror = () => onNotice("Profile photo could not be read.");
+        reader.readAsDataURL(file);
+    };
 
     const handleTitleKeyDown = (event) => {
         if (event.key === "Enter" || event.key === "Escape") {
@@ -645,10 +730,17 @@ function SellerEditorHero({
                 <button
                     type="button"
                     aria-label="Change profile photo"
-                    onClick={() => onNotice("Profile photo uploader opened.")}
+                    onClick={() => avatarInputRef.current?.click()}
                 >
                     <Icon name="camera" />
                 </button>
+                <input
+                    ref={avatarInputRef}
+                    className="sr-only"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                />
             </div>
             <div className="seller-editor-hero-copy">
                 <div className="seller-editor-name-row">
@@ -662,6 +754,13 @@ function SellerEditorHero({
                     </button>
                         <span>{profile.handle}</span>
                 </div>
+                {isNameEditing ? (
+                    <SellerIdentityForm
+                        profile={profile}
+                        onCancel={onCancelEditor}
+                        onSave={onIdentitySave}
+                    />
+                ) : null}
                 <p className={isTitleEditing ? "seller-title-edit-row" : ""}>
                     {isTitleEditing ? (
                         <>
@@ -749,6 +848,69 @@ function SellerEditorHero({
                 </button>
             </div>
         </header>
+    );
+}
+
+function SellerIdentityForm({ profile, onCancel, onSave }) {
+    const [draft, setDraft] = useState({
+        name: profile.name,
+        country: profile.location,
+    });
+
+    const updateDraft = (field, value) => {
+        setDraft((current) => ({ ...current, [field]: value }));
+    };
+
+    return (
+        <form
+            className="seller-inline-form seller-identity-form"
+            onSubmit={(event) => {
+                event.preventDefault();
+                onSave({
+                    name: draft.name.trim(),
+                    country: draft.country.trim(),
+                });
+            }}
+        >
+            <div className="seller-form-head">
+                <strong>
+                    <Icon name="user" /> Profile details
+                </strong>
+                <button type="button" aria-label="Close" onClick={onCancel}>
+                    <Icon name="close" />
+                </button>
+            </div>
+            <label>
+                <span>Display name</span>
+                <input
+                    type="text"
+                    maxLength={255}
+                    value={draft.name}
+                    onChange={(event) =>
+                        updateDraft("name", event.target.value)
+                    }
+                />
+            </label>
+            <label>
+                <span>Country</span>
+                <input
+                    type="text"
+                    maxLength={120}
+                    value={draft.country}
+                    onChange={(event) =>
+                        updateDraft("country", event.target.value)
+                    }
+                />
+            </label>
+            <div className="seller-inline-actions">
+                <button type="button" onClick={onCancel}>
+                    Cancel
+                </button>
+                <button type="submit" disabled={!draft.name.trim()}>
+                    Save
+                </button>
+            </div>
+        </form>
     );
 }
 

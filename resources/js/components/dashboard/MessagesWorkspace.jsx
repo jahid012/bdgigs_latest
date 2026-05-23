@@ -916,7 +916,13 @@ function MessagesWorkspace({ variant = "buyer" }) {
                             </section>
                         </>
                     ) : (
-                        <ConversationDetailsSkeleton />
+                        <section className="details-card messages-details-empty">
+                            <h2>Conversation details</h2>
+                            <p>
+                                Select a thread to see order context, files, and
+                                participant details.
+                            </p>
+                        </section>
                     )}
                 </aside>
             </section>
@@ -963,39 +969,6 @@ function ConversationPanelSkeleton() {
                 <LoadingSkeleton />
                 <LoadingSkeleton />
                 <LoadingSkeleton />
-            </div>
-        </section>
-    );
-}
-
-function ConversationDetailsSkeleton() {
-    return (
-        <section
-            className="conversation-details-skeleton"
-            aria-label="Conversation detail placeholder"
-            role="status"
-        >
-            <span className="sr-only">
-                Select a message thread to load details.
-            </span>
-            <div className="details-card">
-                <LoadingSkeleton className="conversation-details-skeleton-title" />
-                <LoadingSkeleton className="conversation-details-skeleton-line" />
-                <LoadingSkeleton className="conversation-details-skeleton-line short" />
-            </div>
-            <div className="details-card">
-                <LoadingSkeleton className="conversation-details-skeleton-title" />
-                {Array.from({ length: 4 }, (_, index) => (
-                    <LoadingSkeleton
-                        className="conversation-details-skeleton-row"
-                        key={index}
-                    />
-                ))}
-            </div>
-            <div className="details-card">
-                <LoadingSkeleton className="conversation-details-skeleton-title" />
-                <LoadingSkeleton className="conversation-details-skeleton-file" />
-                <LoadingSkeleton className="conversation-details-skeleton-file" />
             </div>
         </section>
     );

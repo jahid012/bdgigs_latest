@@ -258,11 +258,12 @@ class RoleController extends AdminController
     {
         return [
             'admin' => ['admin.access'],
-            'users' => ['users.view', 'users.verify', 'users.suspend'],
+            'users' => ['users.view', 'users.verify', 'users.suspend', 'users.impersonate'],
             'gigs' => ['gigs.view', 'gigs.review', 'gigs.publish'],
             'orders' => ['orders.view', 'orders.manage'],
             'payments' => ['payments.view', 'payments.release'],
             'manual_payments' => ['manual-payments.view', 'manual-payments.approve'],
+            'withdrawals' => ['withdrawals.view', 'withdrawals.review', 'withdrawals.pay'],
             'disputes' => ['disputes.view', 'disputes.resolve'],
             'reports' => ['reports.view'],
             'settings' => ['settings.view', 'settings.update'],
@@ -275,9 +276,11 @@ class RoleController extends AdminController
         return [
             'payments.release',
             'manual-payments.approve',
+            'withdrawals.pay',
             'settings.update',
             'roles.manage',
             'users.suspend',
+            'users.impersonate',
         ];
     }
 }

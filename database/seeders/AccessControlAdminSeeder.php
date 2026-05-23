@@ -18,11 +18,12 @@ class AccessControlAdminSeeder extends Seeder
 
         $permissionGroups = [
             'admin' => ['admin.access'],
-            'users' => ['users.view', 'users.verify', 'users.suspend'],
+            'users' => ['users.view', 'users.verify', 'users.suspend', 'users.impersonate'],
             'gigs' => ['gigs.view', 'gigs.review', 'gigs.publish'],
             'orders' => ['orders.view', 'orders.manage'],
             'payments' => ['payments.view', 'payments.release'],
             'manual_payments' => ['manual-payments.view', 'manual-payments.approve'],
+            'withdrawals' => ['withdrawals.view', 'withdrawals.review', 'withdrawals.pay'],
             'disputes' => ['disputes.view', 'disputes.resolve'],
             'reports' => ['reports.view'],
             'settings' => ['settings.view', 'settings.update'],
@@ -65,6 +66,7 @@ class AccessControlAdminSeeder extends Seeder
                 'orders.view', 'orders.manage',
                 'payments.view',
                 'manual-payments.view',
+                'withdrawals.view', 'withdrawals.review',
                 'disputes.view', 'disputes.resolve',
                 'reports.view',
                 'settings.view',
@@ -73,6 +75,7 @@ class AccessControlAdminSeeder extends Seeder
                 'admin.access',
                 'payments.view', 'payments.release',
                 'manual-payments.view', 'manual-payments.approve',
+                'withdrawals.view', 'withdrawals.review', 'withdrawals.pay',
                 'reports.view',
             ],
             'support_agent' => [

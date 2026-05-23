@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { createDetailFromListingGig } from "../data/gigDetailsData.js";
 import {
-    profilePathForSeller,
+    createDetailFromGig,
     slugifySellerName,
-} from "../data/userProfileData.js";
+} from "../utils/gigDetailMapper.js";
+import { profilePathForSeller } from "../utils/profilePaths.js";
 import { useDismissOnInteractOutside } from "../hooks/useDismissOnInteractOutside.js";
 import { useConversationLauncher } from "../hooks/useConversationLauncher.js";
+import FavoriteButton from "../components/common/FavoriteButton.jsx";
 import { Icon } from "../components/common/Icons.jsx";
 import LoadingSkeleton from "../components/common/LoadingSkeleton.jsx";
 import Footer from "../components/layout/Footer.jsx";
@@ -35,7 +36,7 @@ function GigDetailsPage({ onNavigate }) {
     const currentUser = useSessionStore((state) => state.currentUser);
     const launchConversation = useConversationLauncher();
     const detail = useMemo(
-        () => (apiGig ? createDetailFromListingGig(apiGig) : null),
+        () => (apiGig ? createDetailFromGig(apiGig) : null),
         [apiGig],
     );
     const [activeImage, setActiveImage] = useState(0);
@@ -116,10 +117,10 @@ function GigDetailsPage({ onNavigate }) {
             onNavigate(
                 `/?auth=login&redirect=${encodeURIComponent(`/gigs/${gigId}`)}`,
             );
-            return;
+            return null;
         }
 
-        await toggleSavedService(apiGig);
+        return toggleSavedService(apiGig);
     };
     const openManualCheckout = () => {
         if (!currentUser?.authenticated) {
@@ -229,6 +230,8 @@ function GigDetailsPage({ onNavigate }) {
 }
 function GigHero({ activeImage, detail, onChangeImage, onSelectImage }) {
     const { t } = useTranslation();
+    const activeMedia = detail.gallery[activeImage] || detail.gallery[0];
+
     return (
         <section className="gig-detail-hero" aria-labelledby="gigTitle">
             <nav
@@ -258,17 +261,31 @@ function GigHero({ activeImage, detail, onChangeImage, onSelectImage }) {
                     type="button"
                     aria-label={t("pages.gigdetailspage.previousImage")}
                     onClick={() => onChangeImage(-1)}
+                    disabled={detail.gallery.length <= 1}
                 >
                     <Icon name="arrowRight" />
                 </button>
-                <img
-                    src={detail.gallery[activeImage]}
-                    alt={`${detail.title} preview ${activeImage + 1}`}
-                />
+                {activeMedia?.type === "video" ? (
+                    <video
+                        src={activeMedia.url}
+                        controls
+                        playsInline
+                        poster={activeMedia.thumbnailUrl || undefined}
+                    />
+                ) : (
+                    <img
+                        src={activeMedia?.url}
+                        alt={
+                            activeMedia?.altText ||
+                            `${detail.title} preview ${activeImage + 1}`
+                        }
+                    />
+                )}
                 <button
                     type="button"
                     aria-label={t("pages.gigdetailspage.nextImage")}
                     onClick={() => onChangeImage(1)}
+                    disabled={detail.gallery.length <= 1}
                 >
                     <Icon name="arrowRight" />
                 </button>
@@ -278,14 +295,19 @@ function GigHero({ activeImage, detail, onChangeImage, onSelectImage }) {
                 className="gig-gallery-thumbs"
                 aria-label={t("pages.gigdetailspage.gigPreviewThumbnails")}
             >
-                {detail.gallery.map((image, index) => (
+                {detail.gallery.map((media, index) => (
                     <button
                         className={activeImage === index ? "is-active" : ""}
                         type="button"
-                        key={image}
+                        key={`${media.type}-${media.url}-${index}`}
                         onClick={() => onSelectImage(index)}
                     >
-                        <img src={image} alt="" />
+                        <img src={media.thumbnailUrl || media.url} alt="" />
+                        {media.type === "video" ? (
+                            <span aria-hidden="true">
+                                <Icon name="play" />
+                            </span>
+                        ) : null}
                     </button>
                 ))}
             </div>
@@ -367,7 +389,11 @@ function SellerMini({ seller }) {
                 to={sellerProfilePath(seller)}
                 aria-label={`View ${seller.name} profile`}
             >
-                <img src={seller.avatar} alt="" />
+                {seller.avatar ? (
+                    <img src={seller.avatar} alt="" />
+                ) : (
+                    <span>{seller.initials}</span>
+                )}
             </Link>
             <div>
                 <Link
@@ -427,15 +453,12 @@ function TopActions({
             >
                 <Icon name="menu" />
             </button>
-            <button
-                className={isSaved ? "is-favorite" : undefined}
-                type="button"
-                aria-label={t("pages.gigdetailspage.saveGig")}
-                aria-pressed={isSaved}
-                onClick={onSave}
-            >
-                <Icon name="heart" />
-            </button>
+            <FavoriteButton
+                active={isSaved}
+                className="gig-detail-favorite-button"
+                label={t("pages.gigdetailspage.saveGig")}
+                onToggle={onSave}
+            />
             <span>{reviewCount}</span>
             <button
                 type="button"
@@ -731,40 +754,68 @@ function ManualCheckoutDialog({ gig, onClose, onNavigate, packageData }) {
 }
 function AboutGig({ detail }) {
     const { t } = useTranslation();
+    const hasCopy =
+        detail.about.paragraphs.length ||
+        detail.about.bullets.length ||
+        detail.about.why.length ||
+        detail.about.closing;
+
     return (
         <section className="detail-section about-gig-section">
             <h2>{t("pages.gigdetailspage.aboutThisGig")}</h2>
-            <div className="about-gig-copy">
-                <strong>{detail.about.heading}</strong>
-                {detail.about.paragraphs.map((paragraph) => (
-                    <p key={paragraph}>{paragraph}</p>
-                ))}
-                <ul>
-                    {detail.about.bullets.map((item) => (
-                        <li key={item.label}>
-                            <strong>{item.label}:</strong> {item.text}
-                        </li>
+            {hasCopy ? (
+                <div className="about-gig-copy">
+                    <strong>{detail.about.heading}</strong>
+                    {detail.about.paragraphs.map((paragraph) => (
+                        <p key={paragraph}>{paragraph}</p>
                     ))}
-                </ul>
-                <strong>{t("pages.gigdetailspage.whyWorkWithUs")}</strong>
-                <ul>
-                    {detail.about.why.map((item) => (
-                        <li key={item}>{item}</li>
-                    ))}
-                </ul>
-                <p>
-                    <strong>{detail.about.closing}</strong>
-                </p>
-            </div>
+                    {detail.about.bullets.length ? (
+                        <ul>
+                            {detail.about.bullets.map((item, index) => (
+                                <li key={`${item.label}-${item.text}-${index}`}>
+                                    <strong>{item.label}:</strong> {item.text}
+                                </li>
+                            ))}
+                        </ul>
+                    ) : null}
+                    {detail.about.why.length ? (
+                        <>
+                            <strong>
+                                {t("pages.gigdetailspage.whyWorkWithUs")}
+                            </strong>
+                            <ul>
+                                {detail.about.why.map((item) => (
+                                    <li key={item}>{item}</li>
+                                ))}
+                            </ul>
+                        </>
+                    ) : null}
+                    {detail.about.closing ? (
+                        <p>
+                            <strong>{detail.about.closing}</strong>
+                        </p>
+                    ) : null}
+                </div>
+            ) : (
+                <div className="profile-data-empty">
+                    <strong>Service description not added yet</strong>
+                    <p>
+                        The seller can add a detailed description from the gig
+                        editor.
+                    </p>
+                </div>
+            )}
 
-            <div className="gig-spec-grid">
-                {detail.specs.map((spec) => (
-                    <div key={spec.label}>
-                        <span>{spec.label}</span>
-                        <strong>{spec.value}</strong>
-                    </div>
-                ))}
-            </div>
+            {detail.specs.length ? (
+                <div className="gig-spec-grid">
+                    {detail.specs.map((spec) => (
+                        <div key={spec.label}>
+                            <span>{spec.label}</span>
+                            <strong>{spec.value}</strong>
+                        </div>
+                    ))}
+                </div>
+            ) : null}
         </section>
     );
 }
@@ -782,7 +833,13 @@ function SellerProfile({ contactStatus = "", onContact, seller }) {
                     to={sellerProfilePath(seller)}
                     aria-label={`View ${seller.name} profile`}
                 >
-                    <img src={seller.avatar} alt="" />
+                    {seller.avatar ? (
+                        <img src={seller.avatar} alt="" />
+                    ) : (
+                        <span className="seller-profile-avatar-fallback">
+                            {seller.initials}
+                        </span>
+                    )}
                 </Link>
                 <div>
                     <Link to={sellerProfilePath(seller)}>
@@ -837,6 +894,22 @@ function SellerProfile({ contactStatus = "", onContact, seller }) {
 }
 function PortfolioSection({ portfolio }) {
     const { t } = useTranslation();
+
+    if (!portfolio) {
+        return (
+            <section className="detail-section portfolio-section">
+                <h2>{t("pages.gigdetailspage.myPortfolio")}</h2>
+                <div className="profile-data-empty">
+                    <strong>No portfolio projects added yet</strong>
+                    <p>
+                        Portfolio samples will appear after the seller adds
+                        project work to their profile.
+                    </p>
+                </div>
+            </section>
+        );
+    }
+
     return (
         <section className="detail-section portfolio-section">
             <h2>{t("pages.gigdetailspage.myPortfolio")}</h2>
@@ -1012,21 +1085,28 @@ function FAQSection({ detail, onToggle, openFaq }) {
     return (
         <section className="detail-section faq-section">
             <h2>{t("pages.gigdetailspage.faq")}</h2>
-            {detail.faq.map((item, index) => (
-                <div className="faq-item" key={item.question}>
-                    <button
-                        type="button"
-                        aria-expanded={openFaq === index}
-                        onClick={() =>
-                            onToggle(openFaq === index ? null : index)
-                        }
-                    >
-                        {item.question}
-                        <Icon name="chevronDown" />
-                    </button>
-                    {openFaq === index ? <p>{item.answer}</p> : null}
+            {detail.faq.length ? (
+                detail.faq.map((item, index) => (
+                    <div className="faq-item" key={item.question}>
+                        <button
+                            type="button"
+                            aria-expanded={openFaq === index}
+                            onClick={() =>
+                                onToggle(openFaq === index ? null : index)
+                            }
+                        >
+                            {item.question}
+                            <Icon name="chevronDown" />
+                        </button>
+                        {openFaq === index ? <p>{item.answer}</p> : null}
+                    </div>
+                ))
+            ) : (
+                <div className="profile-data-empty">
+                    <strong>No FAQ added yet</strong>
+                    <p>Seller answers will appear here after publication.</p>
                 </div>
-            ))}
+            )}
         </section>
     );
 }
@@ -1071,13 +1151,7 @@ function SourcingCTA() {
 function ReviewsSection({ detail }) {
     const { t } = useTranslation();
     const { reviews } = detail;
-    const relatedTags = detail.relatedTags || [
-        "Ai chatbot",
-        "Ai developer",
-        "Full stack website",
-        "Ai website",
-        "Ai software",
-    ];
+    const relatedTags = detail.relatedTags || [];
     return (
         <section className="detail-section reviews-section" id="reviews">
             <h2>{t("pages.gigdetailspage.reviews2")}</h2>
@@ -1150,48 +1224,56 @@ function ReviewsSection({ detail }) {
                 </label>
             </div>
 
-            <article className="review-card">
-                <div className="review-card-header">
-                    <img
-                        src="https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=80"
-                        alt=""
-                    />
-                    <div>
-                        <strong>{reviews.sample.name}</strong>
-                        <span>{reviews.sample.country}</span>
+            {reviews.sample ? (
+                <article className="review-card">
+                    <div className="review-card-header">
+                        {reviews.sample.avatar ? (
+                            <img src={reviews.sample.avatar} alt="" />
+                        ) : null}
+                        <div>
+                            <strong>{reviews.sample.name}</strong>
+                            <span>{reviews.sample.country}</span>
+                        </div>
                     </div>
-                </div>
-                <div className="review-card-body">
-                    <div>
-                        <RatingLine
-                            rating={reviews.sample.rating}
-                            reviews={0}
+                    <div className="review-card-body">
+                        <div>
+                            <RatingLine
+                                rating={reviews.sample.rating}
+                                reviews={0}
+                            />
+                            <span>{reviews.sample.date}</span>
+                        </div>
+                        <p>{reviews.sample.text}</p>
+                        <dl>
+                            <div>
+                                <dt>{reviews.sample.price}</dt>
+                                <dd>{t("pages.gigdetailspage.price")}</dd>
+                            </div>
+                            <div>
+                                <dt>{reviews.sample.duration}</dt>
+                                <dd>{t("pages.gigdetailspage.duration")}</dd>
+                            </div>
+                        </dl>
+                    </div>
+                    {reviews.sample.image ? (
+                        <img
+                            className="review-delivery-image"
+                            src={reviews.sample.image}
+                            alt=""
                         />
-                        <span>{reviews.sample.date}</span>
-                    </div>
-                    <p>{reviews.sample.text}</p>
-                    <dl>
-                        <div>
-                            <dt>{reviews.sample.price}</dt>
-                            <dd>{t("pages.gigdetailspage.price")}</dd>
-                        </div>
-                        <div>
-                            <dt>{reviews.sample.duration}</dt>
-                            <dd>{t("pages.gigdetailspage.duration")}</dd>
-                        </div>
-                    </dl>
+                    ) : null}
+                    <button className="seller-response-toggle" type="button">
+                        {" "}
+                        {t("pages.gigdetailspage.sellersResponse")}{" "}
+                        <Icon name="chevronDown" />
+                    </button>
+                </article>
+            ) : (
+                <div className="profile-data-empty">
+                    <strong>No written reviews yet</strong>
+                    <p>Reviews will appear after buyers complete orders.</p>
                 </div>
-                <img
-                    className="review-delivery-image"
-                    src={reviews.sample.image}
-                    alt=""
-                />
-                <button className="seller-response-toggle" type="button">
-                    {" "}
-                    {t("pages.gigdetailspage.sellersResponse")}{" "}
-                    <Icon name="chevronDown" />
-                </button>
-            </article>
+            )}
 
             <div className="review-helpful-row">
                 <span>{t("pages.gigdetailspage.helpful")}</span>
@@ -1205,29 +1287,33 @@ function ReviewsSection({ detail }) {
                 </button>
             </div>
 
-            <button className="show-more-reviews-button" type="button">
-                {" "}
-                {t("pages.gigdetailspage.showMoreReviews")}{" "}
-            </button>
+            {reviews.count ? (
+                <button className="show-more-reviews-button" type="button">
+                    {" "}
+                    {t("pages.gigdetailspage.showMoreReviews")}{" "}
+                </button>
+            ) : null}
 
-            <section
-                className="related-tags-section"
-                aria-labelledby="relatedTagsTitle"
-            >
-                <h2 id="relatedTagsTitle">
-                    {t("pages.gigdetailspage.relatedTags")}
-                </h2>
-                <div className="related-tag-list">
-                    {relatedTags.map((tag) => (
-                        <Link
-                            to={`/search/gigs?query=${encodeURIComponent(tag)}&source=related-tags`}
-                            key={tag}
-                        >
-                            {tag}
-                        </Link>
-                    ))}
-                </div>
-            </section>
+            {relatedTags.length ? (
+                <section
+                    className="related-tags-section"
+                    aria-labelledby="relatedTagsTitle"
+                >
+                    <h2 id="relatedTagsTitle">
+                        {t("pages.gigdetailspage.relatedTags")}
+                    </h2>
+                    <div className="related-tag-list">
+                        {relatedTags.map((tag) => (
+                            <Link
+                                to={`/search/gigs?query=${encodeURIComponent(tag)}&source=related-tags`}
+                                key={tag}
+                            >
+                                {tag}
+                            </Link>
+                        ))}
+                    </div>
+                </section>
+            ) : null}
         </section>
     );
 }
@@ -1404,10 +1490,10 @@ function DetailGigStripCard({ gig }) {
             navigate(
                 `/?auth=login&redirect=${encodeURIComponent(`/gigs/${gig.id}`)}`,
             );
-            return;
+            return null;
         }
 
-        await toggleSavedService(gig);
+        return toggleSavedService(gig);
     };
 
     return (
@@ -1421,15 +1507,11 @@ function DetailGigStripCard({ gig }) {
                         decoding="async"
                     />
                 </Link>
-                <button
-                    className={gig.saved ? "is-favorite" : undefined}
-                    type="button"
-                    aria-label={`${gig.saved ? "Remove" : "Save"} ${gig.title}`}
-                    aria-pressed={Boolean(gig.saved)}
-                    onClick={toggleSaved}
-                >
-                    <Icon name="heart" />
-                </button>
+                <FavoriteButton
+                    active={Boolean(gig.saved)}
+                    label={`${gig.saved ? "Remove" : "Save"} ${gig.title}`}
+                    onToggle={toggleSaved}
+                />
                 {gig.consultation ? (
                     <span className="detail-strip-play" aria-hidden="true">
                         <Icon name="play" />
@@ -1445,12 +1527,16 @@ function DetailGigStripCard({ gig }) {
                     }
                 >
                     <span className="gig-avatar">
-                        <img
-                            src={gig.avatar}
-                            alt=""
-                            loading="lazy"
-                            decoding="async"
-                        />
+                        {gig.avatar ? (
+                            <img
+                                src={gig.avatar}
+                                alt=""
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        ) : (
+                            <span>{gig.sellerInitials}</span>
+                        )}
                     </span>
                     <strong>{gig.seller}</strong>
                 </Link>
@@ -1628,7 +1714,13 @@ function MessageBubble({ onSend, seller }) {
                 aria-label={`Send a message to ${seller.name}`}
             >
                 <header>
-                    <img src={seller.avatar} alt="" />
+                    {seller.avatar ? (
+                        <img src={seller.avatar} alt="" />
+                    ) : (
+                        <span className="seller-profile-avatar-fallback">
+                            {seller.initials}
+                        </span>
+                    )}
                     <div>
                         <strong>
                             {t("pages.gigdetailspage.message")} {seller.name}
@@ -1716,7 +1808,13 @@ function MessageBubble({ onSend, seller }) {
                 setSendStatus("");
             }}
         >
-            <img src={seller.avatar} alt="" />
+            {seller.avatar ? (
+                <img src={seller.avatar} alt="" />
+            ) : (
+                <span className="seller-profile-avatar-fallback">
+                    {seller.initials}
+                </span>
+            )}
             <div>
                 <strong>
                     {t("pages.gigdetailspage.message")} {seller.name}

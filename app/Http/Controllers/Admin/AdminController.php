@@ -54,6 +54,7 @@ abstract class AdminController extends Controller
     {
         return [
             'id' => '#'.$order->code,
+            'code' => $order->code,
             'route_id' => $order->id,
             'buyer' => $order->buyer?->name ?: $order->buyer_name ?: 'Guest buyer',
             'seller' => $order->seller?->name ?: $order->seller_name ?: 'Unassigned seller',

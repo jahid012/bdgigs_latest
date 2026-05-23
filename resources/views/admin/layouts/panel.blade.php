@@ -12,6 +12,7 @@
             ['label' => 'Orders', 'route' => 'admin.orders', 'permission' => 'orders.view'],
             ['label' => 'Payments', 'route' => 'admin.payments', 'permission' => 'payments.view'],
             ['label' => 'Manual Payments', 'route' => 'admin.manual-payments', 'permission' => 'manual-payments.view'],
+            ['label' => 'Withdrawals', 'route' => 'admin.withdrawals', 'permission' => 'withdrawals.view'],
             ['label' => 'Disputes', 'route' => 'admin.disputes', 'permission' => 'disputes.view'],
             ['label' => 'Reports', 'route' => 'admin.reports', 'permission' => 'reports.view'],
             ['label' => 'Settings', 'route' => 'admin.settings', 'permission' => 'settings.view'],
@@ -31,6 +32,7 @@
                     @can($item['permission'])
                         @php
                             $isActive = request()->routeIs($item['route'])
+                                || request()->routeIs($item['route'].'.*')
                                 || ($item['route'] === 'admin.roles' && request()->routeIs('admin.roles.*'));
                         @endphp
                         <a class="{{ $isActive ? 'is-active' : '' }}" href="{{ route($item['route']) }}">
@@ -86,28 +88,6 @@
                     </form>
                 </div>
             </header>
-
-            @isset($pageActions)
-                <section class="admin-command-bar" aria-label="Admin quick actions">
-                    <div>
-                        <strong>Quick actions</strong>
-                        <span>Common workflows for this area</span>
-                    </div>
-                    <nav>
-                        @foreach ($pageActions as $action)
-                            @php
-                                $actionPermission = $action['permission'] ?? collect($navItems)->firstWhere('route', $action['route'])['permission'] ?? null;
-                            @endphp
-                            @if (! $actionPermission || auth()->user()?->can($actionPermission))
-                                <a href="{{ route($action['route']) }}">
-                                    <span>{{ $action['label'] }}</span>
-                                    <small>{{ $action['meta'] }}</small>
-                                </a>
-                            @endif
-                        @endforeach
-                    </nav>
-                </section>
-            @endisset
 
             @yield('panel')
         </main>

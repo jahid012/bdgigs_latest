@@ -136,4 +136,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(PushSubscription::class);
     }
+
+    public function sellerPayoutMethods(): HasMany
+    {
+        return $this->hasMany(SellerPayoutMethod::class);
+    }
+
+    public function withdrawalRequests(): HasMany
+    {
+        return $this->hasMany(WithdrawalRequest::class, 'seller_id');
+    }
 }

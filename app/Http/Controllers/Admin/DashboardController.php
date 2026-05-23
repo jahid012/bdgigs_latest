@@ -42,11 +42,6 @@ class DashboardController extends AdminController
             'pageEyebrow' => 'Admin dashboard',
             'pageDescription' => 'Live operational snapshot for orders, moderation, payouts, and marketplace trust.',
             'searchPlaceholder' => 'Search users, gigs, orders',
-            'pageActions' => [
-                ['label' => 'Review gigs', 'route' => 'admin.gigs', 'meta' => number_format($pendingGigs).' pending'],
-                ['label' => 'Open orders', 'route' => 'admin.orders', 'meta' => number_format($openOrders).' active'],
-                ['label' => 'Finance setup', 'route' => 'admin.payments', 'meta' => 'Part 3'],
-            ],
             'briefing' => [
                 ['label' => 'Gross marketplace value', 'value' => $this->money($totalRevenue), 'meta' => $this->money($monthRevenue).' this month'],
                 ['label' => 'Trust risk', 'value' => $suspendedUsers > 0 ? 'Review' : 'Stable', 'meta' => number_format($suspendedUsers).' suspended accounts'],
@@ -111,17 +106,38 @@ class DashboardController extends AdminController
 
     private function weeklyRevenueTrend(): array
     {
-        $values = collect(range(7, 0))->map(function (int $weeksAgo) {
+        $weeks = collect(range(7, 0))->map(function (int $weeksAgo) {
             $start = now()->startOfWeek()->subWeeks($weeksAgo);
             $end = $start->copy()->endOfWeek();
 
-            return (int) Order::whereBetween('created_at', [$start, $end])->sum('price_cents');
+            return [
+                'label' => $start->format('M j'),
+                'value' => (int) round(Order::whereBetween('created_at', [$start, $end])->sum('price_cents') / 100),
+            ];
         });
-        $max = max(1, $values->max());
 
-        return $values
-            ->map(fn (int $value) => max(8, (int) round(($value / $max) * 100)))
-            ->all();
+        $values = $weeks->pluck('value')->all();
+
+        return [
+            'title' => 'Revenue trend',
+            'description' => 'Last 8 weeks marketplace performance.',
+            'labels' => $weeks->pluck('label')->all(),
+            'max' => max(1, $values === [] ? 0 : max($values)),
+            'datasets' => [
+                [
+                    'label' => 'Revenue',
+                    'values' => $values,
+                    'color' => '#10b981',
+                    'fill' => 'rgba(16, 185, 129, 0.12)',
+                    'valuePrefix' => '$',
+                ],
+            ],
+            'summary' => [
+                ['label' => '8 week revenue', 'value' => $this->money(array_sum($values) * 100)],
+                ['label' => 'Orders', 'value' => number_format(Order::where('created_at', '>=', now()->startOfWeek()->subWeeks(7))->count())],
+                ['label' => 'Current week', 'value' => $this->money((int) Order::where('created_at', '>=', now()->startOfWeek())->sum('price_cents'))],
+            ],
+        ];
     }
 
     private function qualityBars(int $openOrders, int $lateOrders): array

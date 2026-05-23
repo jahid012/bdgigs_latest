@@ -44,7 +44,7 @@
                         <th>Status</th>
                         <th>Due</th>
                         <th>Amount</th>
-                        <th>Actions</th>
+                        <th>Details</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -58,18 +58,7 @@
                             <td>{{ $order['due'] }}</td>
                             <td>{{ $order['amount'] }}</td>
                             <td>
-                                @can('orders.manage')
-                                    <form class="admin-inline-select-form" method="POST" action="{{ route('admin.orders.status', $order['route_id']) }}">
-                                        @csrf
-                                        @method('PATCH')
-                                        <select name="status" aria-label="Update order status">
-                                            @foreach ($statusOptions as $status)
-                                                <option value="{{ $status }}" @selected($order['status'] === $status)>{{ $status }}</option>
-                                            @endforeach
-                                        </select>
-                                        <button type="submit">Save</button>
-                                    </form>
-                                @endcan
+                                <a class="admin-panel-link" href="{{ route('admin.orders.show', $order['code']) }}">View details</a>
                             </td>
                         </tr>
                     @empty

@@ -53,6 +53,43 @@
   box-shadow: inset 0 0 0 1px #cfd6e2;
 }
 
+.profile-avatar-fallback {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #e8fbf1;
+  color: #008a45;
+  font-weight: 900;
+  box-shadow: inset 0 0 0 1px #cfd6e2;
+}
+
+.public-profile-avatar-wrap .profile-avatar-fallback,
+.sticky-profile-avatar .profile-avatar-fallback {
+  width: 100%;
+  height: 100%;
+}
+
+.profile-contact-card .profile-avatar-fallback,
+.profile-message-bubble .profile-avatar-fallback,
+.profile-message-composer header > .profile-avatar-fallback {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+}
+
+.profile-contact-popup header > .profile-avatar-fallback {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+}
+
+.profile-about-sheet-person > .profile-avatar-fallback {
+  width: 74px;
+  height: 74px;
+  flex: 0 0 auto;
+}
+
 .profile-online-dot {
   position: absolute;
   right: 10px;
