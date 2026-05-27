@@ -20,7 +20,7 @@ class MessageSaveController extends Controller
             $request->user()
                 ->savedMessages()
                 ->where('conversation_id', $conversation->id)
-                ->with(['conversation', 'attachments', 'savedByUsers'])
+                ->with(['conversation', 'attachments', 'customOffer.gig', 'customOffer.order', 'savedByUsers'])
                 ->oldest('sent_at')
                 ->get()
         );
@@ -32,7 +32,7 @@ class MessageSaveController extends Controller
 
         $request->user()->savedMessages()->syncWithoutDetaching([$message->id]);
 
-        return MessageResource::make($message->load(['conversation', 'attachments', 'savedByUsers']));
+        return MessageResource::make($message->load(['conversation', 'attachments', 'customOffer.gig', 'customOffer.order', 'savedByUsers']));
     }
 
     public function destroy(Request $request, Message $message): Response

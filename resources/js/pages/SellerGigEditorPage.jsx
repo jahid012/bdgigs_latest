@@ -1002,7 +1002,16 @@ function GalleryStep({ form, onUpdate, notify }) {
                     label="Drag & drop a Video or"
                     onChange={updateSingleVideo}
                 />
-                {video ? <em>{video.originalName || "Video uploaded"}</em> : null}
+                {video ? (
+                    <div className="gallery-video-preview">
+                        <video
+                            src={video.url}
+                            controls
+                            preload="metadata"
+                        />
+                        <span>{video.originalName || "Video uploaded"}</span>
+                    </div>
+                ) : null}
             </section>
 
             <section className="gallery-section">

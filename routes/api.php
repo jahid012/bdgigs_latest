@@ -3,11 +3,14 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\ConversationController;
+use App\Http\Controllers\Api\CustomOfferController;
 use App\Http\Controllers\Api\GigController;
 use App\Http\Controllers\Api\ManualCheckoutController;
+use App\Http\Controllers\Api\MarketplaceContentController;
 use App\Http\Controllers\Api\MessageSaveController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\PageViewController;
 use App\Http\Controllers\Api\PresenceController;
 use App\Http\Controllers\Api\PushSubscriptionController;
 use App\Http\Controllers\Api\SavedServiceController;
@@ -24,8 +27,12 @@ Route::prefix('api')->name('api.')->group(function () {
     Route::post('/auth/login', [AuthController::class, 'login'])->name('auth.login');
     Route::post('/auth/register', [AuthController::class, 'register'])->name('auth.register');
     Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth')->name('auth.logout');
+    Route::post('/analytics/page-view', [PageViewController::class, 'store'])->name('analytics.page-view');
     Route::get('/gigs', [GigController::class, 'index'])->name('gigs.index');
     Route::get('/gigs/{gig:slug}', [GigController::class, 'show'])->name('gigs.show');
+    Route::get('/marketplace/categories', [MarketplaceContentController::class, 'categories'])->name('marketplace.categories');
+    Route::get('/home/creator-marketplace', [MarketplaceContentController::class, 'creatorMarketplace'])->name('home.creator-marketplace');
+    Route::get('/search/suggestions', [MarketplaceContentController::class, 'searchSuggestions'])->name('search.suggestions');
     Route::get('/users/{username}/profile', [UserController::class, 'publicSellerProfile'])->name('users.profile');
 
     Route::middleware(['auth', 'active'])->group(function () {
@@ -39,6 +46,7 @@ Route::prefix('api')->name('api.')->group(function () {
         Route::get('/billing/profile', [BillingController::class, 'show'])->name('billing.profile');
         Route::patch('/billing/profile', [BillingController::class, 'update'])->name('billing.profile.update');
         Route::get('/billing/summary', [BillingController::class, 'buyerSummary'])->name('billing.summary');
+        Route::post('/billing/add-balance', [BillingController::class, 'addBalance'])->name('billing.add-balance');
         Route::get('/seller/earnings', [BillingController::class, 'sellerEarnings'])->name('seller.earnings');
         Route::get('/seller/payout-methods', [SellerPayoutMethodController::class, 'index'])->name('seller.payout-methods.index');
         Route::post('/seller/payout-methods', [SellerPayoutMethodController::class, 'store'])->name('seller.payout-methods.store');
@@ -71,12 +79,30 @@ Route::prefix('api')->name('api.')->group(function () {
 
         Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
         Route::get('/orders/{order:code}', [OrderController::class, 'show'])->name('orders.show');
+        Route::post('/orders/{order:code}/time-extensions', [OrderController::class, 'requestTimeExtension'])->name('orders.time-extensions.store');
+        Route::post('/orders/{order:code}/time-extensions/{extension}/decision', [OrderController::class, 'decideTimeExtension'])->name('orders.time-extensions.decision');
+        Route::post('/orders/{order:code}/private-notes', [OrderController::class, 'storePrivateNote'])->name('orders.private-notes.store');
+        Route::patch('/orders/{order:code}/private-notes/{note}', [OrderController::class, 'updatePrivateNote'])->name('orders.private-notes.update');
+        Route::delete('/orders/{order:code}/private-notes/{note}', [OrderController::class, 'destroyPrivateNote'])->name('orders.private-notes.destroy');
+        Route::post('/orders/{order:code}/disputes', [OrderController::class, 'storeDispute'])->name('orders.disputes.store');
+        Route::post('/orders/{order:code}/disputes/{dispute}/messages', [OrderController::class, 'storeDisputeMessage'])->name('orders.disputes.messages.store');
+        Route::post('/orders/{order:code}/reviews', [OrderController::class, 'storeReview'])->name('orders.reviews.store');
+        Route::post('/orders/{order:code}/requirements', [OrderController::class, 'submitRequirements'])->name('orders.requirements.submit');
+        Route::post('/orders/{order:code}/deliveries', [OrderController::class, 'submitDelivery'])->name('orders.deliveries.submit');
+        Route::post('/orders/{order:code}/revision-requests', [OrderController::class, 'requestRevision'])->name('orders.revisions.request');
+        Route::post('/orders/{order:code}/complete', [OrderController::class, 'complete'])->name('orders.complete');
 
         Route::get('/conversations', [ConversationController::class, 'index'])->name('conversations.index');
         Route::post('/conversations', [ConversationController::class, 'store'])->name('conversations.store');
         Route::get('/conversations/{conversation}', [ConversationController::class, 'show'])->name('conversations.show');
         Route::get('/conversations/{conversation}/messages', [ConversationController::class, 'messages'])->name('conversations.messages.index');
         Route::post('/conversations/{conversation}/messages', [ConversationController::class, 'storeMessage'])->name('conversations.messages.store');
+        Route::get('/conversations/{conversation}/custom-offers/options', [CustomOfferController::class, 'options'])->name('conversations.custom-offers.options');
+        Route::post('/conversations/{conversation}/custom-offers', [CustomOfferController::class, 'store'])->name('conversations.custom-offers.store');
+        Route::post('/custom-offers/{customOffer}/accept', [CustomOfferController::class, 'accept'])->name('custom-offers.accept');
+        Route::post('/custom-offers/{customOffer}/pay', [CustomOfferController::class, 'pay'])->name('custom-offers.pay');
+        Route::post('/custom-offers/{customOffer}/decline', [CustomOfferController::class, 'decline'])->name('custom-offers.decline');
+        Route::post('/custom-offers/{customOffer}/cancel', [CustomOfferController::class, 'cancel'])->name('custom-offers.cancel');
         Route::get('/conversations/{conversation}/saved-messages', [MessageSaveController::class, 'index'])->name('conversations.saved-messages.index');
         Route::post('/messages/{message}/save', [MessageSaveController::class, 'store'])->name('messages.save');
         Route::delete('/messages/{message}/save', [MessageSaveController::class, 'destroy'])->name('messages.unsave');

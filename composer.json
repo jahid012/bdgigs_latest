@@ -10,6 +10,7 @@
         "laravel/fortify": "^1.37",
         "laravel/framework": "^13.7",
         "laravel/tinker": "^3.0",
+        "phpmailer/phpmailer": "*",
         "pusher/pusher-php-server": "^7.2",
         "spatie/laravel-permission": "^7.4"
     },

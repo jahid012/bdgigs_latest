@@ -18,6 +18,7 @@ class SubmitIdentityVerificationRequest extends FormRequest
             'documentType' => ['required', 'string', 'max:120'],
             'documentReference' => ['required', 'string', 'max:255'],
             'country' => ['nullable', 'string', 'max:120'],
+            'document' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:10240'],
         ];
     }
 }

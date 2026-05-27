@@ -10,7 +10,10 @@ class GigMediaUploadService
 {
     public function store(UploadedFile $file, int $userId, ?string $type = null): array
     {
-        $mediaType = $type ?: $this->typeFromMime($file->getMimeType() ?: '');
+        $mimeType = $file->getMimeType() ?: '';
+        $size = $file->getSize();
+        $originalName = $file->getClientOriginalName();
+        $mediaType = $type ?: $this->typeFromMime($mimeType);
         $directory = public_path("uploads/gig-media/{$userId}");
 
         File::ensureDirectoryExists($directory);
@@ -25,10 +28,10 @@ class GigMediaUploadService
             'type' => $mediaType,
             'url' => $url,
             'thumbnailUrl' => $mediaType === 'image' ? $url : null,
-            'altText' => pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME),
-            'originalName' => $file->getClientOriginalName(),
-            'mimeType' => $file->getMimeType(),
-            'size' => $file->getSize(),
+            'altText' => pathinfo($originalName, PATHINFO_FILENAME),
+            'originalName' => $originalName,
+            'mimeType' => $mimeType,
+            'size' => $size,
         ];
     }
 

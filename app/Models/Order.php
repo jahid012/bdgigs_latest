@@ -58,6 +58,16 @@ class Order extends Model
         return $this->hasMany(OrderActivity::class);
     }
 
+    public function timeExtensionRequests(): HasMany
+    {
+        return $this->hasMany(OrderTimeExtensionRequest::class);
+    }
+
+    public function privateNotes(): HasMany
+    {
+        return $this->hasMany(OrderPrivateNote::class);
+    }
+
     public function manualPaymentSubmission(): HasOne
     {
         return $this->hasOne(ManualPaymentSubmission::class);
@@ -66,5 +76,15 @@ class Order extends Model
     public function disputes(): HasMany
     {
         return $this->hasMany(Dispute::class);
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(OrderReview::class);
+    }
+
+    public function customOffer(): HasOne
+    {
+        return $this->hasOne(CustomOffer::class);
     }
 }

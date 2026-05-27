@@ -9,6 +9,7 @@ use App\Models\ManualPaymentMethod;
 use App\Models\ManualPaymentSubmission;
 use App\Models\Order;
 use App\Models\User;
+use App\Models\VisitorPageView;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
@@ -55,10 +56,12 @@ class AdminPanelDynamicTest extends TestCase
             ->assertOk()
             ->assertSee('test@example.com');
 
+        $gigTitle = Gig::where('slug', 'demo-gig-001')->firstOrFail()->title;
+
         $this->actingAs($this->admin)
-            ->get(route('admin.gigs'))
+            ->get(route('admin.gigs', ['q' => $gigTitle]))
             ->assertOk()
-            ->assertSee(Gig::where('slug', 'demo-gig-001')->firstOrFail()->title);
+            ->assertSee($gigTitle);
 
         $this->actingAs($this->admin)
             ->get(route('admin.orders', ['q' => 'BO-001']))
@@ -84,6 +87,25 @@ class AdminPanelDynamicTest extends TestCase
             ->assertOk()
             ->assertSee('admin-settings-actions', false)
             ->assertDontSee('Quick actions');
+    }
+
+    public function test_reports_show_human_visitor_pages(): void
+    {
+        VisitorPageView::create([
+            'visitor_id' => 'admin-report-visitor',
+            'path' => '/gigs/demo-gig-001',
+            'page_title' => 'Demo gig details',
+            'user_agent' => 'Mozilla/5.0 AppleWebKit/537.36 Chrome/125 Safari/537.36',
+            'is_bot' => false,
+            'visited_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.reports', ['visitor_day' => now()->toDateString()]))
+            ->assertOk()
+            ->assertSee('Hourly visitors')
+            ->assertSee('Visited pages')
+            ->assertSee('/gigs/demo-gig-001');
     }
 
     public function test_admin_pages_respect_page_permissions(): void

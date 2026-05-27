@@ -3,9 +3,27 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\DecideOrderTimeExtensionRequest;
+use App\Http\Requests\Api\RequestOrderRevisionRequest;
+use App\Http\Requests\Api\StoreDisputeMessageRequest;
+use App\Http\Requests\Api\StoreOrderDisputeRequest;
+use App\Http\Requests\Api\StoreOrderPrivateNoteRequest;
+use App\Http\Requests\Api\StoreOrderReviewRequest;
+use App\Http\Requests\Api\StoreOrderTimeExtensionRequest;
+use App\Http\Requests\Api\SubmitOrderDeliveryRequest;
+use App\Http\Requests\Api\SubmitOrderRequirementsRequest;
 use App\Http\Resources\OrderDetailResource;
 use App\Http\Resources\OrderResource;
+use App\Models\Dispute;
 use App\Models\Order;
+use App\Models\OrderPrivateNote;
+use App\Models\OrderTimeExtensionRequest;
+use App\Services\OrderDisputeService;
+use App\Services\OrderLifecycleService;
+use App\Services\OrderPrivateNoteService;
+use App\Services\OrderRequirementService;
+use App\Services\OrderReviewService;
+use App\Services\OrderTimeExtensionService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -29,14 +47,166 @@ class OrderController extends Controller
         $role = $request->query('role') === 'seller' ? 'seller' : 'buyer';
         $ownerColumn = $role === 'seller' ? 'seller_id' : 'buyer_id';
 
-        abort_unless($order->{$ownerColumn} === $request->user()->id, 403);
+        abort_unless(
+            $order->{$ownerColumn} === $request->user()->id ||
+                $request->user()->can('orders.view') ||
+                $request->user()->can('orders.manage'),
+            403,
+        );
 
-        return OrderDetailResource::make($order->loadMissing([
+        return $this->detailResponse($request, $order);
+    }
+
+    public function requestTimeExtension(
+        StoreOrderTimeExtensionRequest $request,
+        Order $order,
+        OrderTimeExtensionService $extensions
+    ): OrderDetailResource {
+        $extensions->request($order->loadMissing(['buyer', 'seller']), $request->user(), $request->validated());
+
+        return $this->detailResponse($request, $order->refresh());
+    }
+
+    public function decideTimeExtension(
+        DecideOrderTimeExtensionRequest $request,
+        Order $order,
+        OrderTimeExtensionRequest $extension,
+        OrderTimeExtensionService $extensions
+    ): OrderDetailResource {
+        $extensions->decide(
+            $order->loadMissing(['buyer', 'seller']),
+            $extension,
+            $request->user(),
+            $request->validated()['decision'],
+        );
+
+        return $this->detailResponse($request, $order->refresh());
+    }
+
+    public function storePrivateNote(
+        StoreOrderPrivateNoteRequest $request,
+        Order $order,
+        OrderPrivateNoteService $notes
+    ): OrderDetailResource {
+        $notes->create($order, $request->user(), $request->validated());
+
+        return $this->detailResponse($request, $order->refresh());
+    }
+
+    public function updatePrivateNote(
+        StoreOrderPrivateNoteRequest $request,
+        Order $order,
+        OrderPrivateNote $note,
+        OrderPrivateNoteService $notes
+    ): OrderDetailResource {
+        $notes->update($order, $note, $request->user(), $request->validated());
+
+        return $this->detailResponse($request, $order->refresh());
+    }
+
+    public function destroyPrivateNote(
+        Request $request,
+        Order $order,
+        OrderPrivateNote $note,
+        OrderPrivateNoteService $notes
+    ): OrderDetailResource {
+        $notes->delete($order, $note, $request->user());
+
+        return $this->detailResponse($request, $order->refresh());
+    }
+
+    public function storeDispute(
+        StoreOrderDisputeRequest $request,
+        Order $order,
+        OrderDisputeService $disputes
+    ): OrderDetailResource {
+        $disputes->open($order->loadMissing(['buyer', 'seller']), $request->user(), $request->validated());
+
+        return $this->detailResponse($request, $order->refresh());
+    }
+
+    public function storeDisputeMessage(
+        StoreDisputeMessageRequest $request,
+        Order $order,
+        Dispute $dispute,
+        OrderDisputeService $disputes
+    ): OrderDetailResource {
+        $disputes->message($order->loadMissing(['buyer', 'seller']), $dispute, $request->user(), $request->validated());
+
+        return $this->detailResponse($request, $order->refresh());
+    }
+
+    public function storeReview(
+        StoreOrderReviewRequest $request,
+        Order $order,
+        OrderReviewService $reviews
+    ): OrderDetailResource {
+        $reviews->submit($order->loadMissing(['buyer', 'seller', 'gig', 'activities']), $request->user(), $request->validated());
+
+        return $this->detailResponse($request, $order->refresh());
+    }
+
+    public function submitRequirements(
+        SubmitOrderRequirementsRequest $request,
+        Order $order,
+        OrderRequirementService $requirements
+    ): OrderDetailResource {
+        $requirements->submit($order->loadMissing(['buyer', 'seller', 'gig']), $request->user(), $request->validated());
+
+        return $this->detailResponse($request, $order->refresh());
+    }
+
+    public function submitDelivery(
+        SubmitOrderDeliveryRequest $request,
+        Order $order,
+        OrderLifecycleService $lifecycle
+    ): OrderDetailResource {
+        $lifecycle->submitDelivery($order->loadMissing(['buyer', 'seller', 'gig']), $request->user(), $request->validated());
+
+        return $this->detailResponse($request, $order->refresh());
+    }
+
+    public function requestRevision(
+        RequestOrderRevisionRequest $request,
+        Order $order,
+        OrderLifecycleService $lifecycle
+    ): OrderDetailResource {
+        $lifecycle->requestRevision($order->loadMissing(['buyer', 'seller']), $request->user(), $request->validated());
+
+        return $this->detailResponse($request, $order->refresh());
+    }
+
+    public function complete(
+        Request $request,
+        Order $order,
+        OrderLifecycleService $lifecycle
+    ): OrderDetailResource {
+        $lifecycle->complete($order->loadMissing(['buyer', 'seller']), $request->user());
+
+        return $this->detailResponse($request, $order->refresh());
+    }
+
+    private function detailResponse(Request $request, Order $order): OrderDetailResource
+    {
+        $order->loadMissing([
             'buyer',
             'seller',
             'gig',
-            'activities',
+            'activities.actor',
             'manualPaymentSubmission.method',
-        ]));
+            'timeExtensionRequests.requester',
+            'timeExtensionRequests.reviewer',
+            'disputes.openedBy',
+            'disputes.activities.actor',
+            'reviews.reviewer',
+            'reviews.reviewee',
+        ]);
+        $order->load([
+            'privateNotes' => fn ($query) => $query
+                ->where('user_id', $request->user()->id)
+                ->latest(),
+        ]);
+
+        return OrderDetailResource::make($order);
     }
 }

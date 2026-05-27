@@ -352,6 +352,61 @@ export const useDashboardStore = create((set, get) => ({
         return message;
     },
 
+    fetchCustomOfferOptions: async (conversationId) => {
+        if (!conversationId) return [];
+
+        return apiRequest(
+            `/api/conversations/${conversationId}/custom-offers/options`,
+        );
+    },
+
+    createCustomOffer: async (conversationId, payload) => {
+        const response = await apiRequest(
+            `/api/conversations/${conversationId}/custom-offers`,
+            { body: payload },
+        );
+
+        if (response?.conversation) {
+            set((state) =>
+                updateConversationState(
+                    state,
+                    normalizeConversation(response.conversation),
+                ),
+            );
+        }
+
+        return response;
+    },
+
+    acceptCustomOffer: async (offerId) =>
+        get().updateCustomOfferAction(offerId, "accept"),
+
+    declineCustomOffer: async (offerId) =>
+        get().updateCustomOfferAction(offerId, "decline"),
+
+    cancelCustomOffer: async (offerId) =>
+        get().updateCustomOfferAction(offerId, "cancel"),
+
+    payCustomOffer: async (offerId) =>
+        get().updateCustomOfferAction(offerId, "pay"),
+
+    updateCustomOfferAction: async (offerId, action) => {
+        const response = await apiRequest(`/api/custom-offers/${offerId}/${action}`, {
+            body: {},
+        });
+
+        if (response?.conversation) {
+            set((state) =>
+                updateConversationState(
+                    state,
+                    normalizeConversation(response.conversation),
+                ),
+            );
+        }
+
+        return response;
+    },
+
     markConversationRead: async (conversationId) => {
         const conversation = normalizeConversation(
             await apiRequest(`/api/conversations/${conversationId}/read`, {
@@ -416,6 +471,21 @@ export const useDashboardStore = create((set, get) => ({
         const normalized = normalizeConversation(conversation);
 
         set((state) => updateConversationState(state, normalized));
+    },
+
+    applyRealtimeNotification: (notification) => {
+        if (!notification?.id) return;
+
+        set((state) => ({
+            buyerNotifications: upsertById(
+                state.buyerNotifications,
+                notification,
+            ),
+            sellerNotifications: upsertById(
+                state.sellerNotifications,
+                notification,
+            ),
+        }));
     },
 
     fetchNotifications: async () => {
@@ -541,6 +611,7 @@ function normalizeMessage(message) {
         readAt: message?.readAt,
         own: Boolean(message?.own),
         attachments: message?.attachments || [],
+        customOffer: message?.customOffer || null,
         saved: Boolean(message?.saved),
     };
 }
@@ -562,6 +633,10 @@ function createClientId() {
 }
 
 function replaceNotification(notifications, notification) {
+    if (!notifications.some((item) => item.id === notification.id)) {
+        return [notification, ...notifications];
+    }
+
     return notifications.map((item) =>
         item.id === notification.id ? notification : item,
     );

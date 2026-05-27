@@ -202,5 +202,4 @@ export const billingTabs = [
 
 export const earningTabs = [
     { id: "overview", label: "Overview" },
-    { id: "documents", label: "Financial documents" },
 ];

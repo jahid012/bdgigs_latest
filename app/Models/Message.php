@@ -16,6 +16,7 @@ class Message extends Model
         'conversation_id',
         'sender_id',
         'recipient_id',
+        'custom_offer_id',
         'sender_name',
         'body',
         'client_id',
@@ -48,6 +49,11 @@ class Message extends Model
     public function recipient(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recipient_id');
+    }
+
+    public function customOffer(): BelongsTo
+    {
+        return $this->belongsTo(CustomOffer::class);
     }
 
     public function attachments(): HasMany

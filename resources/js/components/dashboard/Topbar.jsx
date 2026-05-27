@@ -9,6 +9,10 @@ const defaultProfileLinks = [
         href: "/dashboard/profile",
     },
     {
+        label: "Seller dashboard",
+        href: "/dashboard/seller",
+    },
+    {
         label: "Account settings",
         href: "/dashboard/settings",
     },
@@ -23,8 +27,10 @@ function Topbar({
     sectionLabel = "Dashboard",
     title = "Overview",
     searchPlaceholder = "Search orders, sellers, services...",
+    profileAvatar = "",
     profileName = "Guest",
     profileInitials = "JA",
+    profileOnline = false,
     profileLinks = defaultProfileLinks,
     profileActionLabel = "Sign out",
     messagesActive = false,
@@ -222,7 +228,11 @@ function Topbar({
                         aria-expanded={openMenu === "profile"}
                         onClick={(event) => toggleMenu(event, "profile")}
                     >
-                        <span className="avatar">{profileInitials}</span>
+                        <ProfileAvatar
+                            avatar={profileAvatar}
+                            initials={profileInitials}
+                            online={profileOnline}
+                        />
                         <strong>{profileName}</strong>
                         <Icon name="chevronDown" width="18" height="18" />
                     </button>
@@ -243,6 +253,22 @@ function Topbar({
                 </div>
             </div>
         </header>
+    );
+}
+
+function ProfileAvatar({ avatar, initials, online }) {
+    return (
+        <span className="topbar-profile-avatar">
+            {avatar ? (
+                <img src={avatar} alt="" loading="lazy" decoding="async" />
+            ) : (
+                <span className="avatar">{initials}</span>
+            )}
+            <i
+                className={online ? "is-online" : ""}
+                aria-label={online ? "Online" : "Offline"}
+            ></i>
+        </span>
     );
 }
 export default Topbar;

@@ -3,9 +3,9 @@ import { Icon } from "../../common/Icons.jsx";
 import {
     FilterButton,
     FinanceEmptyState,
-    FinanceNotice,
 } from "../FinanceControls.jsx";
 import SellerEarningsLineChart from "./SellerEarningsLineChart.jsx";
+import { useToast } from "../../common/ToastProvider.jsx";
 import { useTranslation } from "react-i18next";
 import { apiRequest } from "../../../api/apiClient.js";
 const activityFilterLabels = {
@@ -38,10 +38,10 @@ const emptyFinance = {
 
 function SellerEarningsOverview() {
     const { t } = useTranslation();
+    const notify = useToast();
     const [activityFilter, setActivityFilter] = useState("all");
     const [dateFilter, setDateFilter] = useState("All dates");
     const [viewMode, setViewMode] = useState("table");
-    const [notice, setNotice] = useState("");
     const [finance, setFinance] = useState(emptyFinance);
     const [isWithdrawalOpen, setIsWithdrawalOpen] = useState(false);
     const [isPayoutMethodOpen, setIsPayoutMethodOpen] = useState(false);
@@ -83,9 +83,9 @@ function SellerEarningsOverview() {
                 return normalized;
             })
             .catch((error) =>
-                setNotice(error.message || "Unable to load seller earnings."),
+                notify.error(error.message || "Unable to load seller earnings."),
             );
-    }, []);
+    }, [notify]);
 
     useEffect(() => {
         loadFinance();
@@ -93,7 +93,6 @@ function SellerEarningsOverview() {
     const submitPayoutMethod = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
-        setNotice("");
 
         try {
             await apiRequest("/api/seller/payout-methods", {
@@ -106,10 +105,10 @@ function SellerEarningsOverview() {
                 accountNumber: "",
                 routingDetails: "",
             });
-            setNotice("Payout method saved for manual withdrawals.");
+            notify.success("Payout method saved for manual withdrawals.");
             await loadFinance();
         } catch (error) {
-            setNotice(error.message || "Unable to save payout method.");
+            notify.error(error.message || "Unable to save payout method.");
         } finally {
             setIsSubmitting(false);
         }
@@ -117,7 +116,6 @@ function SellerEarningsOverview() {
     const submitWithdrawal = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
-        setNotice("");
 
         try {
             await apiRequest("/api/seller/withdrawals", {
@@ -131,26 +129,25 @@ function SellerEarningsOverview() {
                 amount: "",
                 note: "",
             }));
-            setNotice("Withdrawal request sent for manual finance review.");
+            notify.success("Withdrawal request sent for manual finance review.");
             await loadFinance();
         } catch (error) {
-            setNotice(error.message || "Unable to request withdrawal.");
+            notify.error(error.message || "Unable to request withdrawal.");
         } finally {
             setIsSubmitting(false);
         }
     };
     const cancelWithdrawal = async (withdrawalId) => {
         setIsSubmitting(true);
-        setNotice("");
 
         try {
             await apiRequest(`/api/seller/withdrawals/${withdrawalId}/cancel`, {
                 body: {},
             });
-            setNotice("Withdrawal request cancelled.");
+            notify.success("Withdrawal request cancelled.");
             await loadFinance();
         } catch (error) {
-            setNotice(error.message || "Unable to cancel withdrawal.");
+            notify.error(error.message || "Unable to cancel withdrawal.");
         } finally {
             setIsSubmitting(false);
         }
@@ -158,8 +155,6 @@ function SellerEarningsOverview() {
 
     return (
         <>
-            <FinanceNotice message={notice} />
-
             <section
                 className="earnings-summary-grid"
                 aria-label={t(
@@ -271,7 +266,7 @@ function SellerEarningsOverview() {
                         <button
                             type="button"
                             onClick={() =>
-                                setNotice(
+                                notify.info(
                                     "Showing earnings and expenses since joining.",
                                 )
                             }
@@ -384,7 +379,7 @@ function SellerEarningsOverview() {
                             className="finance-report-link"
                             type="button"
                             onClick={() =>
-                                setNotice(
+                                notify.info(
                                     "No emailed activity export is available yet.",
                                 )
                             }

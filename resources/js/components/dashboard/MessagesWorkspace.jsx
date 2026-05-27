@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDismissOnInteractOutside } from "../../hooks/useDismissOnInteractOutside.js";
 import { Icon } from "../common/Icons.jsx";
 import LoadingSkeleton from "../common/LoadingSkeleton.jsx";
+import { useToast } from "../common/ToastProvider.jsx";
 import { useTranslation } from "react-i18next";
 import { useDashboardStore } from "../../stores/useDashboardStore.js";
 const inboxFilters = [
@@ -15,6 +16,8 @@ const inboxFilters = [
 
 function MessagesWorkspace({ variant = "buyer" }) {
     const { t } = useTranslation();
+    const navigate = useNavigate();
+    const notify = useToast();
     const [searchParams] = useSearchParams();
     const isSeller = variant === "seller";
     const threads = useDashboardStore((state) =>
@@ -39,6 +42,22 @@ function MessagesWorkspace({ variant = "buyer" }) {
     );
     const saveMessage = useDashboardStore((state) => state.saveMessage);
     const unsaveMessage = useDashboardStore((state) => state.unsaveMessage);
+    const fetchCustomOfferOptions = useDashboardStore(
+        (state) => state.fetchCustomOfferOptions,
+    );
+    const createCustomOffer = useDashboardStore(
+        (state) => state.createCustomOffer,
+    );
+    const acceptCustomOffer = useDashboardStore(
+        (state) => state.acceptCustomOffer,
+    );
+    const payCustomOffer = useDashboardStore((state) => state.payCustomOffer);
+    const declineCustomOffer = useDashboardStore(
+        (state) => state.declineCustomOffer,
+    );
+    const cancelCustomOffer = useDashboardStore(
+        (state) => state.cancelCustomOffer,
+    );
     const [activeThreadIds, setActiveThreadIds] = useState({});
     const [conversationFilter, setConversationFilter] = useState("all");
     const [isInboxFilterOpen, setIsInboxFilterOpen] = useState(false);
@@ -49,6 +68,10 @@ function MessagesWorkspace({ variant = "buyer" }) {
     const [activeConversationView, setActiveConversationView] =
         useState("messages");
     const [savedMessages, setSavedMessages] = useState([]);
+    const [isCustomOfferModalOpen, setIsCustomOfferModalOpen] =
+        useState(false);
+    const [customOfferOptions, setCustomOfferOptions] = useState([]);
+    const [customOfferLoading, setCustomOfferLoading] = useState("");
     const [draft, setDraft] = useState("");
     const searchInputRef = useRef(null);
     const textareaRef = useRef(null);
@@ -124,7 +147,6 @@ function MessagesWorkspace({ variant = "buyer" }) {
         return threads.filter((thread) => {
             const searchable = [
                 thread.name,
-                thread.role,
                 thread.service,
                 thread.status,
                 thread.priority,
@@ -151,6 +173,81 @@ function MessagesWorkspace({ variant = "buyer" }) {
             await sendMessage(activeThread.id, text);
         } catch {
             setDraft(text);
+        }
+    };
+    const openCustomOfferModal = async () => {
+        if (!activeThread?.id) return;
+
+        setIsCustomOfferModalOpen(true);
+        setCustomOfferLoading("options");
+
+        try {
+            setCustomOfferOptions(await fetchCustomOfferOptions(activeThread.id));
+        } catch (error) {
+            notify.error(error.message || "Custom offer options are unavailable.");
+            setCustomOfferOptions([]);
+        } finally {
+            setCustomOfferLoading("");
+        }
+    };
+    const handleCreateCustomOffer = async (payload) => {
+        if (!activeThread?.id) return false;
+
+        setCustomOfferLoading("create");
+
+        try {
+            await createCustomOffer(activeThread.id, payload);
+            notify.success("Custom offer sent.");
+            setIsCustomOfferModalOpen(false);
+            return true;
+        } catch (error) {
+            notify.error(error.message || "Custom offer could not be sent.");
+            return false;
+        } finally {
+            setCustomOfferLoading("");
+        }
+    };
+    const handleCustomOfferAction = async (offer, action) => {
+        if (!offer?.id) return;
+
+        setCustomOfferLoading(`${action}-${offer.id}`);
+
+        try {
+            let response = null;
+
+            if (action === "accept") {
+                response = await acceptCustomOffer(offer.id);
+                notify.success("Custom offer accepted.");
+            } else if (action === "pay") {
+                response = await payCustomOffer(offer.id);
+                notify.success("Custom offer paid. Order created.");
+                const path = response?.order?.path || response?.offer?.orderPath;
+
+                if (path) {
+                    navigate(path);
+                }
+            } else if (action === "decline") {
+                response = await declineCustomOffer(offer.id);
+                notify.success("Custom offer declined.");
+            } else if (action === "cancel") {
+                response = await cancelCustomOffer(offer.id);
+                notify.success("Custom offer cancelled.");
+            }
+
+            return response;
+        } catch (error) {
+            notify.error(error.message || "Custom offer action failed.");
+            if (
+                action === "pay" &&
+                String(error.message || "")
+                    .toLowerCase()
+                    .includes("balance")
+            ) {
+                navigate("/dashboard/payments");
+            }
+            return null;
+        } finally {
+            setCustomOfferLoading("");
         }
     };
     const handleComposerKeyDown = (event) => {
@@ -289,9 +386,7 @@ function MessagesWorkspace({ variant = "buyer" }) {
                                         }))
                                     }
                                 >
-                                    <span className="avatar">
-                                        {thread.initials}
-                                    </span>
+                                    <ConversationAvatar thread={thread} />
                                     <span className="message-thread-body">
                                         <span className="message-thread-top">
                                             <strong>{thread.name}</strong>
@@ -327,9 +422,7 @@ function MessagesWorkspace({ variant = "buyer" }) {
                         <>
                             <header className="conversation-header">
                                 <div className="conversation-person">
-                                    <span className="avatar">
-                                        {displayThread.initials}
-                                    </span>
+                                    <ConversationAvatar thread={displayThread} />
                                     <div>
                                         <h1 id="activeConversationTitle">
                                             {displayThread.name}{" "}
@@ -353,6 +446,16 @@ function MessagesWorkspace({ variant = "buyer" }) {
                                 </div>
 
                                 <div className="conversation-header-tools">
+                                    {isSeller ? (
+                                        <button
+                                            className="custom-offer-trigger"
+                                            type="button"
+                                            onClick={openCustomOfferModal}
+                                        >
+                                            <Icon name="packageCheck" />
+                                            Custom offer
+                                        </button>
+                                    ) : null}
                                     <button
                                         className="icon-button ghost"
                                         type="button"
@@ -607,7 +710,18 @@ function MessagesWorkspace({ variant = "buyer" }) {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <p>{message.text}</p>
+                                            {message.text ? (
+                                                <p>{message.text}</p>
+                                            ) : null}
+                                            {message.customOffer ? (
+                                                <CustomOfferMessageCard
+                                                    isLoading={customOfferLoading}
+                                                    offer={message.customOffer}
+                                                    onAction={
+                                                        handleCustomOfferAction
+                                                    }
+                                                />
+                                            ) : null}
                                         </article>
                                     );
                                 })}
@@ -795,12 +909,6 @@ function MessagesWorkspace({ variant = "buyer" }) {
                                         </dd>
                                     </div>
                                     <div>
-                                        <dt>Conversation role</dt>
-                                        <dd>
-                                            {displayThread.role || "Member"}
-                                        </dd>
-                                    </div>
-                                    <div>
                                         <dt>Status</dt>
                                         <dd>
                                             {displayThread.status || "Open"}
@@ -926,7 +1034,358 @@ function MessagesWorkspace({ variant = "buyer" }) {
                     )}
                 </aside>
             </section>
+            <CustomOfferModal
+                isLoading={customOfferLoading}
+                isOpen={isCustomOfferModalOpen}
+                onClose={() => setIsCustomOfferModalOpen(false)}
+                onSubmit={handleCreateCustomOffer}
+                services={customOfferOptions}
+            />
         </main>
+    );
+}
+
+function CustomOfferMessageCard({ isLoading, offer, onAction }) {
+    return (
+        <section className="custom-offer-card">
+            <div className="custom-offer-card-head">
+                {offer.gig?.image ? <img src={offer.gig.image} alt="" /> : null}
+                <span>
+                    <small>Custom offer</small>
+                    <strong>{offer.title}</strong>
+                    {offer.gig?.title ? <em>{offer.gig.title}</em> : null}
+                </span>
+                <b>{offer.priceFormatted}</b>
+            </div>
+            {offer.description ? <p>{offer.description}</p> : null}
+            <dl>
+                <div>
+                    <dt>Delivery</dt>
+                    <dd>
+                        {offer.deliveryDays} day
+                        {offer.deliveryDays === 1 ? "" : "s"}
+                    </dd>
+                </div>
+                <div>
+                    <dt>Revisions</dt>
+                    <dd>{offer.revisions}</dd>
+                </div>
+                <div>
+                    <dt>Status</dt>
+                    <dd>{offer.statusLabel}</dd>
+                </div>
+            </dl>
+            {offer.terms ? <p className="custom-offer-terms">{offer.terms}</p> : null}
+            <div className="custom-offer-actions">
+                {offer.orderPath ? (
+                    <a href={offer.orderPath} target="_blank" rel="noreferrer">
+                        View order
+                    </a>
+                ) : null}
+                {offer.canPay ? (
+                    <>
+                        <button
+                            type="button"
+                            disabled={isLoading === `accept-${offer.id}`}
+                            onClick={() => onAction(offer, "accept")}
+                        >
+                            {isLoading === `accept-${offer.id}`
+                                ? "Accepting..."
+                                : "Accept"}
+                        </button>
+                        <button
+                            type="button"
+                            disabled={isLoading === `pay-${offer.id}`}
+                            onClick={() => onAction(offer, "pay")}
+                        >
+                            {isLoading === `pay-${offer.id}`
+                                ? "Paying..."
+                                : "Pay from balance"}
+                        </button>
+                    </>
+                ) : null}
+                {offer.canDecline ? (
+                    <button
+                        type="button"
+                        disabled={isLoading === `decline-${offer.id}`}
+                        onClick={() => onAction(offer, "decline")}
+                    >
+                        {isLoading === `decline-${offer.id}`
+                            ? "Declining..."
+                            : "Decline"}
+                    </button>
+                ) : null}
+                {offer.canCancel ? (
+                    <button
+                        type="button"
+                        disabled={isLoading === `cancel-${offer.id}`}
+                        onClick={() => onAction(offer, "cancel")}
+                    >
+                        {isLoading === `cancel-${offer.id}`
+                            ? "Cancelling..."
+                            : "Cancel offer"}
+                    </button>
+                ) : null}
+            </div>
+        </section>
+    );
+}
+
+function CustomOfferModal({ isLoading, isOpen, onClose, onSubmit, services }) {
+    const [draft, setDraft] = useState({
+        gigId: "",
+        title: "",
+        description: "",
+        price: "",
+        deliveryDays: "3",
+        revisions: "2 revisions",
+        terms: "",
+        expiresInDays: "7",
+    });
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        if (!isOpen) {
+            setDraft({
+                gigId: "",
+                title: "",
+                description: "",
+                price: "",
+                deliveryDays: "3",
+                revisions: "2 revisions",
+                terms: "",
+                expiresInDays: "7",
+            });
+            setError("");
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen || draft.gigId || services.length === 0) return;
+        const service = services[0];
+
+        setDraft((current) => ({
+            ...current,
+            gigId: service.id,
+            title: service.title,
+            price: service.priceValue ? String(service.priceValue) : "",
+            deliveryDays: String(service.deliveryDays || 3),
+        }));
+    }, [draft.gigId, isOpen, services]);
+
+    const updateDraft = (field, value) => {
+        setDraft((current) => ({ ...current, [field]: value }));
+    };
+    const submitOffer = async (event) => {
+        event.preventDefault();
+
+        if (!draft.gigId) {
+            setError("Choose a service for this offer.");
+            return;
+        }
+
+        if (Number(draft.price) <= 0) {
+            setError("Add a valid offer price.");
+            return;
+        }
+
+        setError("");
+        await onSubmit({
+            ...draft,
+            price: Number(draft.price),
+            deliveryDays: Number(draft.deliveryDays),
+            expiresInDays: Number(draft.expiresInDays),
+        });
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div
+            className="order-note-modal-backdrop"
+            role="presentation"
+            onMouseDown={(event) => {
+                if (event.target === event.currentTarget) {
+                    onClose();
+                }
+            }}
+        >
+            <section
+                className="order-note-modal custom-offer-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="customOfferModalTitle"
+            >
+                <header>
+                    <div>
+                        <span>Conversation offer</span>
+                        <h2 id="customOfferModalTitle">Create Custom Offer</h2>
+                    </div>
+                    <button
+                        type="button"
+                        aria-label="Close custom offer"
+                        onClick={onClose}
+                    >
+                        <Icon name="close" />
+                    </button>
+                </header>
+                {isLoading === "options" ? (
+                    <p className="messages-empty">Loading your services...</p>
+                ) : services.length === 0 ? (
+                    <p className="messages-empty">
+                        Publish a service before sending a custom offer.
+                    </p>
+                ) : (
+                    <form
+                        className="custom-offer-form"
+                        onSubmit={submitOffer}
+                    >
+                        <label>
+                            <span>Service</span>
+                            <select
+                                value={draft.gigId}
+                                onChange={(event) => {
+                                    const service = services.find(
+                                        (item) => item.id === event.target.value,
+                                    );
+                                    updateDraft("gigId", event.target.value);
+
+                                    if (service) {
+                                        setDraft((current) => ({
+                                            ...current,
+                                            gigId: service.id,
+                                            title: service.title,
+                                            price: service.priceValue
+                                                ? String(service.priceValue)
+                                                : current.price,
+                                            deliveryDays: String(
+                                                service.deliveryDays || 3,
+                                            ),
+                                        }));
+                                    }
+                                }}
+                            >
+                                {services.map((service) => (
+                                    <option
+                                        value={service.id}
+                                        key={service.id}
+                                    >
+                                        {service.title}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label>
+                            <span>Offer title</span>
+                            <input
+                                value={draft.title}
+                                onChange={(event) =>
+                                    updateDraft("title", event.target.value)
+                                }
+                                required
+                            />
+                        </label>
+                        <label>
+                            <span>Description</span>
+                            <textarea
+                                rows="4"
+                                value={draft.description}
+                                placeholder="Describe the exact custom scope."
+                                onChange={(event) =>
+                                    updateDraft(
+                                        "description",
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                        </label>
+                        <div className="custom-offer-form-grid">
+                            <label>
+                                <span>Price</span>
+                                <input
+                                    min="1"
+                                    step="1"
+                                    type="number"
+                                    value={draft.price}
+                                    onChange={(event) =>
+                                        updateDraft("price", event.target.value)
+                                    }
+                                    required
+                                />
+                            </label>
+                            <label>
+                                <span>Delivery days</span>
+                                <input
+                                    min="1"
+                                    max="90"
+                                    type="number"
+                                    value={draft.deliveryDays}
+                                    onChange={(event) =>
+                                        updateDraft(
+                                            "deliveryDays",
+                                            event.target.value,
+                                        )
+                                    }
+                                    required
+                                />
+                            </label>
+                            <label>
+                                <span>Revisions</span>
+                                <input
+                                    value={draft.revisions}
+                                    onChange={(event) =>
+                                        updateDraft(
+                                            "revisions",
+                                            event.target.value,
+                                        )
+                                    }
+                                    required
+                                />
+                            </label>
+                            <label>
+                                <span>Expires in days</span>
+                                <input
+                                    min="1"
+                                    max="30"
+                                    type="number"
+                                    value={draft.expiresInDays}
+                                    onChange={(event) =>
+                                        updateDraft(
+                                            "expiresInDays",
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                            </label>
+                        </div>
+                        <label>
+                            <span>Offer terms</span>
+                            <textarea
+                                rows="3"
+                                value={draft.terms}
+                                placeholder="Add delivery terms, accepted files, or limits."
+                                onChange={(event) =>
+                                    updateDraft("terms", event.target.value)
+                                }
+                            />
+                        </label>
+                        {error ? (
+                            <p className="order-note-error" role="alert">
+                                {error}
+                            </p>
+                        ) : null}
+                        <button
+                            type="submit"
+                            disabled={isLoading === "create"}
+                        >
+                            {isLoading === "create"
+                                ? "Sending..."
+                                : "Send custom offer"}
+                        </button>
+                    </form>
+                )}
+            </section>
+        </div>
     );
 }
 
@@ -1020,5 +1479,22 @@ function formatJoined(value) {
         month: "short",
         year: "numeric",
     }).format(new Date(value));
+}
+
+function ConversationAvatar({ thread }) {
+    const avatar = thread?.counterpart?.avatar;
+
+    if (avatar) {
+        return (
+            <img
+                className="avatar conversation-avatar-image"
+                src={avatar}
+                alt={`${thread.name || "Member"} profile`}
+                loading="lazy"
+            />
+        );
+    }
+
+    return <span className="avatar">{thread?.initials || "BD"}</span>;
 }
 export default MessagesWorkspace;

@@ -38,6 +38,31 @@
         <article class="admin-panel">
             <div class="admin-panel-head">
                 <div>
+                    <h2>Visited pages</h2>
+                    <p>Top human page views for the selected visitor day.</p>
+                </div>
+            </div>
+            <div class="admin-card-list compact admin-visitor-page-list">
+                @forelse ($visitorPages as $page)
+                    <article class="admin-mini-card">
+                        <div>
+                            <strong>{{ $page['title'] }}</strong>
+                            <p>{{ $page['path'] }}</p>
+                        </div>
+                        <div>
+                            <b>{{ $page['views'] }}</b>
+                            <span>{{ $page['visitors'] }} visitors</span>
+                        </div>
+                    </article>
+                @empty
+                    <p class="admin-empty-note">No human visits recorded for this day.</p>
+                @endforelse
+            </div>
+        </article>
+
+        <article class="admin-panel">
+            <div class="admin-panel-head">
+                <div>
                     <h2>Buyer behavior</h2>
                     <p>Signals that help tune acquisition and retention.</p>
                 </div>

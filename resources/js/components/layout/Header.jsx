@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -7,11 +7,14 @@ import {
     navLinks,
 } from "../../data/siteNavigation.js";
 import { useDismissOnInteractOutside } from "../../hooks/useDismissOnInteractOutside.js";
+import { useSearchSuggestions } from "../../hooks/useSearchSuggestions.js";
 import { useScrolledPast } from "../../hooks/useScrolledPast.js";
 import { supportedLanguages } from "../../i18n/index.js";
+import { apiRequest } from "../../api/apiClient.js";
 import { useDashboardStore } from "../../stores/useDashboardStore.js";
 import { useSessionStore } from "../../stores/useSessionStore.js";
 import { BrandMark, Icon } from "../common/Icons.jsx";
+import SearchSuggestionDropdown from "../common/SearchSuggestionDropdown.jsx";
 
 const authBenefitKeys = [
     "auth.benefits.categories",
@@ -61,6 +64,10 @@ function Header({
     const [isExploreOpen, setIsExploreOpen] = useState(false);
     const [authMode, setAuthMode] = useState(null);
     const [pendingPath, setPendingPath] = useState("");
+    const [headerSearchValue, setHeaderSearchValue] = useState(searchQuery);
+    const [headerSearchFocused, setHeaderSearchFocused] = useState(false);
+    const [megaCategories, setMegaCategories] = useState([]);
+    const [activeMegaSlug, setActiveMegaSlug] = useState("");
     const exploreRef = useRef(null);
     const currentUser = useSessionStore((state) => state.currentUser);
     const hydrateSession = useSessionStore((state) => state.hydrateSession);
@@ -69,12 +76,44 @@ function Header({
     const showMarketplaceHeader = enableMarketplaceHeader && isPastHomeHero;
     const showHeaderSearch = forceSearch || showMarketplaceHeader;
     const closeExploreMenu = useCallback(() => setIsExploreOpen(false), []);
+    const headerSuggestions = useSearchSuggestions(headerSearchValue);
+    const marketplaceCategories = useMemo(
+        () => (megaCategories.length ? megaCategories : marketplaceHeaderCategories),
+        [megaCategories],
+    );
+    const activeMegaCategory =
+        marketplaceCategories.find((category) => category.slug === activeMegaSlug) ||
+        null;
 
     useDismissOnInteractOutside(exploreRef, isExploreOpen, closeExploreMenu);
 
     useEffect(() => {
         hydrateSession();
     }, [hydrateSession]);
+
+    useEffect(() => {
+        setHeaderSearchValue(searchQuery);
+    }, [searchQuery]);
+
+    useEffect(() => {
+        let active = true;
+
+        apiRequest("/api/marketplace/categories")
+            .then((categories) => {
+                if (active) {
+                    setMegaCategories(categories || []);
+                }
+            })
+            .catch(() => {
+                if (active) {
+                    setMegaCategories([]);
+                }
+            });
+
+        return () => {
+            active = false;
+        };
+    }, []);
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
@@ -182,6 +221,13 @@ function Header({
         onNavigate("/search/gigs", queryString);
     };
 
+    const handleSuggestionSelect = (suggestion) => {
+        setHeaderSearchFocused(false);
+        setIsMenuOpen(false);
+        setIsExploreOpen(false);
+        onNavigate(suggestion.path || "/search/gigs");
+    };
+
     const navigateToPath = (event, path) => {
         event.preventDefault();
         setIsMenuOpen(false);
@@ -215,6 +261,11 @@ function Header({
     ]
         .filter(Boolean)
         .join(" ");
+    const useWhiteLogo =
+        location.pathname === "/" &&
+        !isScrolled &&
+        !showMarketplaceHeader &&
+        !isMenuOpen;
 
     return (
         <>
@@ -227,8 +278,9 @@ function Header({
                             aria-label={t("header.brandAria")}
                             onClick={(event) => goHome(event)}
                         >
-                            <BrandMark />
-                            bdgigs
+                            <BrandMark
+                                variant={useWhiteLogo ? "light" : "default"}
+                            />
                         </a>
 
                         <form
@@ -242,13 +294,35 @@ function Header({
                             >
                                 {t("header.searchLabel")}
                             </label>
-                            <input
-                                id="marketplaceHeaderSearch"
-                                name="query"
-                                type="search"
-                                placeholder={t("header.searchPlaceholder")}
-                                defaultValue={searchQuery}
-                            />
+                            <div className="header-search-field search-suggestion-host">
+                                <input
+                                    id="marketplaceHeaderSearch"
+                                    name="query"
+                                    type="search"
+                                    placeholder={t("header.searchPlaceholder")}
+                                    value={headerSearchValue}
+                                    autoComplete="off"
+                                    onBlur={() =>
+                                        window.setTimeout(
+                                            () => setHeaderSearchFocused(false),
+                                            120,
+                                        )
+                                    }
+                                    onChange={(event) =>
+                                        setHeaderSearchValue(event.target.value)
+                                    }
+                                    onFocus={() =>
+                                        setHeaderSearchFocused(true)
+                                    }
+                                />
+                                {headerSearchFocused ? (
+                                    <SearchSuggestionDropdown
+                                        {...headerSuggestions}
+                                        query={headerSearchValue}
+                                        onSelect={handleSuggestionSelect}
+                                    />
+                                ) : null}
+                            </div>
                             <button
                                 type="submit"
                                 aria-label={t("header.searchLabel")}
@@ -557,27 +631,92 @@ function Header({
                     <nav
                         className="marketplace-category-nav"
                         aria-label={t("header.marketplaceCategories")}
+                        onMouseLeave={() => setActiveMegaSlug("")}
                     >
-                        {marketplaceHeaderCategories.map((category) => (
-                            <a
-                                key={category.label}
-                                className={
-                                    category.isHot ? "is-hot" : undefined
-                                }
-                                href={category.path}
-                                onClick={(event) =>
-                                    navigateToPath(event, category.path)
-                                }
-                            >
-                                {t(
-                                    `header.categories.${getNavigationKey(category.label)}`,
-                                    { defaultValue: category.label },
-                                )}
-                                {category.isHot ? (
-                                    <span aria-hidden="true"></span>
-                                ) : null}
-                            </a>
-                        ))}
+                        <div className="marketplace-category-strip">
+                            {marketplaceCategories.map((category) => {
+                                const categoryPath =
+                                    category.path || category.linkUrl || "/search/gigs";
+                                const categorySlug =
+                                    category.slug ||
+                                    getNavigationKey(category.label);
+                                const hasChildren = Boolean(
+                                    category.children?.length,
+                                );
+
+                                return (
+                                    <a
+                                        key={categorySlug}
+                                        className={
+                                            category.isHot
+                                                ? "is-hot"
+                                                : undefined
+                                        }
+                                        href={categoryPath}
+                                        onClick={(event) =>
+                                            navigateToPath(event, categoryPath)
+                                        }
+                                        onFocus={() =>
+                                            setActiveMegaSlug(categorySlug)
+                                        }
+                                        onMouseEnter={() =>
+                                            setActiveMegaSlug(categorySlug)
+                                        }
+                                    >
+                                        {t(
+                                            `header.categories.${getNavigationKey(category.label)}`,
+                                            { defaultValue: category.label },
+                                        )}
+                                        {category.isHot ? (
+                                            <span aria-hidden="true"></span>
+                                        ) : null}
+                                        {hasChildren ? (
+                                            <Icon name="chevronDown" />
+                                        ) : null}
+                                    </a>
+                                );
+                            })}
+                        </div>
+                        {activeMegaCategory?.children?.length ? (
+                            <div className="marketplace-mega-menu">
+                                <div>
+                                    <strong>{activeMegaCategory.label}</strong>
+                                    <p>
+                                        {activeMegaCategory.description ||
+                                            "Browse marketplace services by specialty."}
+                                    </p>
+                                </div>
+                                <div className="marketplace-mega-grid">
+                                    {activeMegaCategory.children.map((child) => (
+                                        <a
+                                            href={child.path}
+                                            key={child.slug || child.label}
+                                            onClick={(event) =>
+                                                navigateToPath(
+                                                    event,
+                                                    child.path,
+                                                )
+                                            }
+                                        >
+                                            <span>
+                                                <Icon
+                                                    name={
+                                                        child.icon ||
+                                                        activeMegaCategory.icon ||
+                                                        "spark"
+                                                    }
+                                                />
+                                            </span>
+                                            <strong>{child.label}</strong>
+                                            <small>
+                                                {child.description ||
+                                                    "Explore services"}
+                                            </small>
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : null}
                     </nav>
                 </div>
             </header>
@@ -674,15 +813,22 @@ function HeaderAccountActions({
                     aria-expanded={openMenu === "profile"}
                     onClick={(event) => toggleMenu(event, "profile")}
                 >
-                    <span className="avatar">
-                        {currentUser.initials || currentUser.name?.slice(0, 2)}
-                    </span>
+                    <HeaderUserAvatar currentUser={currentUser} />
                     <span>{currentUser.name}</span>
                     <Icon name="chevronDown" />
                 </button>
                 <div
                     className={`header-account-dropdown profile${openMenu === "profile" ? " is-open" : ""}`}
                 >
+                    <div className="header-profile-summary">
+                        <HeaderUserAvatar currentUser={currentUser} large />
+                        <span>
+                            <strong>{currentUser.name}</strong>
+                            <small>
+                                {currentUser.online ? "Online" : "Offline"}
+                            </small>
+                        </span>
+                    </div>
                     <a
                         href="/dashboard/profile"
                         onClick={(event) => openPath(event, "/dashboard/profile")}
@@ -693,7 +839,15 @@ function HeaderAccountActions({
                         href="/dashboard"
                         onClick={(event) => openPath(event, "/dashboard")}
                     >
-                        Dashboard
+                        Buyer dashboard
+                    </a>
+                    <a
+                        href="/dashboard/seller"
+                        onClick={(event) =>
+                            openPath(event, "/dashboard/seller")
+                        }
+                    >
+                        Seller dashboard
                     </a>
                     <a
                         href="/dashboard/settings"
@@ -710,6 +864,49 @@ function HeaderAccountActions({
             </div>
         </div>
     );
+}
+
+function HeaderUserAvatar({ currentUser, large = false }) {
+    const avatar = normalizeAvatarUrl(currentUser?.avatar);
+    const initials = currentUser?.initials || currentUser?.name?.slice(0, 2) || "BD";
+
+    return (
+        <span
+            className={`avatar header-user-avatar${large ? " is-large" : ""}`}
+            aria-label={`${currentUser?.name || "User"} ${
+                currentUser?.online ? "online" : "offline"
+            }`}
+        >
+            {avatar ? (
+                <img src={avatar} alt="" loading="lazy" decoding="async" />
+            ) : (
+                initials
+            )}
+            <i
+                className={currentUser?.online ? "is-online" : "is-offline"}
+                aria-hidden="true"
+            ></i>
+        </span>
+    );
+}
+
+function normalizeAvatarUrl(avatar) {
+    if (!avatar) return "";
+
+    if (
+        avatar.startsWith("/") ||
+        avatar.startsWith("http://") ||
+        avatar.startsWith("https://") ||
+        avatar.startsWith("data:")
+    ) {
+        return avatar;
+    }
+
+    if (avatar.startsWith("assets/")) {
+        return `/${avatar}`;
+    }
+
+    return `/storage/${avatar.replace(/^storage\//, "")}`;
 }
 
 function HeaderFeedMenu({
@@ -781,6 +978,7 @@ function AuthModal({ mode, onClose, onModeChange, onSuccess }) {
         email: "",
         password: "",
         password_confirmation: "",
+        remember: false,
     });
     const [formError, setFormError] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -814,6 +1012,7 @@ function AuthModal({ mode, onClose, onModeChange, onSuccess }) {
                 const loginResult = await login({
                     email: form.email,
                     password: form.password,
+                    remember: form.remember,
                 });
 
                 if (loginResult?.requiresTwoFactor) {
@@ -1066,12 +1265,27 @@ function AuthModal({ mode, onClose, onModeChange, onSuccess }) {
                                 />
                             </label>
                         ) : (
-                            <button
-                                className="auth-forgot-link"
-                                type="button"
-                            >
-                                Forgot password?
-                            </button>
+                            <div className="auth-login-options">
+                                <label className="auth-remember-row">
+                                    <input
+                                        type="checkbox"
+                                        checked={form.remember}
+                                        onChange={(event) =>
+                                            updateForm(
+                                                "remember",
+                                                event.target.checked,
+                                            )
+                                        }
+                                    />
+                                    <span>Remember me for 30 days</span>
+                                </label>
+                                <button
+                                    className="auth-forgot-link"
+                                    type="button"
+                                >
+                                    Forgot password?
+                                </button>
+                            </div>
                         )}
                         {formError ? (
                             <p className="auth-form-error">{formError}</p>

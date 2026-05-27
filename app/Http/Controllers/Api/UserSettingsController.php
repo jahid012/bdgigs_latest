@@ -11,7 +11,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class UserSettingsController extends Controller
 {
@@ -41,6 +43,7 @@ class UserSettingsController extends Controller
                 'identity' => $identity ? [
                     'status' => $identity->status,
                     'details' => $identity->details ?: [],
+                    'documentPath' => $identity->document_path,
                     'submittedAt' => $identity->submitted_at?->toISOString(),
                 ] : null,
             ],
@@ -80,10 +83,20 @@ class UserSettingsController extends Controller
     public function submitIdentity(SubmitIdentityVerificationRequest $request): JsonResponse
     {
         $payload = $request->validated();
+        $file = $request->file('document');
+        $directory = public_path("uploads/identity/{$request->user()->id}");
+
+        File::ensureDirectoryExists($directory);
+
+        $extension = $file->getClientOriginalExtension() ?: 'bin';
+        $filename = Str::uuid()->toString().'.'.$extension;
+        $file->move($directory, $filename);
+        $documentPath = "/uploads/identity/{$request->user()->id}/{$filename}";
 
         $submission = $request->user()->identityVerificationSubmissions()->create([
             'status' => 'review',
-            'details' => $payload,
+            'details' => collect($payload)->except('document')->all(),
+            'document_path' => $documentPath,
             'submitted_at' => now(),
         ]);
         $request->user()->forceFill(['verification_status' => 'review'])->save();
@@ -92,6 +105,7 @@ class UserSettingsController extends Controller
             'data' => [
                 'status' => $submission->status,
                 'details' => $submission->details,
+                'documentPath' => $submission->document_path,
                 'submittedAt' => $submission->submitted_at?->toISOString(),
             ],
         ], 201);

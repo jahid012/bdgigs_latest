@@ -9,6 +9,7 @@ class MarketplaceDemoSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            MarketplaceContentSeeder::class,
             MarketplaceCatalogSeeder::class,
             ManualPaymentMethodSeeder::class,
             MarketplaceActivitySeeder::class,

@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\StoreWalletDepositRequest;
 use App\Http\Requests\Api\UpdateBillingProfileRequest;
 use App\Http\Resources\BillingProfileResource;
 use App\Services\FinanceSummaryService;
+use App\Services\UserWalletService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -42,6 +44,32 @@ class BillingController extends Controller
     public function buyerSummary(Request $request, FinanceSummaryService $finance): JsonResponse
     {
         return response()->json(['data' => $finance->buyer($request->user())]);
+    }
+
+    public function addBalance(
+        StoreWalletDepositRequest $request,
+        UserWalletService $wallets,
+        FinanceSummaryService $finance
+    ): JsonResponse {
+        $payload = $request->validated();
+
+        $transaction = $wallets->deposit(
+            $request->user(),
+            (int) round(((float) $payload['amount']) * 100),
+            $payload['method'] ?? 'manual_card',
+            $payload['note'] ?? null,
+        );
+
+        return response()->json([
+            'data' => [
+                'transaction' => [
+                    'id' => $transaction->code,
+                    'amount' => '$'.number_format($transaction->amount_cents / 100, 2),
+                    'status' => $transaction->status,
+                ],
+                'summary' => $finance->buyer($request->user()),
+            ],
+        ], 201);
     }
 
     public function sellerEarnings(Request $request, FinanceSummaryService $finance): JsonResponse

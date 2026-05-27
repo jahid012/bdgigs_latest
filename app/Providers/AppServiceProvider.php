@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -20,6 +21,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (method_exists(Auth::guard('web'), 'setRememberDuration')) {
+            Auth::guard('web')->setRememberDuration(60 * 24 * 30);
+        }
+
         RedirectResponse::macro('withNotify', function ($type = 'info', ?string $message = null, ?string $title = null, array $options = []) {
             $notification = is_array($type)
                 ? $type

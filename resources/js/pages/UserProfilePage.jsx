@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import LoadingSkeleton from "../components/common/LoadingSkeleton.jsx";
 import { Icon } from "../components/common/Icons.jsx";
 import Footer from "../components/layout/Footer.jsx";
 import Header from "../components/layout/Header.jsx";
@@ -39,6 +40,9 @@ function emptyPublicProfile(username = "") {
         reviews: 0,
         location: "",
         localTime: "",
+        online: false,
+        availabilityStatus: "Offline",
+        lastSeenLabel: "Offline",
         languages: [],
         about: "",
         skills: [],
@@ -48,6 +52,7 @@ function emptyPublicProfile(username = "") {
         workExperience: [],
         education: null,
         certifications: [],
+        featuredClients: [],
         reviewsData: {
             count: 0,
             rating: 0,
@@ -68,6 +73,53 @@ function ProfileAvatar({ alt = "", profile }) {
             {profile.initials || initialsFromName(profile.name)}
         </span>
     );
+}
+
+function ProfileOnlineDot({ profile, ...props }) {
+    const online = Boolean(profile.online);
+
+    return (
+        <span
+            className={`profile-online-dot ${online ? "is-online" : "is-offline"}`}
+            aria-label={online ? "Online" : "Offline"}
+            {...props}
+        ></span>
+    );
+}
+
+function profilePresenceText(profile, t) {
+    if (profile.online) {
+        return `${t("pages.userprofilepage.online2")} ${profile.localTime} ${t("pages.userprofilepage.localTime")}`;
+    }
+
+    return profile.lastSeenLabel || profile.availabilityStatus || "Offline";
+}
+
+function formatPublicDate(value) {
+    if (!value) {
+        return "";
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return value;
+    }
+
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+        month: "short",
+        year: "numeric",
+    });
+}
+
+function publicWorkPeriod(item) {
+    if (item.period) {
+        return item.period;
+    }
+
+    const start = formatPublicDate(item.startDate);
+    const end = formatPublicDate(item.endDate) || "Present";
+
+    return [start, end].filter(Boolean).join(" - ");
 }
 
 function UserProfilePage({ onNavigate }) {
@@ -120,6 +172,7 @@ function UserProfilePage({ onNavigate }) {
                     skills: nextProfile.skills || [],
                     workExperience: nextProfile.workExperience || [],
                     certifications: nextProfile.certifications || [],
+                    featuredClients: nextProfile.featuredClients || [],
                     reviewsData: {
                         ...emptyPublicProfile(username).reviewsData,
                         ...(nextProfile.reviewsData || {}),
@@ -212,7 +265,9 @@ function UserProfilePage({ onNavigate }) {
             />
 
             <main>
-                {profileStatus === "error" ? (
+                {profileStatus === "loading" ? (
+                    <ProfilePageSkeleton />
+                ) : profileStatus === "error" ? (
                     <section className="public-profile-shell">
                         <div className="container profile-data-empty">
                             <h1>{profileError}</h1>
@@ -243,7 +298,10 @@ function UserProfilePage({ onNavigate }) {
                         />
 
                         <div className="container public-profile-content">
-                            <ServicesSection profile={profile} />
+                            <ServicesSection
+                                profile={profile}
+                                onContact={openContactPopup}
+                            />
                             <PortfolioSection profile={profile} />
                             <WorkExperienceSection profile={profile} />
                             <ProfileSourcingCTA />
@@ -289,10 +347,7 @@ function ProfileHero({ onContact, onMoreAbout, profile, summaryRef }) {
                         profile={profile}
                         alt={`${profile.name} profile`}
                     />
-                    <span
-                        className="profile-online-dot"
-                        aria-label={t("pages.userprofilepage.online")}
-                    ></span>
+                    <ProfileOnlineDot profile={profile} />
                 </div>
 
                 <div className="public-profile-summary" ref={summaryRef}>
@@ -370,17 +425,10 @@ function ProfileHero({ onContact, onMoreAbout, profile, summaryRef }) {
                 <article className="profile-contact-card">
                     <div>
                         <ProfileAvatar profile={profile} />
-                        <span
-                            className="profile-online-dot"
-                            aria-hidden="true"
-                        ></span>
+                        <ProfileOnlineDot profile={profile} aria-hidden="true" />
                         <div>
                             <strong>{profile.name}</strong>
-                            <p>
-                                {t("pages.userprofilepage.online2")}{" "}
-                                {profile.localTime}{" "}
-                                {t("pages.userprofilepage.localTime")}
-                            </p>
+                            <p>{profilePresenceText(profile, t)}</p>
                         </div>
                     </div>
                     <button type="button" onClick={onContact}>
@@ -396,6 +444,48 @@ function ProfileHero({ onContact, onMoreAbout, profile, summaryRef }) {
         </header>
     );
 }
+
+function ProfilePageSkeleton() {
+    return (
+        <>
+            <section className="public-profile-shell">
+                <div className="container">
+                    <header className="public-profile-hero profile-page-skeleton">
+                        <div className="public-profile-primary">
+                            <LoadingSkeleton className="profile-skeleton-avatar" />
+                            <div className="public-profile-summary">
+                                <LoadingSkeleton className="profile-skeleton-title" />
+                                <LoadingSkeleton className="profile-skeleton-line" />
+                                <LoadingSkeleton className="profile-skeleton-line wide" />
+                            </div>
+                            <section className="public-about-block">
+                                <LoadingSkeleton className="profile-skeleton-heading" />
+                                <LoadingSkeleton className="profile-skeleton-line wide" />
+                                <LoadingSkeleton className="profile-skeleton-line" />
+                            </section>
+                        </div>
+                        <aside className="public-profile-contact-column">
+                            <LoadingSkeleton className="profile-skeleton-card" />
+                        </aside>
+                    </header>
+                </div>
+            </section>
+            <div className="container public-profile-content">
+                {[0, 1, 2].map((item) => (
+                    <section
+                        className="profile-section profile-skeleton-section"
+                        key={item}
+                    >
+                        <LoadingSkeleton className="profile-skeleton-heading" />
+                        <LoadingSkeleton className="profile-skeleton-line wide" />
+                        <LoadingSkeleton className="profile-skeleton-line" />
+                    </section>
+                ))}
+            </div>
+        </>
+    );
+}
+
 function ProfileStickyNav({ activeSection, isVisible, onContact, profile }) {
     const { t } = useTranslation();
     return (
@@ -408,10 +498,7 @@ function ProfileStickyNav({ activeSection, isVisible, onContact, profile }) {
                 <div className="sticky-profile-person">
                     <div className="sticky-profile-avatar">
                         <ProfileAvatar profile={profile} />
-                        <span
-                            className="profile-online-dot"
-                            aria-hidden="true"
-                        ></span>
+                        <ProfileOnlineDot profile={profile} aria-hidden="true" />
                     </div>
                     <div>
                         <strong>{profile.name}</strong>
@@ -419,11 +506,7 @@ function ProfileStickyNav({ activeSection, isVisible, onContact, profile }) {
                             rating={profile.rating}
                             reviews={profile.reviews}
                         />
-                        <span>
-                            {t("pages.userprofilepage.online2")}{" "}
-                            {profile.localTime}{" "}
-                            {t("pages.userprofilepage.localTime")}
-                        </span>
+                        <span>{profilePresenceText(profile, t)}</span>
                     </div>
                 </div>
 
@@ -455,9 +538,12 @@ function ProfileStickyNav({ activeSection, isVisible, onContact, profile }) {
         </div>
     );
 }
-function ServicesSection({ profile }) {
+function ServicesSection({ onContact, profile }) {
     const { t } = useTranslation();
     const services = profile.services || [];
+    const [showAllServices, setShowAllServices] = useState(false);
+    const visibleServices = showAllServices ? services : services.slice(0, 4);
+
     return (
         <section
             className="profile-section profile-services-section"
@@ -465,32 +551,45 @@ function ServicesSection({ profile }) {
         >
             <h2>{t("pages.userprofilepage.seeMyServices")}</h2>
             {services.length ? (
-                <div className="profile-service-list">
-                    {services.map((service) => (
-                    <article className="profile-service-card" key={service.id}>
-                        <div className="profile-service-main">
-                            <img src={service.image} alt="" />
-                            <div>
-                                <h3>{service.title}</h3>
-                                <p>{service.description}</p>
-                            </div>
-                        </div>
-                        <div className="profile-service-footer">
-                            <span>
-                                {" "}
-                                {t("pages.userprofilepage.from")}{" "}
-                                <strong>
-                                    ${service.price}{" "}
-                                    {t("pages.userprofilepage.project")}
-                                </strong>
-                            </span>
-                            <Link to={`/gigs/${service.id}`}>
-                                {t("pages.userprofilepage.moreDetails")}
-                            </Link>
-                        </div>
-                    </article>
-                    ))}
-                </div>
+                <>
+                    <div className="profile-service-list">
+                        {visibleServices.map((service) => (
+                            <article
+                                className="profile-service-card"
+                                key={service.id}
+                            >
+                                <div className="profile-service-main">
+                                    <img src={service.image} alt="" />
+                                    <div>
+                                        <h3>{service.title}</h3>
+                                        <p>{service.description}</p>
+                                    </div>
+                                </div>
+                                <div className="profile-service-footer">
+                                    <span>
+                                        {t("pages.userprofilepage.from")}
+                                        <strong>
+                                            ${service.price}{" "}
+                                            {t("pages.userprofilepage.project")}
+                                        </strong>
+                                    </span>
+                                    <Link to={`/gigs/${service.id}`}>
+                                        {t("pages.userprofilepage.moreDetails")}
+                                    </Link>
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+                    {services.length > visibleServices.length ? (
+                        <button
+                            className="profile-show-all-services"
+                            type="button"
+                            onClick={() => setShowAllServices(true)}
+                        >
+                            Show all ({services.length})
+                        </button>
+                    ) : null}
+                </>
             ) : (
                 <ProfileDataEmpty
                     title="No services published yet"
@@ -592,24 +691,33 @@ function WorkExperienceSection({ profile }) {
             {workExperience.length ? (
                 <div className="profile-work-list">
                     {workExperience.map((item) => (
-                    <article
-                        className="profile-work-item"
-                        key={`${item.role}-${item.company}`}
-                    >
-                        <span>
-                            <Icon name="building" />
-                        </span>
-                        <div>
-                            <h3>{item.role}</h3>
-                            <p>
-                                {item.company} - {item.type}
-                            </p>
-                            <small>
-                                {item.period} - {item.duration}
-                            </small>
-                            <p>{item.description}</p>
-                        </div>
-                    </article>
+                        <article
+                            className="profile-work-item"
+                            key={`${item.role || item.title}-${item.company}`}
+                        >
+                            <span>
+                                <Icon name="building" />
+                            </span>
+                            <div>
+                                <h3>{item.role || item.title}</h3>
+                                <p>
+                                    {item.company} -{" "}
+                                    {item.type || item.employmentType}
+                                </p>
+                                <small>
+                                    {publicWorkPeriod(item)}
+                                    {item.duration ? ` - ${item.duration}` : ""}
+                                </small>
+                                <p>{item.description}</p>
+                                {item.skills?.length ? (
+                                    <div className="profile-work-skill-list">
+                                        {item.skills.map((skill) => (
+                                            <span key={skill}>{skill}</span>
+                                        ))}
+                                    </div>
+                                ) : null}
+                            </div>
+                        </article>
                     ))}
                 </div>
             ) : (
@@ -663,6 +771,7 @@ function ReviewsSection({ profile }) {
     const { t } = useTranslation();
     const reviews = profile.reviewsData;
     const sample = reviews.sample;
+    const visibleReviewCount = Math.min(15, Number(reviews.count) || 0);
 
     if (!sample) {
         return (
@@ -757,7 +866,7 @@ function ReviewsSection({ profile }) {
                 </form>
                 <div>
                     <span>
-                        {t("pages.userprofilepage.15OutOf")} {reviews.count}{" "}
+                        {visibleReviewCount} out of {reviews.count}{" "}
                         {t("pages.userprofilepage.reviews")}
                     </span>
                     <span>
@@ -902,6 +1011,8 @@ function ProfileTalentCard({ action, copy, icon, meta = "", title }) {
     );
 }
 function ProfileRating({ rating, reviews }) {
+    const ratingValue = Number(rating) || 0;
+
     return (
         <span className="profile-rating-line">
             {Array.from(
@@ -912,7 +1023,7 @@ function ProfileRating({ rating, reviews }) {
                     <Icon name="star" key={index} />
                 ),
             )}
-            <strong>{rating.toFixed(1)}</strong>
+            <strong>{ratingValue.toFixed(1)}</strong>
             {reviews ? <a href="#reviews">({reviews})</a> : null}
         </span>
     );
@@ -981,16 +1092,14 @@ function ProfileContactPopup({ profile, onClose }) {
                 </div>
                 <header>
                     <ProfileAvatar profile={profile} />
-                    <span
-                        className="profile-online-dot"
-                        aria-hidden="true"
-                    ></span>
+                    <ProfileOnlineDot profile={profile} aria-hidden="true" />
                     <div>
                         <strong>
                             {t("pages.userprofilepage.message")} {profile.name}
                         </strong>
                         <span>
-                            Away <i aria-hidden="true">.</i> Avg. response time:{" "}
+                            {profile.availabilityStatus}{" "}
+                            <i aria-hidden="true">.</i> Avg. response time:{" "}
                             <b>{profile.responseTime}</b>
                         </span>
                     </div>
@@ -1348,17 +1457,15 @@ function ProfileMessageBubble({ profile }) {
             >
                 <header>
                     <ProfileAvatar profile={profile} />
-                    <span
-                        className="profile-online-dot"
-                        aria-hidden="true"
-                    ></span>
+                    <ProfileOnlineDot profile={profile} aria-hidden="true" />
                     <div>
                         <strong>
                             {t("pages.userprofilepage.message")} {profile.name}
                         </strong>
                         <span>
-                            Online <i aria-hidden="true">.</i> Avg. response
-                            time: <b>{profile.responseTime}</b>
+                            {profile.availabilityStatus}{" "}
+                            <i aria-hidden="true">.</i> Avg. response time:{" "}
+                            <b>{profile.responseTime}</b>
                         </span>
                     </div>
                     <button
@@ -1447,13 +1554,13 @@ function ProfileMessageBubble({ profile }) {
             onClick={openComposer}
         >
             <ProfileAvatar profile={profile} />
-            <span className="profile-online-dot" aria-hidden="true"></span>
+            <ProfileOnlineDot profile={profile} aria-hidden="true" />
             <div>
                 <strong>
                     {t("pages.userprofilepage.message")} {profile.name}
                 </strong>
                 <span>
-                    {t("pages.userprofilepage.onlineAvgResponseTime")}{" "}
+                    {profile.availabilityStatus} - Avg. response time:{" "}
                     {profile.responseTime}
                 </span>
             </div>

@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FinanceNotice } from "../FinanceControls.jsx";
+import LoadingSkeleton from "../../common/LoadingSkeleton.jsx";
 import { Icon } from "../../common/Icons.jsx";
-import { profilePathForSeller } from "../../../utils/profilePaths.js";
+import { useToast } from "../../common/ToastProvider.jsx";
+import { uploadProfileAvatar } from "../../../api/profileApi.js";
+import {
+    initialsFromName,
+    profilePathForSeller,
+} from "../../../utils/profilePaths.js";
+import { sellerProfileStrength } from "../../../utils/profileStrength.js";
 import { apiRequest } from "../../../api/apiClient.js";
 
 const sellerProfile = {
@@ -15,6 +21,7 @@ const sellerProfile = {
     rating: "0.0",
     reviews: "0",
     about: "",
+    featuredClients: [],
 };
 
 const industries = [
@@ -188,6 +195,43 @@ function formToProject(form) {
     };
 }
 
+function dateInputValue(value) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(value || "") ? value : "";
+}
+
+function formatWorkDate(value) {
+    if (!value) {
+        return "";
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return value;
+    }
+
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+        month: "short",
+        year: "numeric",
+    });
+}
+
+function normalizeSkillList(value) {
+    if (Array.isArray(value)) {
+        return value
+            .map((skill) => String(skill).trim())
+            .filter(Boolean);
+    }
+
+    return String(value || "")
+        .split(",")
+        .map((skill) => skill.trim())
+        .filter(Boolean);
+}
+
+function skillListInputValue(value) {
+    return normalizeSkillList(value).join(", ");
+}
+
 function identityFromProfile(profile) {
     return {
         name: profile.name,
@@ -220,7 +264,7 @@ function optimisticIdentityUpdates(updates) {
 
 function SellerProfileManagerPage({ initialMode = "profile" }) {
     const navigate = useNavigate();
-    const [notice, setNotice] = useState("");
+    const notify = useToast();
     const [mode, setMode] = useState(initialMode);
     const [activeEditor, setActiveEditor] = useState("");
     const [openActionMenu, setOpenActionMenu] = useState("");
@@ -237,6 +281,7 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
     const [projects, setProjects] = useState(() =>
         readStoredValue(storageKeys.projects, starterProjects),
     );
+    const [featuredClients, setFeaturedClients] = useState([]);
     const [skills, setSkills] = useState(() =>
         readStoredValue(storageKeys.skills, defaultSkills),
     );
@@ -257,6 +302,7 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
     const [projectForm, setProjectForm] = useState(createEmptyProjectForm);
     const [identityProfile, setIdentityProfile] = useState(sellerProfile);
     const [profileLoaded, setProfileLoaded] = useState(false);
+    const [profileLoadError, setProfileLoadError] = useState("");
 
     const displayProfile = useMemo(
         () => ({
@@ -264,8 +310,30 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
             title: professionalTitle,
             about,
             languages: formatSellerLanguages(sellerLanguages),
+            languageItems: sellerLanguages,
+            projects,
+            featuredClients,
+            skills,
+            workExperience,
+            education,
+            certification,
         }),
-        [about, identityProfile, professionalTitle, sellerLanguages],
+        [
+            about,
+            certification,
+            education,
+            featuredClients,
+            identityProfile,
+            professionalTitle,
+            projects,
+            sellerLanguages,
+            skills,
+            workExperience,
+        ],
+    );
+    const strength = useMemo(
+        () => sellerProfileStrength(displayProfile),
+        [displayProfile],
     );
     const sellerPublicProfilePath = useMemo(
         () =>
@@ -302,14 +370,20 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
                 setSellerLanguages(profile.languages || []);
                 setAbout(profile.about || "");
                 setProjects(profile.projects || []);
+                setFeaturedClients(profile.featuredClients || []);
                 setSkills(profile.skills || []);
                 setEducation(profile.education || null);
                 setWorkExperience(profile.workExperience || null);
                 setCertification(profile.certification || null);
                 setProfileLoaded(true);
             })
-            .catch(() => setProfileLoaded(true));
-    }, []);
+            .catch((error) => {
+                notify.error(error.message || "Seller profile could not be loaded.");
+                setProfileLoadError(
+                    error.message || "Seller profile could not be loaded.",
+                );
+            });
+    }, [notify]);
 
     useEffect(() => {
         if (!profileLoaded) return;
@@ -321,6 +395,7 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
                 languages: sellerLanguages,
                 about,
                 projects,
+                featuredClients,
                 skills,
                 education,
                 workExperience,
@@ -331,6 +406,7 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
         about,
         certification,
         education,
+        featuredClients,
         professionalTitle,
         profileLoaded,
         projects,
@@ -369,7 +445,6 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
         setProjectForm(createEmptyProjectForm());
         setProjectStep(1);
         setMode("project-form");
-        setNotice("");
     };
 
     const openEditProject = (project) => {
@@ -377,7 +452,6 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
         setProjectForm(projectToForm(project));
         setProjectStep(1);
         setMode("project-form");
-        setNotice("");
     };
 
     const closeProjectForm = () => {
@@ -404,7 +478,7 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
             );
         });
 
-        setNotice(
+        notify.success(
             editingProjectId
                 ? "Portfolio project updated."
                 : "Portfolio project created.",
@@ -425,7 +499,7 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
         setProjects((current) =>
             current.filter((project) => project.id !== projectId),
         );
-        setNotice("Portfolio project deleted.");
+        notify.success("Portfolio project deleted.");
     };
 
     const openEditor = (editor) => {
@@ -444,7 +518,32 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
     };
 
     const openSellerPreview = () => {
-        navigate(sellerPublicProfilePath);
+        window.open(
+            `${window.location.origin}${sellerPublicProfilePath}`,
+            "_blank",
+            "noopener,noreferrer",
+        );
+    };
+
+    const copySellerProfileLink = async () => {
+        const profileUrl = `${window.location.origin}${sellerPublicProfilePath}`;
+
+        try {
+            await navigator.clipboard?.writeText(profileUrl);
+        } catch {
+            const fallbackInput = document.createElement("textarea");
+            fallbackInput.value = profileUrl;
+            fallbackInput.setAttribute("readonly", "");
+            fallbackInput.style.position = "fixed";
+            fallbackInput.style.opacity = "0";
+            document.body.appendChild(fallbackInput);
+            fallbackInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(fallbackInput);
+        }
+
+        notify.success("Profile link copied.");
+        setIsSharePopupOpen(false);
     };
 
     const saveIdentityProfile = (
@@ -466,12 +565,40 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
                     ...current,
                     ...identityFromProfile(profile),
                 }));
-                setNotice(successMessage);
+                notify.success(successMessage);
             })
             .catch((error) =>
-                setNotice(error.message || "Profile could not be saved."),
+                notify.error(error.message || "Profile could not be saved."),
             );
     };
+
+    const saveAvatarProfile = async (file) => {
+        try {
+            const uploaded = await uploadProfileAvatar(file);
+            setIdentityProfile((current) => ({
+                ...current,
+                avatar: uploaded.avatar,
+            }));
+            notify.success("Profile photo updated.");
+        } catch (error) {
+            notify.error(error.message || "Profile photo could not be uploaded.");
+        }
+    };
+
+    if (profileLoadError) {
+        return (
+            <main className="dashboard-content seller-editor-page">
+                <section className="seller-editor-card seller-profile-error">
+                    <h1>Seller profile could not be loaded.</h1>
+                    <p>{profileLoadError}</p>
+                </section>
+            </main>
+        );
+    }
+
+    if (!profileLoaded) {
+        return <SellerProfileSkeleton />;
+    }
 
     if (mode === "project-form") {
         return (
@@ -491,7 +618,6 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
     if (mode === "portfolio") {
         return (
             <main className="dashboard-content seller-profile-manager">
-                <FinanceNotice message={notice} />
                 <button
                     className="seller-back-link"
                     type="button"
@@ -518,17 +644,12 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
 
     return (
         <main className="dashboard-content seller-editor-page">
-            <FinanceNotice message={notice} />
             {isSharePopupOpen ? (
                 <ShareExpertisePopup
+                    profileName={displayProfile.name}
+                    profileUrl={`${window.location.origin}${sellerPublicProfilePath}`}
                     onClose={() => setIsSharePopupOpen(false)}
-                    onCopy={() => {
-                        navigator.clipboard?.writeText(
-                            `${window.location.origin}${sellerPublicProfilePath}`,
-                        );
-                        setNotice("Profile link copied.");
-                        setIsSharePopupOpen(false);
-                    }}
+                    onCopy={copySellerProfileLink}
                 />
             ) : null}
             <div className="seller-editor-layout">
@@ -540,8 +661,9 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
                         onCancelEditor={() => setActiveEditor("")}
                         onEdit={openEditor}
                         onIdentitySave={saveIdentityProfile}
+                        onAvatarSave={saveAvatarProfile}
                         onLanguagesChange={setSellerLanguages}
-                        onNotice={setNotice}
+                        onNotice={(message) => notify.error(message)}
                         onPreview={openSellerPreview}
                         onShare={() => setIsSharePopupOpen(true)}
                         onTitleChange={setProfessionalTitle}
@@ -555,17 +677,22 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
                         onSave={(value) => {
                             setAbout(value);
                             setActiveEditor("");
-                            setNotice("About section updated.");
+                            notify.success("About section updated.");
                         }}
                     />
 
                     <FeaturedClientsSection
+                        clients={featuredClients}
                         isEditing={activeEditor === "featured-clients"}
                         onCancel={() => setActiveEditor("")}
                         onEdit={() => openEditor("featured-clients")}
-                        onSave={() => {
+                        onSave={(client) => {
+                            setFeaturedClients((current) => [
+                                client,
+                                ...current,
+                            ].slice(0, 5));
                             setActiveEditor("");
-                            setNotice("Featured client saved.");
+                            notify.success("Featured client saved.");
                         }}
                     />
 
@@ -580,7 +707,7 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
                         onEdit={() => openEditor("intro-video")}
                         onSave={() => {
                             setActiveEditor("");
-                            setNotice("Intro video submitted for review.");
+                            notify.success("Intro video submitted for review.");
                         }}
                     />
 
@@ -594,13 +721,13 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
                             setWorkExperience(null);
                             setOpenActionMenu("");
                             setActiveEditor("");
-                            setNotice("Work experience removed.");
+                            notify.success("Work experience removed.");
                         }}
                         onEdit={() => openEditor("work")}
                         onSave={(nextWork) => {
                             setWorkExperience(nextWork);
                             setActiveEditor("");
-                            setNotice("Work experience updated.");
+                            notify.success("Work experience updated.");
                         }}
                     />
 
@@ -616,22 +743,38 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
                             );
                             setOpenActionMenu("");
                             setActiveEditor("");
-                            setNotice("Skill removed.");
+                            notify.success("Skill removed.");
                         }}
                         onEdit={(skill) => openEditor(`skill:${skill}`)}
                         onNew={() => openEditor("skill:new")}
                         onSave={(oldSkill, nextSkill) => {
                             setSkills((current) => {
+                                const normalizedSkill = String(nextSkill).trim();
+
+                                if (!normalizedSkill) {
+                                    return current;
+                                }
+
+                                const alreadyExists = current.some(
+                                    (item) =>
+                                        item.toLowerCase() ===
+                                        normalizedSkill.toLowerCase(),
+                                );
+
+                                if (!oldSkill && alreadyExists) {
+                                    return current;
+                                }
+
                                 if (!oldSkill) {
-                                    return [nextSkill, ...current];
+                                    return [normalizedSkill, ...current];
                                 }
 
                                 return current.map((item) =>
-                                    item === oldSkill ? nextSkill : item,
+                                    item === oldSkill ? normalizedSkill : item,
                                 );
                             });
                             setActiveEditor("");
-                            setNotice("Skill updated.");
+                            notify.success("Skill updated.");
                         }}
                     />
 
@@ -646,27 +789,61 @@ function SellerProfileManagerPage({ initialMode = "profile" }) {
                         onCertificationSave={(nextCertification) => {
                             setCertification(nextCertification);
                             setActiveEditor("");
-                            setNotice("Certification updated.");
+                            notify.success("Certification updated.");
                         }}
                         onDelete={() => {
                             setEducation(null);
                             setOpenActionMenu("");
                             setActiveEditor("");
-                            setNotice("Education removed.");
+                            notify.success("Education removed.");
                         }}
                         onEdit={() => openEditor("education")}
                         onSave={(nextEducation) => {
                             setEducation(nextEducation);
                             setActiveEditor("");
-                            setNotice("Education updated.");
+                            notify.success("Education updated.");
                         }}
                     />
                 </div>
 
                 <SellerEditorAside
+                    strength={strength}
                     onOpenCertification={() => openEditor("certification")}
                     onOpenPortfolio={openPortfolioManager}
                 />
+            </div>
+        </main>
+    );
+}
+
+function SellerProfileSkeleton() {
+    return (
+        <main className="dashboard-content seller-editor-page">
+            <div className="seller-editor-layout">
+                <div className="seller-editor-main">
+                    <section className="seller-editor-hero seller-profile-skeleton">
+                        <LoadingSkeleton className="seller-skeleton-avatar" />
+                        <div className="seller-editor-hero-copy">
+                            <LoadingSkeleton className="seller-skeleton-title" />
+                            <LoadingSkeleton className="seller-skeleton-line wide" />
+                            <LoadingSkeleton className="seller-skeleton-line" />
+                        </div>
+                    </section>
+                    {[0, 1, 2, 3].map((item) => (
+                        <section
+                            className="seller-editor-card seller-profile-skeleton-card"
+                            key={item}
+                        >
+                            <LoadingSkeleton className="seller-skeleton-title" />
+                            <LoadingSkeleton className="seller-skeleton-line wide" />
+                            <LoadingSkeleton className="seller-skeleton-line" />
+                        </section>
+                    ))}
+                </div>
+                <aside className="seller-editor-aside">
+                    <LoadingSkeleton className="seller-skeleton-side-card" />
+                    <LoadingSkeleton className="seller-skeleton-side-card" />
+                </aside>
             </div>
         </main>
     );
@@ -676,6 +853,7 @@ function SellerEditorHero({
     activeEditor,
     languages,
     profile,
+    onAvatarSave,
     onCancelEditor,
     onEdit,
     onIdentitySave,
@@ -703,17 +881,7 @@ function SellerEditorHero({
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = () => {
-            if (reader.result) {
-                onIdentitySave(
-                    { avatar: reader.result },
-                    "Profile photo updated.",
-                );
-            }
-        };
-        reader.onerror = () => onNotice("Profile photo could not be read.");
-        reader.readAsDataURL(file);
+        onAvatarSave(file);
     };
 
     const handleTitleKeyDown = (event) => {
@@ -726,7 +894,13 @@ function SellerEditorHero({
     return (
         <header className="seller-editor-hero">
             <div className="seller-editor-avatar-wrap">
-                <img src={profile.avatar} alt={`${profile.name} profile`} />
+                {profile.avatar ? (
+                    <img src={profile.avatar} alt={`${profile.name} profile`} />
+                ) : (
+                    <span className="seller-editor-avatar-fallback">
+                        {initialsFromName(profile.name)}
+                    </span>
+                )}
                 <button
                     type="button"
                     aria-label="Change profile photo"
@@ -1012,21 +1186,27 @@ function LanguageEditorPopover({ languages, onChange }) {
     );
 }
 
-function SellerEditorAside({ onOpenCertification, onOpenPortfolio }) {
+function SellerEditorAside({ strength, onOpenCertification, onOpenPortfolio }) {
+    const percent = Math.min(100, Math.max(0, strength?.percent ?? 0));
+
     return (
         <aside className="seller-editor-aside">
             <section className="seller-editor-side-card">
                 <div className="seller-profile-strength-head">
                     <h2>Profile Strength</h2>
                     <strong>
-                        10<span>/12</span>
+                        {strength?.completed ?? 0}
+                        <span>/{strength?.total ?? 12}</span>
                     </strong>
                 </div>
                 <p>
                     A strong profile helps you stand out and attract better
                     opportunities.
                 </p>
-                <div className="seller-strength-track">
+                <div
+                    className="seller-strength-track"
+                    style={{ "--profile-strength": `${percent}%` }}
+                >
                     <span></span>
                 </div>
                 <button type="button">
@@ -1054,13 +1234,26 @@ function SellerEditorAside({ onOpenCertification, onOpenPortfolio }) {
     );
 }
 
-function ShareExpertisePopup({ onClose, onCopy }) {
+function ShareExpertisePopup({ profileName, profileUrl, onClose, onCopy }) {
     const shareItems = [
         { label: "Facebook", mark: "f", type: "facebook" },
         { label: "LinkedIn", mark: "in", type: "linkedin" },
         { label: "Twitter", mark: "t", type: "twitter" },
         { label: "WhatsApp", mark: "w", type: "whatsapp" },
     ];
+    const shareText = `View ${profileName}'s bdgigs seller profile`;
+    const encodedUrl = encodeURIComponent(profileUrl);
+    const encodedText = encodeURIComponent(shareText);
+    const shareUrls = {
+        facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
+        linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
+        twitter: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedText}`,
+        whatsapp: `https://wa.me/?text=${encodedText}%20${encodedUrl}`,
+    };
+
+    const openShareUrl = (type) => {
+        window.open(shareUrls[type], "_blank", "noopener,noreferrer");
+    };
 
     return (
         <div className="seller-share-layer" role="presentation">
@@ -1092,6 +1285,7 @@ function ShareExpertisePopup({ onClose, onCopy }) {
                             className={`seller-share-option ${item.type}`}
                             key={item.label}
                             type="button"
+                            onClick={() => openShareUrl(item.type)}
                         >
                             <span>{item.mark}</span>
                             {item.label}
@@ -1256,8 +1450,20 @@ function AboutProfileSection({
     );
 }
 
-function FeaturedClientsSection({ isEditing, onCancel, onEdit, onSave }) {
+function FeaturedClientsSection({
+    clients,
+    isEditing,
+    onCancel,
+    onEdit,
+    onSave,
+}) {
     const [confirmed, setConfirmed] = useState(false);
+    const [draft, setDraft] = useState({
+        name: "",
+        description: "",
+    });
+
+    const canSubmit = confirmed && draft.name.trim();
 
     return (
         <SellerSectionCard className="seller-featured-card">
@@ -1274,6 +1480,18 @@ function FeaturedClientsSection({ isEditing, onCancel, onEdit, onSave }) {
                 >
                     <Icon name="plus" /> Add client
                 </button>
+                {clients.length ? (
+                    <div className="seller-featured-client-list">
+                        {clients.map((client) => (
+                            <article key={client.id || client.name}>
+                                <strong>{client.name}</strong>
+                                {client.description ? (
+                                    <span>{client.description}</span>
+                                ) : null}
+                            </article>
+                        ))}
+                    </div>
+                ) : null}
             </div>
             <div className="seller-featured-illustration" aria-hidden="true">
                 <Icon name="document" />
@@ -1284,7 +1502,17 @@ function FeaturedClientsSection({ isEditing, onCancel, onEdit, onSave }) {
                     className="seller-inline-form seller-client-form"
                     onSubmit={(event) => {
                         event.preventDefault();
-                        onSave();
+                        if (!canSubmit) {
+                            return;
+                        }
+
+                        onSave({
+                            id: `client-${Date.now()}`,
+                            name: draft.name.trim(),
+                            description: draft.description.trim(),
+                        });
+                        setDraft({ name: "", description: "" });
+                        setConfirmed(false);
                     }}
                 >
                     <div className="seller-form-head">
@@ -1297,18 +1525,31 @@ function FeaturedClientsSection({ isEditing, onCancel, onEdit, onSave }) {
                     </div>
                     <label>
                         <span>Client name</span>
-                        <select defaultValue="">
-                            <option value="" disabled>
-                                Client name
-                            </option>
-                            <option>BDGigs</option>
-                            <option>BrightCart</option>
-                            <option>CloudPeak</option>
-                        </select>
+                        <input
+                            type="text"
+                            maxLength={120}
+                            placeholder="Client or brand name"
+                            value={draft.name}
+                            onChange={(event) =>
+                                setDraft((current) => ({
+                                    ...current,
+                                    name: event.target.value,
+                                }))
+                            }
+                        />
                     </label>
                     <label>
                         <span>Describe the work</span>
-                        <textarea maxLength={400} />
+                        <textarea
+                            maxLength={400}
+                            value={draft.description}
+                            onChange={(event) =>
+                                setDraft((current) => ({
+                                    ...current,
+                                    description: event.target.value,
+                                }))
+                            }
+                        />
                     </label>
                     <label className="seller-check-row">
                         <input
@@ -1327,7 +1568,7 @@ function FeaturedClientsSection({ isEditing, onCancel, onEdit, onSave }) {
                         <button type="button" onClick={onCancel}>
                             Cancel
                         </button>
-                        <button type="submit" disabled={!confirmed}>
+                        <button type="submit" disabled={!canSubmit}>
                             Submit
                         </button>
                     </div>
@@ -1338,11 +1579,15 @@ function FeaturedClientsSection({ isEditing, onCancel, onEdit, onSave }) {
 }
 
 function PortfolioPreviewSection({ project, onOpen }) {
+    if (!project) {
+        return null;
+    }
+
     return (
         <SellerSectionCard title="Portfolio">
             <div className="seller-portfolio-preview">
                 <img
-                    src={project?.image || "/assets/img/gig_images/1.png"}
+                    src={project.image}
                     alt="Portfolio preview"
                 />
                 <button type="button" onClick={onOpen}>
@@ -1385,6 +1630,44 @@ function IntroVideoSection({ isEditing, onCancel, onEdit, onSave }) {
 
 function IntroVideoUploadForm({ onCancel, onSave }) {
     const [videoName, setVideoName] = useState("");
+    const [videoPreviewUrl, setVideoPreviewUrl] = useState("");
+
+    useEffect(
+        () => () => {
+            if (videoPreviewUrl) {
+                URL.revokeObjectURL(videoPreviewUrl);
+            }
+        },
+        [videoPreviewUrl],
+    );
+
+    const handleVideoChange = (event) => {
+        const file = event.target.files?.[0];
+
+        if (!file) {
+            return;
+        }
+
+        setVideoName(file.name);
+        setVideoPreviewUrl((currentUrl) => {
+            if (currentUrl) {
+                URL.revokeObjectURL(currentUrl);
+            }
+
+            return URL.createObjectURL(file);
+        });
+    };
+
+    const clearVideo = () => {
+        setVideoName("");
+        setVideoPreviewUrl((currentUrl) => {
+            if (currentUrl) {
+                URL.revokeObjectURL(currentUrl);
+            }
+
+            return "";
+        });
+    };
 
     return (
         <section className="seller-intro-upload-card">
@@ -1402,24 +1685,45 @@ function IntroVideoUploadForm({ onCancel, onSave }) {
                     <li>File size: Up to 5 GB</li>
                 </ul>
             </div>
-            <label className="seller-video-dropzone">
-                <input
-                    type="file"
-                    accept=".mp4,.mov,.avi"
-                    onChange={(event) =>
-                        setVideoName(event.target.files?.[0]?.name || "")
-                    }
-                />
-                <Icon name="document" />
-                <strong>Upload your video</strong>
-                <span>
-                    <u>Choose</u> a file or drop it here
-                </span>
-                <small>
-                    You can upload the following formats: .mp4, .mov, .avi
-                </small>
-                {videoName ? <em>{videoName}</em> : null}
-            </label>
+            <div className="seller-video-upload-panel">
+                {videoPreviewUrl ? (
+                    <div className="seller-video-preview">
+                        <video src={videoPreviewUrl} controls />
+                        <button
+                            type="button"
+                            aria-label="Remove uploaded intro video"
+                            onClick={clearVideo}
+                        >
+                            <Icon name="trash" />
+                        </button>
+                    </div>
+                ) : (
+                    <label className="seller-video-dropzone">
+                        <input
+                            type="file"
+                            accept=".mp4,.mov,.avi"
+                            onChange={handleVideoChange}
+                        />
+                        <Icon name="upload" />
+                        <strong>Upload your video</strong>
+                        <span>
+                            <u>Choose</u> a file or drop it here
+                        </span>
+                        <small>
+                            You can upload the following formats: .mp4, .mov,
+                            .avi
+                        </small>
+                    </label>
+                )}
+                {videoName ? (
+                    <small className="seller-video-file-name">{videoName}</small>
+                ) : null}
+            </div>
+            {videoName ? (
+                <p className="seller-video-duration-warning">
+                    Make sure your video is between 20 - 60 seconds.
+                </p>
+            ) : null}
             <div className="seller-video-review-note">
                 <Icon name="document" />
                 <p>
@@ -1430,12 +1734,22 @@ function IntroVideoUploadForm({ onCancel, onSave }) {
                 </p>
             </div>
             <div className="seller-upload-actions">
-                <button type="button">Guidelines</button>
+                <button
+                    className="seller-upload-secondary"
+                    type="button"
+                >
+                    Guidelines
+                </button>
                 <span>
-                    <button type="button" onClick={onCancel}>
+                    <button
+                        className="seller-upload-link"
+                        type="button"
+                        onClick={onCancel}
+                    >
                         Cancel
                     </button>
                     <button
+                        className="seller-upload-submit"
                         type="button"
                         disabled={!videoName}
                         onClick={onSave}
@@ -1490,9 +1804,18 @@ function WorkExperienceSection({
                             {work.company} - {work.employmentType}
                         </small>
                         <small>
-                            {work.startDate} - {work.endDate} - {work.duration}
+                            {formatWorkDate(work.startDate)} -{" "}
+                            {formatWorkDate(work.endDate) || "Present"}
+                            {work.duration ? ` - ${work.duration}` : ""}
                         </small>
                         <p>{work.description}</p>
+                        {normalizeSkillList(work.skills).length ? (
+                            <div className="seller-work-skill-list">
+                                {normalizeSkillList(work.skills).map((skill) => (
+                                    <span key={skill}>{skill}</span>
+                                ))}
+                            </div>
+                        ) : null}
                     </div>
                     <SellerActionDropdown
                         id="work-experience"
@@ -1515,6 +1838,9 @@ function WorkExperienceSection({
 
 function WorkExperienceForm({ work, onCancel, onSave }) {
     const [draft, setDraft] = useState(work);
+    const [skillText, setSkillText] = useState(() =>
+        skillListInputValue(work.skills),
+    );
 
     const updateDraft = (field, value) => {
         setDraft((current) => ({ ...current, [field]: value }));
@@ -1525,7 +1851,10 @@ function WorkExperienceForm({ work, onCancel, onSave }) {
             className="seller-inline-form seller-work-form"
             onSubmit={(event) => {
                 event.preventDefault();
-                onSave(draft);
+                onSave({
+                    ...draft,
+                    skills: normalizeSkillList(skillText),
+                });
             }}
         >
             <div className="seller-form-head">
@@ -1539,11 +1868,11 @@ function WorkExperienceForm({ work, onCancel, onSave }) {
             <input
                 type="text"
                 placeholder="Title"
-                value={draft.title}
+                value={draft.title || ""}
                 onChange={(event) => updateDraft("title", event.target.value)}
             />
             <select
-                value={draft.employmentType}
+                value={draft.employmentType || "Full-time"}
                 onChange={(event) =>
                     updateDraft("employmentType", event.target.value)
                 }
@@ -1556,7 +1885,7 @@ function WorkExperienceForm({ work, onCancel, onSave }) {
             <input
                 type="text"
                 placeholder="Company name"
-                value={draft.company}
+                value={draft.company || ""}
                 onChange={(event) => updateDraft("company", event.target.value)}
             />
             <label className="seller-check-row compact">
@@ -1564,38 +1893,45 @@ function WorkExperienceForm({ work, onCancel, onSave }) {
                 <span>I currently work here</span>
             </label>
             <div className="seller-two-fields">
-                <input
-                    type="text"
-                    placeholder="Start date"
-                    value={draft.startDate}
-                    onChange={(event) =>
-                        updateDraft("startDate", event.target.value)
-                    }
-                />
-                <input
-                    type="text"
-                    placeholder="End date"
-                    value={draft.endDate}
-                    onChange={(event) =>
-                        updateDraft("endDate", event.target.value)
-                    }
-                />
+                <label>
+                    <span>Start date</span>
+                    <input
+                        type="date"
+                        value={dateInputValue(draft.startDate)}
+                        onChange={(event) =>
+                            updateDraft("startDate", event.target.value)
+                        }
+                    />
+                </label>
+                <label>
+                    <span>End date</span>
+                    <input
+                        type="date"
+                        value={dateInputValue(draft.endDate)}
+                        onChange={(event) =>
+                            updateDraft("endDate", event.target.value)
+                        }
+                    />
+                </label>
             </div>
             <textarea
                 maxLength={2000}
                 placeholder="Add your job history and achievements to give clients insight into your expertise."
-                value={draft.description}
+                value={draft.description || ""}
                 onChange={(event) =>
                     updateDraft("description", event.target.value)
                 }
             />
-            <small>{draft.description.length}/2000 characters</small>
-            <select defaultValue="">
-                <option value="">Skills (Optional)</option>
-                {defaultSkills.map((skill) => (
-                    <option key={skill}>{skill}</option>
-                ))}
-            </select>
+            <small>{(draft.description || "").length}/2000 characters</small>
+            <label>
+                <span>Skills (Optional)</span>
+                <input
+                    type="text"
+                    placeholder="Laravel, React, API integration"
+                    value={skillText}
+                    onChange={(event) => setSkillText(event.target.value)}
+                />
+            </label>
             <input type="text" placeholder="Industry (Optional)" />
             <div className="seller-inline-actions">
                 <button type="button" onClick={onCancel}>
@@ -1670,20 +2006,17 @@ function SkillsSection({
 }
 
 function SkillEditCard({ skill, onCancel, onSave }) {
-    const [draft, setDraft] = useState(skill || "Website development");
+    const [draft, setDraft] = useState(skill || "");
 
     return (
         <article className="seller-skill-edit-card">
-            <select
+            <input
+                type="text"
+                autoFocus
+                placeholder="Add a skill or expertise"
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-            >
-                {defaultSkills.map((item) => (
-                    <option key={item} value={item}>
-                        {item}
-                    </option>
-                ))}
-            </select>
+            />
             <select defaultValue="Pro">
                 <option>Pro</option>
                 <option>Intermediate</option>
@@ -1695,8 +2028,8 @@ function SkillEditCard({ skill, onCancel, onSave }) {
                 </button>
                 <button
                     type="button"
-                    disabled={!draft}
-                    onClick={() => onSave(draft)}
+                    disabled={!draft.trim()}
+                    onClick={() => onSave(draft.trim())}
                 >
                     Update
                 </button>
@@ -1950,7 +2283,13 @@ function SellerProfileSummary({ profile }) {
         <section className="seller-profile-summary-card">
             <div className="seller-profile-person">
                 <span className="seller-profile-avatar">
-                    <img src={profile.avatar} alt={`${profile.name} profile`} />
+                    {profile.avatar ? (
+                        <img src={profile.avatar} alt={`${profile.name} profile`} />
+                    ) : (
+                        <span className="seller-editor-avatar-fallback">
+                            {initialsFromName(profile.name)}
+                        </span>
+                    )}
                     <i aria-hidden="true"></i>
                 </span>
                 <div>

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     initialsFromName,
     profilePathForSeller,
@@ -8,6 +8,10 @@ import { Icon, Rating } from "../common/Icons.jsx";
 import { useTranslation } from "react-i18next";
 import { useMarketplaceStore } from "../../stores/useMarketplaceStore.js";
 import { useSessionStore } from "../../stores/useSessionStore.js";
+import {
+    readRecentlyViewedGigs,
+    subscribeToRecentlyViewedGigs,
+} from "../../utils/recentlyViewedGigs.js";
 
 function FeaturedServices({ onNavigate }) {
     const { t } = useTranslation();
@@ -17,13 +21,28 @@ function FeaturedServices({ onNavigate }) {
     const toggleSavedService = useMarketplaceStore(
         (state) => state.toggleSavedService,
     );
-    const visibleServices = listingGigs
-        .filter((service) => service.featured)
-        .slice(0, 5);
+    const [recentlyViewed, setRecentlyViewed] = useState(() =>
+        readRecentlyViewedGigs(),
+    );
+    const visibleServices = useMemo(() => {
+        const featured = listingGigs.filter((service) => service.featured);
+        const indexedGigs = new Map(listingGigs.map((gig) => [gig.id, gig]));
+        const hydratedRecent = recentlyViewed.map((gig) => ({
+            ...gig,
+            ...(indexedGigs.get(gig.id) || {}),
+        }));
+
+        return uniqueById([...hydratedRecent, ...featured]).slice(0, 5);
+    }, [listingGigs, recentlyViewed]);
 
     useEffect(() => {
         fetchGigs();
     }, [fetchGigs]);
+
+    useEffect(
+        () => subscribeToRecentlyViewedGigs(setRecentlyViewed),
+        [],
+    );
 
     if (visibleServices.length === 0) {
         return null;
@@ -187,5 +206,18 @@ function FeaturedServices({ onNavigate }) {
             </div>
         </section>
     );
+}
+
+function uniqueById(items) {
+    const seen = new Set();
+
+    return items.filter((item) => {
+        if (!item?.id || seen.has(item.id)) {
+            return false;
+        }
+
+        seen.add(item.id);
+        return true;
+    });
 }
 export default FeaturedServices;

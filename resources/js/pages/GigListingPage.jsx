@@ -60,6 +60,11 @@ function GigListingPage({ onNavigate }) {
         fetchGigs();
     }, [fetchGigs]);
 
+    useEffect(() => {
+        document.title = pageMeta.documentTitle;
+        upsertMetaDescription(pageMeta.description);
+    }, [pageMeta.description, pageMeta.documentTitle]);
+
     const scopedGigs = useMemo(
         () =>
             getScopedGigs({
@@ -131,7 +136,7 @@ function GigListingPage({ onNavigate }) {
             <main className="listing-main">
                 <div className="container">
                     {isSearchPage ? (
-                        <SearchHeading query={query} />
+                        <SearchHeading pageMeta={pageMeta} />
                     ) : (
                         <CategoryHeading
                             pageMeta={pageMeta}
@@ -525,15 +530,16 @@ function TalentWayCard({ action, copy, icon, meta, onClick, title }) {
         </article>
     );
 }
-function SearchHeading({ query }) {
+function SearchHeading({ pageMeta }) {
     const { t } = useTranslation();
     return (
         <header className="listing-search-heading">
             <h1>
                 {" "}
                 {t("pages.giglistingpage.resultsFor")}{" "}
-                <strong>{query || "all services"}</strong>
+                <strong>{pageMeta.searchLabel}</strong>
             </h1>
+            <p>{pageMeta.description}</p>
         </header>
     );
 }
@@ -917,12 +923,23 @@ function GigCard({ gig }) {
 }
 function getPageMeta(pathname, query, isSearchPage) {
     if (isSearchPage) {
+        const searchLabel = query || "all services";
+        const title = query
+            ? `${titleFromSearch(query)} services`
+            : "Search freelance services";
+
         return {
-            title: `Results for ${query || "all services"}`,
-            resultLabel:
-                query.toLowerCase() === "codecanyon"
-                    ? "555 results"
-                    : "1,200+ results",
+            parentLabel: "Search",
+            title,
+            searchLabel,
+            description: query
+                ? `Browse bdgigs freelancers, packages, ratings, and delivery options for ${query}.`
+                : "Search bdgigs for freelance services, compare packages, and find the right expert for your project.",
+            resultLabel: query ? "Matching services" : "1,200+ results",
+            chips: websiteCategoryPage.chips,
+            documentTitle: query
+                ? `${titleFromSearch(query)} services | bdgigs`
+                : "Search freelance services | bdgigs",
         };
     }
     const segments = pathname.split("/").filter(Boolean);
@@ -941,7 +958,30 @@ function getPageMeta(pathname, query, isSearchPage) {
             ? websiteCategoryPage.resultLabel
             : "12,000+ results",
         chips: websiteCategoryPage.chips,
+        documentTitle: `${isWebsiteDevelopment ? websiteCategoryPage.title : titleFromSlug(titleSlug)} | bdgigs`,
     };
+}
+
+function titleFromSearch(value) {
+    return value
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ");
+}
+
+function upsertMetaDescription(content) {
+    if (!content) return;
+
+    let meta = document.querySelector('meta[name="description"]');
+
+    if (!meta) {
+        meta = document.createElement("meta");
+        meta.setAttribute("name", "description");
+        document.head.appendChild(meta);
+    }
+
+    meta.setAttribute("content", content);
 }
 function getScopedGigs({ isSearchPage, query, pathname, listingGigs }) {
     if (isSearchPage) {

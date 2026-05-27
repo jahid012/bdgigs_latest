@@ -17,6 +17,7 @@ class NotificationResource extends JsonResource
             'time' => $this->created_at->diffForHumans(short: true),
             'actionUrl' => $this->action_url,
             'readAt' => $this->read_at?->toISOString(),
+            'preferenceKey' => $this->metadata['preferenceKey'] ?? null,
         ];
     }
 }

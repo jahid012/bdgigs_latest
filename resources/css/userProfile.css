@@ -101,6 +101,14 @@
   background: #1dbf73;
 }
 
+.profile-online-dot.is-online {
+  background: #1dbf73;
+}
+
+.profile-online-dot.is-offline {
+  background: #c5c6c9;
+}
+
 .public-profile-summary {
   padding-top: 0.45rem;
 }
@@ -183,6 +191,27 @@
 .public-profile-meta svg {
   width: 14px;
   height: 14px;
+}
+
+.profile-page-skeleton .public-profile-primary {
+  align-items: start;
+}
+
+.profile-skeleton-avatar {
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+}
+
+.profile-skeleton-card {
+  min-height: 190px;
+  border-radius: 8px;
+}
+
+.profile-skeleton-section {
+  display: grid;
+  gap: 0.8rem;
+  min-height: 132px;
 }
 
 .public-about-block,
@@ -475,29 +504,33 @@
 }
 
 .profile-section > h2 {
-  margin-bottom: 1rem;
+  margin-bottom: 1.15rem;
   font-size: 1.38rem;
 }
 
 .profile-service-list {
   display: grid;
-  grid-template-columns: minmax(280px, 356px);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.55rem;
 }
 
 .profile-service-card {
   display: grid;
-  gap: 1.35rem;
-  padding: 1rem;
+  min-height: 168px;
+  gap: 1.25rem;
+  align-content: space-between;
+  padding: 1rem 1rem 0.95rem;
   border: 1px solid #dadbdd;
   border-radius: 4px;
   background: #ffffff;
-  box-shadow: 0 1px 4px rgba(34, 35, 37, 0.06);
+  box-shadow: 0 1px 5px rgba(34, 35, 37, 0.12);
 }
 
 .profile-service-main {
   display: grid;
   grid-template-columns: 104px 1fr;
-  gap: 1rem;
+  gap: 1.05rem;
+  align-items: start;
 }
 
 .profile-service-main img {
@@ -508,10 +541,11 @@
 }
 
 .profile-service-main h3 {
-  margin-bottom: 0.4rem;
+  margin: 0 0 0.42rem;
   color: #111111;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 800;
+  line-height: 1.3;
 }
 
 .profile-service-main p {
@@ -522,7 +556,7 @@
 
 .profile-service-footer {
   display: flex;
-  align-items: end;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
 }
@@ -535,17 +569,69 @@
 }
 
 .profile-service-footer strong {
+  color: #222325;
   font-size: 0.96rem;
+  line-height: 1.2;
 }
 
-.profile-service-footer a {
+.profile-service-footer a,
+.profile-service-footer button {
   min-height: 30px;
   padding: 0.45rem 0.85rem;
   border: 1px solid #dadbdd;
   border-radius: 5px;
+  background: #ffffff;
   color: #111111;
+  cursor: pointer;
   font-size: 0.82rem;
   font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.profile-service-footer a:hover,
+.profile-service-footer button:hover {
+  border-color: #b5b6ba;
+  background: #f7f7f7;
+}
+
+
+.profile-show-all-services {
+  display: inline-flex;
+  margin-top: 0.85rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #111111;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 1040px) {
+  .profile-service-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .profile-service-list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .profile-service-card {
+    border-radius: 4px;
+  }
+
+  .profile-service-card + .profile-service-card,
+  .profile-service-card {
+    margin-top: -1px;
+  }
 }
 
 .profile-portfolio-layout {
@@ -730,6 +816,23 @@
 
 .profile-work-item div p:last-child {
   margin-top: 0.7rem;
+}
+
+.profile-work-skill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.profile-work-skill-list span {
+  padding: 0.24rem 0.52rem;
+  border: 1px solid #dadbdd;
+  border-radius: 999px;
+  background: #fafafa;
+  color: #404145;
+  font-size: 0.74rem;
+  font-weight: 800;
 }
 
 .profile-sourcing-cta {
@@ -1319,7 +1422,6 @@
   width: 11px;
   height: 11px;
   border-width: 2px;
-  background: #c5c6c9;
 }
 
 .profile-contact-popup header strong {
@@ -2090,15 +2192,8 @@
     grid-column: 1;
   }
 
-  .profile-service-main,
   .profile-work-item {
     grid-template-columns: 1fr;
-  }
-
-  .profile-service-main img {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 1.65 / 1;
   }
 
   .profile-portfolio-card {

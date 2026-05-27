@@ -6,6 +6,7 @@ use App\Models\Conversation;
 use App\Models\Dispute;
 use App\Models\Gig;
 use App\Models\Order;
+use App\Models\OrderReview;
 use App\Models\User;
 use App\Models\UserNotification;
 use Illuminate\Database\Seeder;
@@ -36,6 +37,8 @@ class MarketplaceActivitySeeder extends Seeder
         ]);
 
         $this->seedOrders($user);
+        $this->seedOrdersForEveryUser();
+        $this->seedOrderReviews();
         $this->seedConversations($user);
         $this->seedDisputes();
         $this->seedNotifications($user);
@@ -145,6 +148,61 @@ class MarketplaceActivitySeeder extends Seeder
         }
     }
 
+    private function seedOrdersForEveryUser(): void
+    {
+        $users = User::query()->orderBy('id')->get();
+        $gigs = Gig::query()->with('seller')->orderBy('id')->get();
+
+        if ($users->count() < 2 || $gigs->isEmpty()) {
+            return;
+        }
+
+        foreach ($users as $user) {
+            $buyerGigs = $gigs
+                ->where('seller_id', '!=', $user->id)
+                ->values()
+                ->take(3);
+
+            foreach ($buyerGigs as $index => $gig) {
+                if (! $gig->seller) {
+                    continue;
+                }
+
+                $this->upsertOrder(
+                    sprintf('DU-B-%04d-%02d', $user->id, $index + 1),
+                    Order::factory()
+                        ->between($user, $gig->seller, $gig)
+                        ->make($this->demoOrderState($index, 'buyer')),
+                );
+            }
+
+            $sellerGigs = $gigs
+                ->where('seller_id', $user->id)
+                ->values()
+                ->take(3);
+            $buyerPool = $users->where('id', '!=', $user->id)->values();
+
+            if ($sellerGigs->isEmpty() || $buyerPool->isEmpty()) {
+                continue;
+            }
+
+            foreach ($sellerGigs as $index => $gig) {
+                $buyer = $buyerPool[$index % $buyerPool->count()] ?? null;
+
+                if (! $buyer) {
+                    continue;
+                }
+
+                $this->upsertOrder(
+                    sprintf('DU-S-%04d-%02d', $user->id, $index + 1),
+                    Order::factory()
+                        ->between($buyer, $user, $gig)
+                        ->make($this->demoOrderState($index + 1, 'seller')),
+                );
+            }
+        }
+    }
+
     private function seedDisputes(): void
     {
         $order = Order::where('code', 'SO-001')->first();
@@ -178,6 +236,53 @@ class MarketplaceActivitySeeder extends Seeder
         );
     }
 
+    private function seedOrderReviews(): void
+    {
+        $orders = Order::query()
+            ->where('status', 'Completed')
+            ->with(['buyer', 'seller'])
+            ->take(12)
+            ->get();
+
+        foreach ($orders as $index => $order) {
+            if (! $order->buyer || ! $order->seller) {
+                continue;
+            }
+
+            OrderReview::updateOrCreate(
+                ['order_id' => $order->id, 'reviewer_id' => $order->buyer_id],
+                [
+                    'reviewee_id' => $order->seller_id,
+                    'role' => 'buyer',
+                    'rating' => 5 - ($index % 2),
+                    'comment' => 'Clear communication, organized delivery, and a polished marketplace-ready result.',
+                    'submitted_at' => now()->subDays(2),
+                ],
+            );
+
+            if ($index % 2 === 0) {
+                OrderReview::updateOrCreate(
+                    ['order_id' => $order->id, 'reviewer_id' => $order->seller_id],
+                    [
+                        'reviewee_id' => $order->buyer_id,
+                        'role' => 'seller',
+                        'rating' => 5,
+                        'comment' => 'Helpful brief, fast feedback, and a smooth approval process.',
+                        'submitted_at' => now()->subDay(),
+                    ],
+                );
+            }
+
+            $order->activities()->firstOrCreate(
+                ['type' => 'review_submitted', 'title' => 'Buyer review submitted'],
+                [
+                    'actor_id' => $order->buyer_id,
+                    'detail' => 'Demo buyer review seeded for order review testing.',
+                ],
+            );
+        }
+    }
+
     private function statusState(int $index): array
     {
         $status = ['Pending Requirements', 'In Progress', 'Delivered', 'Completed'][$index % 4];
@@ -189,6 +294,33 @@ class MarketplaceActivitySeeder extends Seeder
                 'Delivered', 'Pending Requirements' => 'status-delivered',
                 default => 'status-progress',
             },
+        ];
+    }
+
+    private function demoOrderState(int $index, string $role): array
+    {
+        return [
+            ...$this->statusState($index),
+            'due_date' => now()->addDays([2, 5, 8, 12][$index % 4]),
+            'metadata' => [
+                'itemSummary' => $role === 'seller'
+                    ? 'Seeded seller dashboard package'
+                    : 'Seeded buyer dashboard package',
+                'quantity' => 1,
+                'requirements' => [
+                    [
+                        'label' => 'Project brief',
+                        'answer' => 'Demo requirements for dashboard order testing.',
+                    ],
+                ],
+                'activity' => [
+                    [
+                        'title' => 'Order created',
+                        'detail' => 'Seeded demo order for dashboard testing.',
+                        'time' => now()->subDays(2)->format('M j, Y g:i A'),
+                    ],
+                ],
+            ],
         ];
     }
 

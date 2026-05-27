@@ -7,7 +7,7 @@
     <main class="admin-login-page">
         <section class="admin-login-brand" aria-label="Admin introduction">
             <a class="admin-logo" href="{{ route('admin.login') }}">
-                bdgigs<span>.</span>
+                <img src="{{ asset('assets/img/logo.png') }}" alt="bdgigs">
             </a>
             <div>
                 <p class="admin-eyebrow">Marketplace control center</p>

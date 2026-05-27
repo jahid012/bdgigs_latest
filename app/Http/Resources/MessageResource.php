@@ -24,6 +24,10 @@ class MessageResource extends JsonResource
             'saved' => $this->relationLoaded('savedByUsers')
                 ? $this->savedByUsers->contains('id', $request->user()?->id)
                 : false,
+            'customOffer' => $this->when(
+                $this->relationLoaded('customOffer') && $this->customOffer,
+                fn () => CustomOfferResource::make($this->customOffer)->resolve($request),
+            ),
             'attachments' => MessageAttachmentResource::collection($this->whenLoaded('attachments')),
         ];
     }

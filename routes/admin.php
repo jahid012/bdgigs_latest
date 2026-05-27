@@ -1,10 +1,12 @@
 <?php
 
 use App\Http\Controllers\Admin\AuthController;
+use App\Http\Controllers\Admin\CreatorMarketplaceItemController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DisputeController;
 use App\Http\Controllers\Admin\GigController;
 use App\Http\Controllers\Admin\ManualPaymentController;
+use App\Http\Controllers\Admin\MarketplaceCategoryController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\ReportController;
@@ -42,6 +44,14 @@ Route::prefix(config('admin.route_prefix', 'admin'))
             Route::get('/gigs/{gig}', [GigController::class, 'show'])->middleware('permission:gigs.view')->name('gigs.show');
             Route::patch('/gigs/{gig}/status', [GigController::class, 'updateStatus'])->middleware('permission:gigs.review|gigs.publish')->name('gigs.status');
             Route::patch('/gigs/{gig}/featured', [GigController::class, 'toggleFeatured'])->middleware('permission:gigs.publish')->name('gigs.featured');
+            Route::get('/marketplace-categories', [MarketplaceCategoryController::class, 'index'])->middleware('permission:categories.manage')->name('marketplace-categories');
+            Route::post('/marketplace-categories', [MarketplaceCategoryController::class, 'store'])->middleware('permission:categories.manage')->name('marketplace-categories.store');
+            Route::patch('/marketplace-categories/{category}', [MarketplaceCategoryController::class, 'update'])->middleware('permission:categories.manage')->name('marketplace-categories.update');
+            Route::delete('/marketplace-categories/{category}', [MarketplaceCategoryController::class, 'destroy'])->middleware('permission:categories.manage')->name('marketplace-categories.destroy');
+            Route::get('/creator-marketplace', [CreatorMarketplaceItemController::class, 'index'])->middleware('permission:content.manage')->name('creator-marketplace');
+            Route::post('/creator-marketplace', [CreatorMarketplaceItemController::class, 'store'])->middleware('permission:content.manage')->name('creator-marketplace.store');
+            Route::patch('/creator-marketplace/{item}', [CreatorMarketplaceItemController::class, 'update'])->middleware('permission:content.manage')->name('creator-marketplace.update');
+            Route::delete('/creator-marketplace/{item}', [CreatorMarketplaceItemController::class, 'destroy'])->middleware('permission:content.manage')->name('creator-marketplace.destroy');
 
             Route::get('/orders', [OrderController::class, 'index'])->middleware('permission:orders.view')->name('orders');
             Route::get('/orders/{order:code}', [OrderController::class, 'show'])->middleware('permission:orders.view')->name('orders.show');

@@ -64,7 +64,7 @@ class ConversationResource extends JsonResource
                 'name' => $name,
                 'initials' => initials($name),
                 'username' => $counterpartUser?->username,
-                'avatar' => $counterpartUser?->avatar,
+                'avatar' => $this->assetPath($counterpartUser?->avatar),
                 'country' => $counterpartUser?->country,
                 'joinedAt' => $counterpartUser?->created_at?->toISOString(),
                 'online' => $counterpartUser?->last_seen_at?->greaterThan(now()->subSeconds(90)) ?? false,
@@ -89,6 +89,23 @@ class ConversationResource extends JsonResource
             'messages' => MessageResource::collection($this->whenLoaded('messages', $this->messages ?? collect())),
             'attachments' => MessageAttachmentResource::collection($attachments),
         ];
+    }
+
+    private function assetPath(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://') || str_starts_with($path, '/')) {
+            return $path;
+        }
+
+        if (str_starts_with($path, 'assets/') || str_starts_with($path, 'uploads/') || str_starts_with($path, 'storage/')) {
+            return '/'.$path;
+        }
+
+        return '/storage/'.$path;
     }
 }
 

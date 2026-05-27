@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { apiRequest } from "../api/apiClient.js";
 import { useMarketplaceStore } from "../stores/useMarketplaceStore.js";
 import { useSessionStore } from "../stores/useSessionStore.js";
+import { rememberRecentlyViewedGig } from "../utils/recentlyViewedGigs.js";
 const packageFeatureRows = [
     "Functional Web App",
     "Desktop Application",
@@ -80,6 +81,12 @@ function GigDetailsPage({ onNavigate }) {
             setActivePackage(firstPackageId);
         }
     }, [activePackage, detail]);
+
+    useEffect(() => {
+        if (apiGig) {
+            rememberRecentlyViewedGig(apiGig);
+        }
+    }, [apiGig]);
 
     const changeImage = (direction) => {
         setActiveImage(

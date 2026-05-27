@@ -9,8 +9,10 @@ use App\Models\Conversation;
 use App\Models\Gig;
 use App\Models\User;
 use App\Models\UserNotification;
+use App\Models\VisitorPageView;
 use Database\Seeders\MarketplaceDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Queue;
@@ -40,17 +42,52 @@ class MarketplaceApiTest extends TestCase
 
     public function test_user_can_login_and_fetch_session_user(): void
     {
-        $this->postJson('/api/auth/login', [
+        $response = $this->postJson('/api/auth/login', [
             'email' => 'test@example.com',
             'password' => 'password',
+            'remember' => true,
         ])
             ->assertOk()
             ->assertJsonPath('data.authenticated', true)
             ->assertJsonPath('data.name', 'Jahid');
+        $rememberCookie = $response->getCookie(Auth::guard('web')->getRecallerName(), false);
+
+        $this->assertNotNull($rememberCookie);
+        $this->assertGreaterThan(now()->addDays(29)->timestamp, $rememberCookie->getExpiresTime());
+        $this->assertLessThan(now()->addDays(31)->timestamp, $rememberCookie->getExpiresTime());
 
         $this->getJson('/api/me')
             ->assertOk()
             ->assertJsonPath('data.authenticated', true);
+    }
+
+    public function test_human_page_views_are_tracked_and_bots_are_ignored(): void
+    {
+        $this->withHeader('User-Agent', 'Mozilla/5.0 AppleWebKit/537.36 Chrome/125 Safari/537.36')
+            ->postJson('/api/analytics/page-view', [
+                'path' => '/gigs/demo-gig-001',
+                'title' => 'Demo gig',
+                'referrer' => 'https://bdgigs.test/',
+                'visitorId' => 'visitor-test-1',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.tracked', true);
+
+        $this->withHeader('User-Agent', 'Googlebot/2.1')
+            ->postJson('/api/analytics/page-view', [
+                'path' => '/gigs/demo-gig-001',
+                'title' => 'Demo gig',
+                'visitorId' => 'visitor-test-bot',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.tracked', false);
+
+        $this->assertSame(1, VisitorPageView::count());
+        $this->assertDatabaseHas('visitor_page_views', [
+            'path' => '/gigs/demo-gig-001',
+            'visitor_id' => 'visitor-test-1',
+            'is_bot' => false,
+        ]);
     }
 
     public function test_user_can_register_with_email_and_password(): void
@@ -136,6 +173,27 @@ class MarketplaceApiTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.type', 'image')
             ->assertJsonPath('data.originalName', 'preview.jpg');
+
+        $this->actingAs($this->user)
+            ->post('/api/seller/services/media', [
+                'type' => 'video',
+                'file' => UploadedFile::fake()->create(
+                    'intro.mp4',
+                    512,
+                    'video/mp4',
+                ),
+            ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.type', 'video')
+            ->assertJsonPath('data.originalName', 'intro.mp4')
+            ->assertJsonPath('data.thumbnailUrl', null)
+            ->assertJsonPath(
+                'data.url',
+                fn ($path) => str_starts_with(
+                    $path,
+                    "/uploads/gig-media/{$this->user->id}/",
+                ),
+            );
     }
 
     public function test_user_cannot_update_another_sellers_service(): void

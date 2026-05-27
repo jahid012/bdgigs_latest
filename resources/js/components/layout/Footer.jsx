@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { BrandMark } from "../common/Icons.jsx";
 const footerColumns = [
     {
         title: "Categories",
@@ -242,6 +243,9 @@ function Footer() {
                 </div>
 
                 <div className="footer-bottom">
+                    <Link className="footer-brand" to="/" aria-label="bdgigs home">
+                        <BrandMark />
+                    </Link>
                     <span>
                         {t(
                             "components.layout.footer.c2026BdgigsAllRightsReserved",

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\CountryDetectorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,6 +26,7 @@ class AuthController extends Controller
                 'avatar' => $user->avatar,
                 'country' => $user->country,
                 'initials' => initialsFromName($user->name),
+                'online' => true,
                 'role' => 'buyer',
                 'sellerEnabled' => true,
                 'twoFactorEnabled' => filled($user->two_factor_secret),
@@ -42,11 +44,17 @@ class AuthController extends Controller
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
+            'remember' => ['sometimes', 'boolean'],
         ]);
-        $user = User::where('email', $credentials['email'])->first();
+        $remember = (bool) ($credentials['remember'] ?? false);
+        $loginCredentials = [
+            'email' => $credentials['email'],
+            'password' => $credentials['password'],
+        ];
+        $user = User::where('email', $loginCredentials['email'])->first();
 
         if ($user
-            && Hash::check($credentials['password'], $user->password)
+            && Hash::check($loginCredentials['password'], $user->password)
             && filled($user->two_factor_secret)) {
             return response()->json([
                 'data' => [
@@ -56,7 +64,7 @@ class AuthController extends Controller
             ], 409);
         }
 
-        if (! Auth::attempt($credentials, true)) {
+        if (! Auth::attempt($loginCredentials, $remember)) {
             throw ValidationException::withMessages([
                 'email' => ['These credentials do not match our records.'],
             ]);
@@ -75,7 +83,7 @@ class AuthController extends Controller
         return $this->me($request);
     }
 
-    public function register(Request $request): JsonResponse
+    public function register(Request $request, CountryDetectorService $countries): JsonResponse
     {
         $payload = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -87,9 +95,10 @@ class AuthController extends Controller
             'name' => $payload['name'],
             'email' => $payload['email'],
             'password' => Hash::make($payload['password']),
+            'country' => $countries->detect($request),
         ]);
 
-        Auth::login($user, true);
+        Auth::login($user);
         $request->session()->regenerate();
 
         return $this->me($request);

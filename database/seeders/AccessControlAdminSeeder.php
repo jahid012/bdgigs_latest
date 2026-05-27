@@ -20,6 +20,8 @@ class AccessControlAdminSeeder extends Seeder
             'admin' => ['admin.access'],
             'users' => ['users.view', 'users.verify', 'users.suspend', 'users.impersonate'],
             'gigs' => ['gigs.view', 'gigs.review', 'gigs.publish'],
+            'categories' => ['categories.manage'],
+            'content' => ['content.manage'],
             'orders' => ['orders.view', 'orders.manage'],
             'payments' => ['payments.view', 'payments.release'],
             'manual_payments' => ['manual-payments.view', 'manual-payments.approve'],
@@ -63,6 +65,7 @@ class AccessControlAdminSeeder extends Seeder
                 'admin.access',
                 'users.view', 'users.verify',
                 'gigs.view', 'gigs.review', 'gigs.publish',
+                'categories.manage', 'content.manage',
                 'orders.view', 'orders.manage',
                 'payments.view',
                 'manual-payments.view',
@@ -87,6 +90,7 @@ class AccessControlAdminSeeder extends Seeder
             'catalog_moderator' => [
                 'admin.access',
                 'gigs.view', 'gigs.review', 'gigs.publish',
+                'categories.manage', 'content.manage',
                 'reports.view',
             ],
             'trust_safety' => [

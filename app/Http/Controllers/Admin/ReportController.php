@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Models\Gig;
 use App\Models\Order;
 use App\Models\User;
+use App\Models\VisitorPageView;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -39,6 +40,7 @@ class ReportController extends AdminController
             ],
             'marketplaceGrowth' => $this->marketplaceGrowthChart($growthFrom, $growthTo),
             'visitorAnalytics' => $this->hourlyActivityChart($visitorDay),
+            'visitorPages' => $this->topVisitorPages($visitorDay),
             'profileActivityGrowth' => $this->profileActivityChart($profileFrom, $profileTo),
             'segments' => $this->segments(),
             'buyerBehavior' => $this->buyerBehavior(),
@@ -80,31 +82,65 @@ class ReportController extends AdminController
     {
         $hours = collect(range(0, 23));
         $labels = $hours->map(fn (int $hour) => str_pad((string) $hour, 2, '0', STR_PAD_LEFT).':00')->all();
-        $users = $hours
-            ->map(fn (int $hour) => User::whereDate('created_at', $day->toDateString())->whereTime('created_at', '>=', sprintf('%02d:00:00', $hour))->whereTime('created_at', '<=', sprintf('%02d:59:59', $hour))->count())
-            ->all();
-        $orders = $hours
-            ->map(fn (int $hour) => Order::whereDate('created_at', $day->toDateString())->whereTime('created_at', '>=', sprintf('%02d:00:00', $hour))->whereTime('created_at', '<=', sprintf('%02d:59:59', $hour))->count())
-            ->all();
+        $hourlyVisits = $hours
+            ->map(function (int $hour) use ($day) {
+                $from = $day->copy()->startOfDay()->addHours($hour);
+                $to = $from->copy()->endOfHour();
+                $baseQuery = VisitorPageView::human()
+                    ->whereBetween('visited_at', [$from, $to]);
+
+                return [
+                    'pageViews' => (clone $baseQuery)->count(),
+                    'uniqueVisitors' => (clone $baseQuery)
+                        ->whereNotNull('visitor_id')
+                        ->distinct('visitor_id')
+                        ->count('visitor_id'),
+                ];
+            });
+        $pageViews = $hourlyVisits->pluck('pageViews')->all();
+        $uniqueVisitors = $hourlyVisits->pluck('uniqueVisitors')->all();
 
         return [
-            'title' => 'Hourly platform activity',
-            'description' => 'User registrations and order creation for the selected day.',
+            'title' => 'Hourly visitors',
+            'description' => 'Real browser page views and unique visitors for the selected day. Bot traffic is filtered before it reaches this report.',
             'controls' => [
                 ['label' => 'Day', 'type' => 'date', 'name' => 'visitor_day', 'value' => $day->toDateString()],
             ],
             'labels' => $labels,
-            'max' => max(1, max([...$users, ...$orders])),
+            'max' => max(1, max([...$pageViews, ...$uniqueVisitors])),
             'datasets' => [
-                ['label' => 'New users', 'values' => $users, 'color' => '#6366f1', 'fill' => 'rgba(99, 102, 241, 0.12)'],
-                ['label' => 'New orders', 'values' => $orders, 'color' => '#10b981', 'fill' => 'rgba(16, 185, 129, 0.12)'],
+                ['label' => 'Page views', 'values' => $pageViews, 'color' => '#6366f1', 'fill' => 'rgba(99, 102, 241, 0.12)'],
+                ['label' => 'Unique visitors', 'values' => $uniqueVisitors, 'color' => '#10b981', 'fill' => 'rgba(16, 185, 129, 0.12)'],
             ],
             'summary' => [
-                ['label' => 'New users', 'value' => number_format(array_sum($users))],
-                ['label' => 'New orders', 'value' => number_format(array_sum($orders))],
-                ['label' => 'Peak hour', 'value' => $this->bestDay($labels, array_map(fn ($userCount, $orderCount) => $userCount + $orderCount, $users, $orders))],
+                ['label' => 'Page views', 'value' => number_format(array_sum($pageViews))],
+                ['label' => 'Unique visitors', 'value' => number_format(array_sum($uniqueVisitors))],
+                ['label' => 'Peak hour', 'value' => $this->bestDay($labels, $pageViews)],
             ],
         ];
+    }
+
+    private function topVisitorPages(Carbon $day): array
+    {
+        [$from, $to] = $this->dayWindow($day);
+
+        return VisitorPageView::human()
+            ->whereBetween('visited_at', [$from, $to])
+            ->select('path')
+            ->selectRaw('MAX(page_title) as title')
+            ->selectRaw('COUNT(*) as page_views')
+            ->selectRaw('COUNT(DISTINCT visitor_id) as unique_visitors')
+            ->groupBy('path')
+            ->orderByDesc('page_views')
+            ->take(6)
+            ->get()
+            ->map(fn (VisitorPageView $page) => [
+                'title' => $page->title ?: $page->path,
+                'path' => $page->path,
+                'views' => number_format((int) $page->page_views),
+                'visitors' => number_format((int) $page->unique_visitors),
+            ])
+            ->all();
     }
 
     private function profileActivityChart(Carbon $from, Carbon $to): array
@@ -219,5 +255,13 @@ class ReportController extends AdminController
         $index = array_search($max, $values, true);
 
         return $labels[$index] ?? 'None';
+    }
+
+    private function dayWindow(Carbon $day): array
+    {
+        return [
+            $day->copy()->startOfDay(),
+            $day->copy()->endOfDay(),
+        ];
     }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { billingTabs } from "../data/dashboardPageData.js";
 import {
     FilterButton,
@@ -7,6 +7,7 @@ import {
     FinanceTabs,
 } from "../components/dashboard/FinanceControls.jsx";
 import { Icon } from "../components/common/Icons.jsx";
+import { useToast } from "../components/common/ToastProvider.jsx";
 import { useTranslation } from "react-i18next";
 import { apiRequest } from "../api/apiClient.js";
 
@@ -296,7 +297,80 @@ function BillingInfo({ onSave, profile }) {
         </form>
     );
 }
-function Balances({ balances, onCredit }) {
+function AddBalanceForm({ isSubmitting, onSubmit }) {
+    const [draft, setDraft] = useState({
+        amount: "",
+        method: "card",
+        note: "",
+    });
+    const updateDraft = (field, value) => {
+        setDraft((current) => ({ ...current, [field]: value }));
+    };
+
+    return (
+        <form
+            className="billing-add-balance-form"
+            onSubmit={(event) => {
+                event.preventDefault();
+                onSubmit(draft).then((saved) => {
+                    if (saved) {
+                        setDraft({ amount: "", method: "card", note: "" });
+                    }
+                });
+            }}
+        >
+            <div>
+                <h3>Add balance</h3>
+                <p>Add test wallet balance for marketplace purchases.</p>
+            </div>
+            <label>
+                <span>Amount</span>
+                <input
+                    min="5"
+                    max="5000"
+                    step="0.01"
+                    type="number"
+                    value={draft.amount}
+                    placeholder="50.00"
+                    required
+                    onChange={(event) =>
+                        updateDraft("amount", event.target.value)
+                    }
+                />
+            </label>
+            <label>
+                <span>Payment method</span>
+                <select
+                    value={draft.method}
+                    onChange={(event) =>
+                        updateDraft("method", event.target.value)
+                    }
+                >
+                    <option value="card">Demo card</option>
+                    <option value="mobile_wallet">Mobile wallet</option>
+                    <option value="bank_transfer">Bank transfer</option>
+                </select>
+            </label>
+            <label>
+                <span>Note</span>
+                <input
+                    value={draft.note}
+                    placeholder="Optional reference"
+                    onChange={(event) => updateDraft("note", event.target.value)}
+                />
+            </label>
+            <button
+                className="finance-primary-button"
+                type="submit"
+                disabled={isSubmitting || !draft.amount}
+            >
+                {isSubmitting ? "Adding..." : "Add balance"}
+            </button>
+        </form>
+    );
+}
+
+function Balances({ balances, isSubmitting, onAddBalance, onCredit }) {
     const { t } = useTranslation();
     return (
         <section className="billing-section">
@@ -361,6 +435,10 @@ function Balances({ balances, onCredit }) {
                     </div>
                 </article>
             </div>
+            <AddBalanceForm
+                isSubmitting={isSubmitting}
+                onSubmit={onAddBalance}
+            />
         </section>
     );
 }
@@ -407,8 +485,10 @@ function PaymentMethods({ methods, onAdd }) {
 }
 function PaymentsPage({ onNavigate }) {
     const { t } = useTranslation();
+    const notify = useToast();
     const [activeTab, setActiveTab] = useState("history");
     const [notice, setNotice] = useState("");
+    const [isAddingBalance, setIsAddingBalance] = useState(false);
     const [summary, setSummary] = useState(emptyBillingSummary);
     const [profile, setProfile] = useState({
         fullName: "",
@@ -421,20 +501,24 @@ function PaymentsPage({ onNavigate }) {
         taxId: "",
     });
 
-    useEffect(() => {
-        apiRequest("/api/billing/summary")
+    const loadSummary = useCallback(() => {
+        return apiRequest("/api/billing/summary")
             .then((nextSummary) =>
                 setSummary({ ...emptyBillingSummary, ...nextSummary }),
             )
             .catch((error) =>
                 setNotice(error.message || "Unable to load billing history."),
             );
+    }, []);
+
+    useEffect(() => {
+        loadSummary();
         apiRequest("/api/billing/profile")
             .then(setProfile)
             .catch((error) =>
                 setNotice(error.message || "Unable to load billing profile."),
             );
-    }, []);
+    }, [loadSummary]);
 
     const saveBillingProfile = async (nextProfile) => {
         try {
@@ -443,9 +527,33 @@ function PaymentsPage({ onNavigate }) {
                 body: nextProfile,
             });
             setProfile(savedProfile);
-            setNotice("Billing information saved for future order receipts.");
+            notify.success("Billing information saved for future order receipts.");
         } catch (error) {
-            setNotice(error.message || "Billing information could not be saved.");
+            notify.error(
+                error.message || "Billing information could not be saved.",
+            );
+        }
+    };
+    const addBalance = async (draft) => {
+        setIsAddingBalance(true);
+        setNotice("");
+
+        try {
+            const result = await apiRequest("/api/billing/add-balance", {
+                body: draft,
+            });
+            setSummary({ ...emptyBillingSummary, ...(result.summary || {}) });
+            notify.success(
+                `${result.transaction?.amount || "Balance"} added to your wallet.`,
+                { title: "Balance updated" },
+            );
+            setActiveTab("history");
+            return true;
+        } catch (error) {
+            notify.error(error.message || "Balance could not be added.");
+            return false;
+        } finally {
+            setIsAddingBalance(false);
         }
     };
 
@@ -461,8 +569,10 @@ function PaymentsPage({ onNavigate }) {
             return (
                 <Balances
                     balances={summary.balances}
+                    isSubmitting={isAddingBalance}
+                    onAddBalance={addBalance}
                     onCredit={() =>
-                        setNotice(
+                        notify.info(
                             "Marketplace credits are not available yet.",
                         )
                     }
@@ -473,7 +583,7 @@ function PaymentsPage({ onNavigate }) {
                 <PaymentMethods
                     methods={summary.paymentMethods}
                     onAdd={() =>
-                        setNotice(
+                        notify.info(
                             "Payment method vaulting is not enabled yet.",
                         )
                     }
@@ -484,7 +594,7 @@ function PaymentsPage({ onNavigate }) {
                 history={summary.history}
                 onNavigate={onNavigate}
                 onReport={() =>
-                    setNotice(
+                    notify.info(
                         summary.documents.length
                             ? "Billing documents are available in your history."
                             : "No downloadable billing documents are available yet.",

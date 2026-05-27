@@ -1752,6 +1752,30 @@
   scrollbar-width: none;
 }
 
+.creator-slick-slider {
+  display: block;
+  overflow: visible;
+  padding-bottom: 2.2rem;
+}
+
+.creator-slick-slider .slick-list {
+  margin-inline: -0.55rem;
+  overflow: visible;
+}
+
+.creator-slick-slider .slick-slide {
+  padding-inline: 0.55rem;
+}
+
+.creator-slick-slider .slick-dots {
+  bottom: -1.4rem;
+}
+
+.creator-slick-slider .slick-dots li button::before {
+  color: #62646a;
+  font-size: 8px;
+}
+
 .creator-card-row::-webkit-scrollbar {
   display: none;
 }
@@ -1782,6 +1806,15 @@
   color: #ffffff;
   font-size: 0.96rem;
   font-weight: 900;
+  line-height: 1.35;
+}
+
+.creator-service-card p {
+  min-height: 42px;
+  margin: -0.55rem 0 0;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.78rem;
+  font-weight: 650;
   line-height: 1.35;
 }
 
@@ -1821,6 +1854,26 @@
 .creator-carousel-button {
   top: 88px;
   right: max(1rem, calc((100vw - var(--container-width)) / 2));
+}
+
+.creator-slick-slider .creator-carousel-button {
+  top: 82px;
+  right: -0.85rem;
+}
+
+.creator-slick-slider .creator-carousel-button.prev {
+  right: auto;
+  left: -0.85rem;
+  transform: rotate(180deg);
+}
+
+.creator-slick-slider .creator-carousel-button::before {
+  content: "";
+}
+
+.creator-slick-slider .creator-carousel-button.slick-disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .creator-carousel-button svg,
@@ -2035,16 +2088,8 @@
 }
 
 .pro-brand .brand-mark {
-  width: 30px;
-  height: 30px;
-  background: #ffffff;
-  color: #00441d;
+  width: 160px;
   box-shadow: none;
-}
-
-.pro-brand .brand-mark svg {
-  width: 18px;
-  height: 18px;
 }
 
 .expert-sourcing-copy h2 {

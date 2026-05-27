@@ -1,13 +1,12 @@
 import { NavLink } from "react-router-dom";
 import { sidebarItems } from "../../data/dashboardData.js";
-import { Icon } from "../common/Icons.jsx";
+import { BrandMark, Icon } from "../common/Icons.jsx";
 import { useTranslation } from "react-i18next";
 function Sidebar({
     isOpen,
     onClose,
     onNavigate,
     items = sidebarItems,
-    label = "Workspace",
     upgradeEyebrow = "Pro insight",
     upgradeTitle = "bdgigs Pro",
     upgradeCopy = "Unlock priority talent matching and advanced buyer insights.",
@@ -35,10 +34,7 @@ function Sidebar({
                             onNavigate("home");
                         }}
                     >
-                        <span aria-hidden="true">
-                            <Icon name="brand" />
-                        </span>
-                        bdgigs
+                        <BrandMark />
                     </a>
                     <button
                         className="sidebar-close"
@@ -51,8 +47,6 @@ function Sidebar({
                         <Icon name="close" />
                     </button>
                 </div>
-
-                <span className="sidebar-label">{label}</span>
                 <nav className="sidebar-menu">
                     {items.map((item) =>
                         item.path ? (

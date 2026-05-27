@@ -107,14 +107,6 @@
                     "withdrawBalance": "ব্যালান্স তুলে নিন",
                     "withdrawnToDate": "আজ পর্যন্ত উত্তোলিত:",
                     "yourEarningsSinceJoining": "যোগদানের পর আপনার আয়।"
-                },
-                "sellerfinancialdocuments": {
-                    "document": "ডকুমেন্ট",
-                    "download": "ডাউনলোড",
-                    "downloadDocumentsReport": "ডকুমেন্ট প্রতিবেদন ডাউনলোড করুন",
-                    "noFinancialDocumentsYet": "এখনও কোনও আর্থিক দলিল নেই...",
-                    "period": "সময়কাল",
-                    "status": "অবস্থা"
                 }
             },
             "financecontrols": {

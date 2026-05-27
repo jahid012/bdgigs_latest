@@ -15,13 +15,14 @@ class UpdateSellerProfileRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'avatar' => ['nullable', 'string', 'max:1500000'],
+            'avatar' => ['nullable', 'string', 'max:255'],
             'country' => ['nullable', 'string', 'max:120'],
             'title' => ['nullable', 'string', 'max:255'],
             'about' => ['nullable', 'string', 'max:5000'],
             'languages' => ['nullable', 'array'],
             'skills' => ['nullable', 'array'],
             'projects' => ['nullable', 'array'],
+            'featuredClients' => ['nullable', 'array'],
             'workExperience' => ['nullable', 'array'],
             'education' => ['nullable', 'array'],
             'certification' => ['nullable', 'array'],

@@ -82,6 +82,11 @@ class Conversation extends Model
         return $this->hasMany(Dispute::class);
     }
 
+    public function customOffers(): HasMany
+    {
+        return $this->hasMany(CustomOffer::class);
+    }
+
     public function participantUsers(): HasManyThrough
     {
         return $this->hasManyThrough(

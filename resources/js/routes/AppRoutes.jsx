@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import DashboardPage from "../pages/DashboardPage.jsx";
 import { usePendingConversationResume } from "../hooks/useConversationLauncher.js";
+import { usePageViewTracking } from "../hooks/usePageViewTracking.js";
 import { useRealtimeMessaging } from "../realtime/useRealtimeMessaging.js";
 import { useSessionStore } from "../stores/useSessionStore.js";
 import {
@@ -17,6 +18,7 @@ function AppRoutes() {
     const navigate = usePageNavigation();
 
     useRouteEffects();
+    usePageViewTracking();
     usePendingConversationResume();
     useRealtimeMessaging();
 

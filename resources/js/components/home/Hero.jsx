@@ -1,8 +1,14 @@
+import { useState } from "react";
 import { popularTags, trustedBrands } from "../../data/homeData.js";
+import { useSearchSuggestions } from "../../hooks/useSearchSuggestions.js";
+import SearchSuggestionDropdown from "../common/SearchSuggestionDropdown.jsx";
 import { Icon } from "../common/Icons.jsx";
 import { useTranslation } from "react-i18next";
 function Hero({ onNavigate }) {
     const { t } = useTranslation();
+    const [query, setQuery] = useState("");
+    const [focused, setFocused] = useState(false);
+    const suggestions = useSearchSuggestions(query);
     const handleSearch = (event) => {
         event.preventDefault();
         const formData = new FormData(event.currentTarget);
@@ -11,6 +17,10 @@ function Hero({ onNavigate }) {
             ? `?query=${encodeURIComponent(query)}&source=hero`
             : "?source=hero";
         onNavigate("/search/gigs", queryString);
+    };
+    const selectSuggestion = (suggestion) => {
+        setFocused(false);
+        onNavigate(suggestion.path || "/search/gigs");
     };
     return (
         <section className="hero">
@@ -45,7 +55,7 @@ function Hero({ onNavigate }) {
                         )}
                         onSubmit={handleSearch}
                     >
-                        <label className="hero-search-field">
+                        <label className="hero-search-field search-suggestion-host">
                             <span className="sr-only">
                                 {t("components.home.hero.searchService")}
                             </span>
@@ -56,7 +66,25 @@ function Hero({ onNavigate }) {
                                     "components.home.hero.searchForAnyService",
                                 )}
                                 autoComplete="off"
+                                value={query}
+                                onBlur={() =>
+                                    window.setTimeout(
+                                        () => setFocused(false),
+                                        120,
+                                    )
+                                }
+                                onChange={(event) =>
+                                    setQuery(event.target.value)
+                                }
+                                onFocus={() => setFocused(true)}
                             />
+                            {focused ? (
+                                <SearchSuggestionDropdown
+                                    {...suggestions}
+                                    query={query}
+                                    onSelect={selectSuggestion}
+                                />
+                            ) : null}
                         </label>
                         <button
                             className="hero-search-button"

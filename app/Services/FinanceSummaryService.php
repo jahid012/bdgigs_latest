@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Order;
 use App\Models\SellerPayoutMethod;
 use App\Models\User;
+use App\Models\WalletTransaction;
 use App\Models\WithdrawalRequest;
 use Illuminate\Support\Collection;
 
@@ -17,24 +18,65 @@ class FinanceSummaryService
     public function buyer(User $user): array
     {
         $orders = $user->buyerOrders()->latest()->get();
+        $wallet = $user->wallet()->firstOrCreate([], [
+            'balance_cents' => 0,
+            'credits_cents' => 0,
+            'refunded_cents' => 0,
+            'currency' => 'USD',
+        ]);
+        $walletHistory = $wallet->transactions()
+            ->latest('processed_at')
+            ->latest()
+            ->get();
+        $orderHistory = $orders->map(fn (Order $order) => [
+            'id' => $order->code,
+            'date' => $order->created_at?->format('M j, Y'),
+            'document' => 'Order receipt',
+            'service' => $order->service,
+            'order' => '#'.$order->code,
+            'currency' => 'USD',
+            'total' => $this->money($order->price_cents),
+            'status' => $order->status,
+            'sortAt' => $order->created_at?->getTimestamp() ?? 0,
+        ]);
+        $transactions = $walletHistory->map(fn (WalletTransaction $transaction) => [
+            'id' => $transaction->code,
+            'date' => $transaction->processed_at?->format('M j, Y') ?? $transaction->created_at?->format('M j, Y'),
+            'document' => 'Wallet transaction',
+            'service' => $transaction->description ?: str($transaction->type)->replace('_', ' ')->title()->toString(),
+            'order' => $transaction->code,
+            'currency' => $transaction->currency,
+            'total' => $this->money($transaction->amount_cents),
+            'status' => str($transaction->status)->title()->toString(),
+            'sortAt' => $transaction->processed_at?->getTimestamp() ?? $transaction->created_at?->getTimestamp() ?? 0,
+        ]);
 
         return [
-            'history' => $orders->map(fn (Order $order) => [
-                'id' => $order->code,
-                'date' => $order->created_at?->format('M j, Y'),
-                'document' => 'Order receipt',
-                'service' => $order->service,
-                'order' => '#'.$order->code,
-                'currency' => 'USD',
-                'total' => $this->money($order->price_cents),
-                'status' => $order->status,
-            ])->values(),
+            'history' => $orderHistory
+                ->concat($transactions)
+                ->sortByDesc('sortAt')
+                ->map(function (array $item) {
+                    unset($item['sortAt']);
+
+                    return $item;
+                })
+                ->values(),
             'balances' => [
-                'balance' => '$0',
-                'credits' => '$0',
-                'refunded' => '$0',
+                'balance' => $this->money((int) $wallet->balance_cents),
+                'balanceValue' => round(((int) $wallet->balance_cents) / 100, 2),
+                'credits' => $this->money((int) $wallet->credits_cents),
+                'refunded' => $this->money((int) $wallet->refunded_cents),
             ],
-            'paymentMethods' => [],
+            'paymentMethods' => [
+                [
+                    'id' => 'bdgigs-wallet',
+                    'label' => 'bdgigs wallet',
+                    'detail' => 'Use your wallet balance for marketplace purchases.',
+                    'status' => ((int) $wallet->balance_cents) > 0
+                        ? 'Ready'
+                        : 'Empty',
+                ],
+            ],
             'documents' => [],
         ];
     }

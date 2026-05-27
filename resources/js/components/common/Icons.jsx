@@ -110,6 +110,15 @@ const iconPaths = {
             strokeLinejoin="round"
         />
     ),
+    upload: (
+        <path
+            d="M12 16V4M7 9l5-5 5 5M5 20h14"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        />
+    ),
     spark: (
         <>
             <path
@@ -137,6 +146,15 @@ const iconPaths = {
     packageCheck: (
         <path
             d="M20 7.5 12 3 4 7.5m16 0v9L12 21m8-13.5-8 4.5m0 9-8-4.5v-9m8 13.5v-9M4 7.5l8 4.5M16.5 5.5l-8 4.5M15 15l1.5 1.5L20 13"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        />
+    ),
+    clock: (
+        <path
+            d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 7v5l3 2"
             stroke="currentColor"
             strokeWidth="2"
             strokeLinecap="round"
@@ -428,10 +446,17 @@ export function Icon({ name, className, title, ...props }) {
     );
 }
 
-export function BrandMark() {
+const brandLogoPaths = {
+    default: "/assets/img/logo.png",
+    light: "/assets/img/logo_white.png",
+};
+
+export function BrandMark({ variant = "default" }) {
+    const logoPath = brandLogoPaths[variant] || brandLogoPaths.default;
+
     return (
         <span className="brand-mark" aria-hidden="true">
-            <Icon name="brand" />
+            <img src={logoPath} alt="" />
         </span>
     );
 }

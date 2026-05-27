@@ -15,7 +15,7 @@ class UpdateBuyerProfileRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'avatar' => ['nullable', 'string', 'max:1500000'],
+            'avatar' => ['nullable', 'string', 'max:255'],
             'country' => ['nullable', 'string', 'max:120'],
             'overview' => ['nullable', 'string', 'max:1000'],
             'workingDays' => ['nullable', 'array'],

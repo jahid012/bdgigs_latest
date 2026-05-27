@@ -2,13 +2,18 @@
 
 namespace Tests\Feature;
 
+use App\Events\NotificationCreated;
 use App\Models\Conversation;
 use App\Models\Gig;
 use App\Models\ManualPaymentMethod;
 use App\Models\Order;
 use App\Models\User;
+use App\Support\MarketplaceNotifier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class DynamicDashboardApiTest extends TestCase
@@ -52,18 +57,142 @@ class DynamicDashboardApiTest extends TestCase
             'seller_name' => $seller->name,
             'status' => 'In Progress',
             'status_class' => 'status-progress',
+            'due_date' => now()->addDays(3)->toDateString(),
             'price_cents' => 12500,
             'earnings_cents' => 12500,
         ]);
+        $seller->forceFill(['avatar' => '/assets/img/profile_images/1.png'])->save();
 
         $this->actingAs($buyer)
             ->getJson("/api/orders/{$order->code}?role=buyer")
             ->assertOk()
-            ->assertJsonPath('data.orderNumber', $order->code);
+            ->assertJsonPath('data.orderNumber', $order->code)
+            ->assertJsonPath('data.counterpartyAvatar', '/assets/img/profile_images/1.png')
+            ->assertJsonPath('data.deliveryDate', now()->addDays(3)->format('M j, Y'))
+            ->assertJsonPath('data.timeExtension.canRequest', false);
 
         $this->actingAs($outsider)
             ->getJson("/api/orders/{$order->code}?role=buyer")
             ->assertForbidden();
+    }
+
+    public function test_seller_can_request_and_buyer_can_decide_time_extension(): void
+    {
+        $buyer = User::factory()->create();
+        $seller = User::factory()->create();
+        $outsider = User::factory()->create();
+        $order = Order::create([
+            'code' => 'EXTEND-100',
+            'buyer_id' => $buyer->id,
+            'seller_id' => $seller->id,
+            'service' => 'Extendable delivery',
+            'buyer_name' => $buyer->name,
+            'seller_name' => $seller->name,
+            'status' => 'In Progress',
+            'status_class' => 'status-progress',
+            'due_date' => now()->addDays(4)->toDateString(),
+            'price_cents' => 20000,
+            'earnings_cents' => 17000,
+        ]);
+
+        $this->actingAs($buyer)
+            ->postJson("/api/orders/{$order->code}/time-extensions?role=buyer", [
+                'days' => 2,
+                'reason' => 'Need more time to test edge cases.',
+            ])
+            ->assertForbidden();
+
+        $pendingId = $this->actingAs($seller)
+            ->postJson("/api/orders/{$order->code}/time-extensions?role=seller", [
+                'days' => 2,
+                'reason' => 'Need more time to test edge cases.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.timeExtension.pending.days', 2)
+            ->assertJsonPath('data.timeExtension.canRequest', false)
+            ->json('data.timeExtension.pending.id');
+
+        $this->assertDatabaseHas('order_activities', [
+            'order_id' => $order->id,
+            'type' => 'time_extension_requested',
+        ]);
+
+        $this->actingAs($outsider)
+            ->postJson("/api/orders/{$order->code}/time-extensions/{$pendingId}/decision?role=buyer", [
+                'decision' => 'accept',
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($buyer)
+            ->postJson("/api/orders/{$order->code}/time-extensions/{$pendingId}/decision?role=buyer", [
+                'decision' => 'accept',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.timeExtension.latest.status', 'accepted')
+            ->assertJsonPath('data.timeExtension.pending', null)
+            ->assertJsonPath('data.deliveryDate', now()->addDays(6)->format('M j, Y'));
+
+        $this->assertDatabaseHas('order_time_extension_requests', [
+            'id' => $pendingId,
+            'status' => 'accepted',
+        ]);
+        $this->assertDatabaseHas('order_activities', [
+            'order_id' => $order->id,
+            'type' => 'time_extension_accepted',
+        ]);
+    }
+
+    public function test_private_order_notes_are_visible_only_to_their_owner(): void
+    {
+        $buyer = User::factory()->create();
+        $seller = User::factory()->create();
+        $order = Order::create([
+            'code' => 'NOTE-100',
+            'buyer_id' => $buyer->id,
+            'seller_id' => $seller->id,
+            'service' => 'Private note delivery',
+            'buyer_name' => $buyer->name,
+            'seller_name' => $seller->name,
+            'status' => 'In Progress',
+            'status_class' => 'status-progress',
+            'price_cents' => 14000,
+            'earnings_cents' => 11900,
+        ]);
+
+        $noteId = $this->actingAs($buyer)
+            ->postJson("/api/orders/{$order->code}/private-notes?role=buyer", [
+                'body' => 'Remember to verify the final ZIP file.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.privateNotes.0.body', 'Remember to verify the final ZIP file.')
+            ->json('data.privateNotes.0.id');
+
+        $this->actingAs($seller)
+            ->getJson("/api/orders/{$order->code}?role=seller")
+            ->assertOk()
+            ->assertJsonPath('data.privateNotes', []);
+
+        $this->actingAs($seller)
+            ->patchJson("/api/orders/{$order->code}/private-notes/{$noteId}?role=seller", [
+                'body' => 'Trying to edit buyer note.',
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($buyer)
+            ->patchJson("/api/orders/{$order->code}/private-notes/{$noteId}?role=buyer", [
+                'body' => 'Updated private reminder.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.privateNotes.0.body', 'Updated private reminder.');
+
+        $this->actingAs($buyer)
+            ->deleteJson("/api/orders/{$order->code}/private-notes/{$noteId}?role=buyer")
+            ->assertOk()
+            ->assertJsonPath('data.privateNotes', []);
+
+        $this->assertDatabaseMissing('order_private_notes', [
+            'id' => $noteId,
+        ]);
     }
 
     public function test_conversation_messages_can_be_saved_and_listed_per_user(): void
@@ -139,7 +268,15 @@ class DynamicDashboardApiTest extends TestCase
             'password' => Hash::make('password'),
         ]);
 
+        Http::fake([
+            'api.ipinfo.io/lite/*' => Http::response([
+                'country_name' => 'Bangladesh',
+            ]),
+        ]);
+        config(['services.ipinfo.token' => 'testing-token']);
+
         $this->actingAs($user)
+            ->withServerVariables(['REMOTE_ADDR' => '8.8.8.8'])
             ->patchJson('/api/user/profile/buyer', [
                 'overview' => 'Buyer overview',
                 'timezone' => 'Asia/Dhaka',
@@ -153,13 +290,78 @@ class DynamicDashboardApiTest extends TestCase
                 'title' => 'Dynamic seller',
                 'about' => 'Seller profile from the database.',
                 'skills' => ['Laravel'],
+                'projects' => [[
+                    'id' => 'project-1',
+                    'name' => 'Dynamic marketplace build',
+                    'industry' => 'Programming & Tech',
+                    'expertise' => 'Laravel',
+                    'duration' => '1-3 months',
+                    'cost' => '1500',
+                    'startedMonth' => 'May',
+                    'startedYear' => '2026',
+                    'image' => '/assets/img/gig_images/1.png',
+                    'description' => 'Built a profile-backed marketplace flow.',
+                ]],
+                'workExperience' => [
+                    'title' => 'Full Stack Developer',
+                    'employmentType' => 'Contract',
+                    'company' => 'Acme Labs',
+                    'startDate' => '2025-01-15',
+                    'endDate' => '2026-05-01',
+                    'duration' => '1 yr 5 mos',
+                    'description' => 'Delivered Laravel and React marketplace features.',
+                    'skills' => ['Laravel', 'React'],
+                ],
+                'featuredClients' => [
+                    ['id' => 'client-1', 'name' => 'Acme Labs', 'description' => 'Dashboard build'],
+                ],
             ])
             ->assertSuccessful()
-            ->assertJsonPath('data.title', 'Dynamic seller');
+            ->assertJsonPath('data.title', 'Dynamic seller')
+            ->assertJsonPath('data.featuredClients.0.name', 'Acme Labs');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'country' => 'Bangladesh',
+        ]);
+
+        $avatar = $this->actingAs($user)
+            ->post('/api/user/avatar', [
+                'avatar' => UploadedFile::fake()->image('avatar.jpg', 256, 256),
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.avatar', fn ($path) => str_starts_with($path, "/uploads/profile-images/{$user->id}/"))
+            ->json('data.avatar');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'avatar' => $avatar,
+        ]);
+
+        Gig::factory()->withSeller($user)->create([
+            'slug' => 'profile-review-gig',
+            'rating' => 4.8,
+            'reviews' => 12,
+            'metadata' => [
+                'reviewSample' => [
+                    'name' => 'Maya Chen',
+                    'country' => 'United States',
+                    'rating' => 5,
+                    'text' => 'Excellent delivery and clear communication.',
+                ],
+            ],
+        ]);
 
         $this->getJson("/api/users/{$user->username}/profile")
             ->assertOk()
-            ->assertJsonPath('data.about', 'Seller profile from the database.');
+            ->assertJsonPath('data.about', 'Seller profile from the database.')
+            ->assertJsonPath('data.featuredClients.0.name', 'Acme Labs')
+            ->assertJsonPath('data.portfolio.title', 'Dynamic marketplace build')
+            ->assertJsonPath('data.workExperience.0.role', 'Full Stack Developer')
+            ->assertJsonPath('data.workExperience.0.type', 'Contract')
+            ->assertJsonPath('data.workExperience.0.skills.0', 'Laravel')
+            ->assertJsonPath('data.reviewsData.sample.name', 'Maya Chen')
+            ->assertJsonPath('data.reviews', 12);
 
         $this->actingAs($user)
             ->patchJson('/api/billing/profile', [
@@ -169,6 +371,27 @@ class DynamicDashboardApiTest extends TestCase
             ])
             ->assertSuccessful()
             ->assertJsonPath('data.city', 'Dhaka');
+
+        $this->actingAs($user)
+            ->postJson('/api/billing/add-balance', [
+                'amount' => 25,
+                'method' => 'test_card',
+                'note' => 'Feature test deposit',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.transaction.amount', '$25.00')
+            ->assertJsonPath('data.summary.balances.balance', '$25');
+
+        $this->assertDatabaseHas('user_wallets', [
+            'user_id' => $user->id,
+            'balance_cents' => 2500,
+        ]);
+        $this->assertDatabaseHas('wallet_transactions', [
+            'user_id' => $user->id,
+            'type' => 'deposit',
+            'amount_cents' => 2500,
+            'status' => 'completed',
+        ]);
 
         $this->actingAs($user)
             ->patchJson('/api/user/settings/notifications', [
@@ -181,15 +404,59 @@ class DynamicDashboardApiTest extends TestCase
             ->assertSuccessful()
             ->assertJsonPath('data.realtimeEnabled', false);
 
+        Event::fake([NotificationCreated::class]);
+
+        app(MarketplaceNotifier::class)->notify(
+            $user,
+            'Message',
+            'Muted realtime message',
+            'This notification should persist without broadcasting.',
+        );
+
+        Event::assertNotDispatched(NotificationCreated::class);
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $user->id,
+            'title' => 'Muted realtime message',
+        ]);
+
         $this->actingAs($user)
-            ->postJson('/api/user/settings/identity-verification', [
+            ->patchJson('/api/user/settings/notifications', [
+                'preferences' => [
+                    'inboxMessages' => ['email' => false, 'push' => true],
+                ],
+                'realtimeEnabled' => true,
+                'soundEnabled' => true,
+            ])
+            ->assertSuccessful();
+
+        Event::fake([NotificationCreated::class]);
+
+        app(MarketplaceNotifier::class)->notify(
+            $user,
+            'Message',
+            'Realtime message',
+            'This notification should broadcast.',
+        );
+
+        Event::assertDispatched(NotificationCreated::class);
+
+        $this->actingAs($user)
+            ->post('/api/user/settings/identity-verification', [
                 'legalName' => 'Billing User',
                 'documentType' => 'Passport',
                 'documentReference' => 'REVIEW-1',
                 'country' => 'Bangladesh',
-            ])
+                'document' => UploadedFile::fake()->image('passport.jpg', 640, 480),
+            ], ['Accept' => 'application/json'])
             ->assertCreated()
-            ->assertJsonPath('data.status', 'review');
+            ->assertJsonPath('data.status', 'review')
+            ->assertJsonPath(
+                'data.documentPath',
+                fn ($path) => str_starts_with(
+                    $path,
+                    "/uploads/identity/{$user->id}/",
+                ),
+            );
     }
 
     public function test_manual_checkout_creates_reviewable_order_from_gig_package(): void

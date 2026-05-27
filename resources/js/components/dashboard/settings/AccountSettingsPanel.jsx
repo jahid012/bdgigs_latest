@@ -8,12 +8,16 @@ import {
     settingsProfiles,
 } from "../../../data/settingsPageData.js";
 import { Icon } from "../../common/Icons.jsx";
+import { useToast } from "../../common/ToastProvider.jsx";
 import { useTranslation } from "react-i18next";
 import { apiRequest } from "../../../api/apiClient.js";
 import { useSessionStore } from "../../../stores/useSessionStore.js";
 
+const notificationSoundPath = "/assets/audio/notification.wav";
+
 function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
     const { t } = useTranslation();
+    const notify = useToast();
     const { settingsPage } = useParams();
     const profileCopy = settingsProfiles[variant] || settingsProfiles.buyer;
     const setCurrentUser = useSessionStore((state) => state.setCurrentUser);
@@ -36,6 +40,7 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
     });
     const [sessions, setSessions] = useState([]);
     const [identity, setIdentity] = useState(null);
+    const [isIdentitySubmitting, setIsIdentitySubmitting] = useState(false);
     const [twoFactorSetup, setTwoFactorSetup] = useState({
         qrSvg: "",
         recoveryCodes: [],
@@ -78,10 +83,13 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
                 );
                 setSoundEnabled(settings.notifications?.soundEnabled ?? true);
             })
-            .catch((error) =>
-                setNotice(error.message || "Unable to load account settings."),
-            );
-    }, [variant]);
+            .catch((error) => {
+                const message =
+                    error.message || "Unable to load account settings.";
+                setNotice(message);
+                notify.error(message);
+            });
+    }, [notify, variant]);
 
     const handleNotificationChange = (rowId, channel) => {
         setNotificationPrefs((current) => ({
@@ -112,9 +120,9 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
             setNotificationPrefs(preferences.preferences || {});
             setRealTimeEnabled(preferences.realtimeEnabled);
             setSoundEnabled(preferences.soundEnabled);
-            setNotice("Notification preferences updated.");
+            notify.success("Notification preferences updated.");
         } catch (error) {
-            setNotice(
+            notify.error(
                 error.message || "Notification preferences could not be saved.",
             );
         }
@@ -125,9 +133,9 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
                 method: "PATCH",
                 body: passwords,
             });
-            setNotice("Password updated.");
+            notify.success("Password updated.");
         } catch (error) {
-            setNotice(error.message || "Password could not be updated.");
+            notify.error(error.message || "Password could not be updated.");
         }
     };
     const startTwoFactor = async () => {
@@ -145,9 +153,9 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
                 qrSvg: qrCode.svg || "",
                 recoveryCodes: recoveryCodes || [],
             }));
-            setNotice("Scan the QR code and confirm with an authenticator code.");
+            notify.info("Scan the QR code and confirm with an authenticator code.");
         } catch (error) {
-            setNotice(error.message || "Two factor enrollment could not start.");
+            notify.error(error.message || "Two factor enrollment could not start.");
         }
     };
     const confirmTwoFactor = async () => {
@@ -162,9 +170,9 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
                 qrSvg: "",
                 confirmationCode: "",
             }));
-            setNotice("Two factor authentication is enabled.");
+            notify.success("Two factor authentication is enabled.");
         } catch (error) {
-            setNotice(error.message || "Authenticator code was not accepted.");
+            notify.error(error.message || "Authenticator code was not accepted.");
         }
     };
     const disableTwoFactor = async () => {
@@ -178,9 +186,9 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
                 recoveryCodes: [],
                 confirmationCode: "",
             });
-            setNotice("Two factor authentication is disabled.");
+            notify.success("Two factor authentication is disabled.");
         } catch (error) {
-            setNotice(error.message || "Two factor authentication stayed enabled.");
+            notify.error(error.message || "Two factor authentication stayed enabled.");
         }
     };
     const regenerateRecoveryCodes = async () => {
@@ -196,9 +204,9 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
                 ...current,
                 recoveryCodes: recoveryCodes || [],
             }));
-            setNotice("Recovery codes regenerated.");
+            notify.success("Recovery codes regenerated.");
         } catch (error) {
-            setNotice(error.message || "Recovery codes could not be regenerated.");
+            notify.error(error.message || "Recovery codes could not be regenerated.");
         }
     };
     const revokeSession = async (sessionId) => {
@@ -209,25 +217,41 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
             setSessions((current) =>
                 current.filter((session) => session.id !== sessionId),
             );
-            setNotice("Session signed out.");
+            notify.success("Session signed out.");
         } catch (error) {
-            setNotice(error.message || "Session could not be revoked.");
+            notify.error(error.message || "Session could not be revoked.");
         }
     };
     const submitIdentity = async (payload) => {
+        const formData = new FormData();
+        formData.append("legalName", payload.legalName);
+        formData.append("documentType", payload.documentType);
+        formData.append("documentReference", payload.documentReference);
+        formData.append("country", payload.country || "");
+        formData.append("document", payload.documentFile);
+
+        setIsIdentitySubmitting(true);
+
         try {
             const submission = await apiRequest(
                 "/api/user/settings/identity-verification",
-                { body: payload },
+                { body: formData },
             );
             setIdentity(submission);
             setAccount((current) => ({
                 ...current,
                 verificationStatus: submission.status,
             }));
-            setNotice("Identity verification submitted for review.");
+            notify.success("Identity verification submitted for review.");
+            return submission;
         } catch (error) {
-            setNotice(error.message || "Identity verification could not be submitted.");
+            notify.error(
+                error.message ||
+                    "Identity verification could not be submitted.",
+            );
+            throw error;
+        } finally {
+            setIsIdentitySubmitting(false);
         }
     };
     const deactivateAccount = async (password) => {
@@ -238,7 +262,7 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
             setCurrentUser(null);
             onNavigate("home");
         } catch (error) {
-            setNotice(error.message || "Account deactivation failed.");
+            notify.error(error.message || "Account deactivation failed.");
         }
     };
     if (settingsPage && !settingsPageTitles[settingsPage]) {
@@ -313,17 +337,21 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
                     }
                     onToggleSound={() => setSoundEnabled((enabled) => !enabled)}
                     onSave={saveNotifications}
-                    onTry={() =>
-                        setNotice("Real-time notification preview sent.")
-                    }
+                    onTry={() => {
+                        notify.info("Real-time notification preview sent.");
+                        playNotificationPreview();
+                    }}
                 />
             ) : null}
             {activePage === "identity-verification" ? (
                 <IdentityVerificationSection
                     basePath={basePath}
                     identity={identity}
+                    isSubmitting={isIdentitySubmitting}
                     profile={profile}
-                    onBack={() => setNotice("Returned to account settings.")}
+                    onBack={() =>
+                        notify.info("Returned to account settings.")
+                    }
                     onContinue={submitIdentity}
                 />
             ) : null}
@@ -837,20 +865,70 @@ function NotificationPreferencesSection({
 function IdentityVerificationSection({
     basePath,
     identity,
+    isSubmitting,
     onBack,
     onContinue,
     profile,
 }) {
     const { t } = useTranslation();
+    const [step, setStep] = useState(
+        identity?.documentPath ? "review" : "details",
+    );
+    const [error, setError] = useState("");
     const [draft, setDraft] = useState({
         legalName: profile.name || "",
         documentType: "Government ID",
         documentReference: "",
         country: profile.country || "",
+        documentFile: null,
     });
+    const [previewUrl, setPreviewUrl] = useState("");
+
+    useEffect(() => {
+        if (
+            !draft.documentFile ||
+            !draft.documentFile.type.startsWith("image/")
+        ) {
+            setPreviewUrl("");
+            return undefined;
+        }
+
+        const nextPreviewUrl = URL.createObjectURL(draft.documentFile);
+        setPreviewUrl(nextPreviewUrl);
+
+        return () => URL.revokeObjectURL(nextPreviewUrl);
+    }, [draft.documentFile]);
+
     const updateDraft = (field, value) => {
         setDraft((current) => ({ ...current, [field]: value }));
     };
+    const goToUpload = () => {
+        if (!draft.legalName.trim() || !draft.documentReference.trim()) {
+            setError("Legal name and document reference are required.");
+            return;
+        }
+
+        setError("");
+        setStep("upload");
+    };
+    const submitVerification = async (event) => {
+        event.preventDefault();
+
+        if (!draft.documentFile) {
+            setError("Upload a passport, government ID, or license file.");
+            return;
+        }
+
+        setError("");
+
+        try {
+            await onContinue(draft);
+            setStep("review");
+        } catch {
+            setStep("upload");
+        }
+    };
+    const status = identity?.status || (step === "review" ? "review" : "");
     return (
         <section
             className="account-settings-section identity-settings-section"
@@ -896,70 +974,190 @@ function IdentityVerificationSection({
                         )}{" "}
                     </button>
                 </div>
+                <ol className="identity-progress-list">
+                    {["details", "upload", "review"].map((stepName, index) => (
+                        <li
+                            className={step === stepName ? "is-active" : ""}
+                            key={stepName}
+                        >
+                            <span>{index + 1}</span>
+                            {stepName}
+                        </li>
+                    ))}
+                </ol>
+                {status ? (
+                    <div className="identity-status-card">
+                        <strong>Verification status: {status}</strong>
+                        {identity?.submittedAt ? (
+                            <span>
+                                Submitted{" "}
+                                {formatIdentityDate(identity.submittedAt)}
+                            </span>
+                        ) : null}
+                        {identity?.documentPath ? (
+                            <a
+                                href={identity.documentPath}
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                View uploaded document
+                            </a>
+                        ) : null}
+                    </div>
+                ) : null}
+                {error ? (
+                    <p className="identity-validation" role="alert">
+                        {error}
+                    </p>
+                ) : null}
                 <form
                     className="security-password-form identity-submit-form"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        onContinue(draft);
-                    }}
+                    onSubmit={submitVerification}
                 >
-                    <h3>Submit verification details</h3>
-                    {identity ? (
-                        <p>
-                            Current status:{" "}
-                            <strong>{identity.status || "submitted"}</strong>
-                        </p>
+                    {step === "details" ? (
+                        <>
+                            <h3>Confirm your details</h3>
+                            <label>
+                                <span>Legal name</span>
+                                <input
+                                    value={draft.legalName}
+                                    onChange={(event) =>
+                                        updateDraft(
+                                            "legalName",
+                                            event.target.value,
+                                        )
+                                    }
+                                    required
+                                />
+                            </label>
+                            <label>
+                                <span>Document type</span>
+                                <select
+                                    value={draft.documentType}
+                                    onChange={(event) =>
+                                        updateDraft(
+                                            "documentType",
+                                            event.target.value,
+                                        )
+                                    }
+                                >
+                                    <option>Government ID</option>
+                                    <option>Passport</option>
+                                    <option>Driving license</option>
+                                </select>
+                            </label>
+                            <label>
+                                <span>Document reference</span>
+                                <input
+                                    value={draft.documentReference}
+                                    onChange={(event) =>
+                                        updateDraft(
+                                            "documentReference",
+                                            event.target.value,
+                                        )
+                                    }
+                                    required
+                                />
+                            </label>
+                            <label>
+                                <span>Country</span>
+                                <input
+                                    value={draft.country}
+                                    onChange={(event) =>
+                                        updateDraft(
+                                            "country",
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                            </label>
+                            <div className="identity-step-actions">
+                                <button
+                                    className="settings-dark-button"
+                                    type="button"
+                                    onClick={goToUpload}
+                                >
+                                    Next: upload ID
+                                </button>
+                            </div>
+                        </>
                     ) : null}
-                    <label>
-                        <span>Legal name</span>
-                        <input
-                            value={draft.legalName}
-                            onChange={(event) =>
-                                updateDraft("legalName", event.target.value)
-                            }
-                            required
-                        />
-                    </label>
-                    <label>
-                        <span>Document type</span>
-                        <select
-                            value={draft.documentType}
-                            onChange={(event) =>
-                                updateDraft("documentType", event.target.value)
-                            }
-                        >
-                            <option>Government ID</option>
-                            <option>Passport</option>
-                            <option>Driving license</option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Document reference</span>
-                        <input
-                            value={draft.documentReference}
-                            onChange={(event) =>
-                                updateDraft(
-                                    "documentReference",
-                                    event.target.value,
-                                )
-                            }
-                            required
-                        />
-                    </label>
-                    <label>
-                        <span>Country</span>
-                        <input
-                            value={draft.country}
-                            onChange={(event) =>
-                                updateDraft("country", event.target.value)
-                            }
-                        />
-                    </label>
-                    <button className="settings-dark-button" type="submit">
-                        {t(
-                            "components.dashboard.settings.accountsettingspanel.continue",
-                        )}
-                    </button>
+                    {step === "upload" ? (
+                        <>
+                            <h3>Upload your ID</h3>
+                            <label className="identity-upload-card">
+                                <input
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    onChange={(event) =>
+                                        updateDraft(
+                                            "documentFile",
+                                            event.target.files?.[0] || null,
+                                        )
+                                    }
+                                />
+                                <Icon name="upload" />
+                                <strong>Choose a file or drop it here</strong>
+                                <span>JPG, PNG, WEBP, or PDF up to 10 MB</span>
+                            </label>
+                            {draft.documentFile ? (
+                                <div className="identity-file-preview">
+                                    {previewUrl ? (
+                                        <img src={previewUrl} alt="" />
+                                    ) : (
+                                        <Icon name="document" />
+                                    )}
+                                    <div>
+                                        <strong>
+                                            {draft.documentFile.name}
+                                        </strong>
+                                        <span>
+                                            {formatFileSize(
+                                                draft.documentFile.size,
+                                            )}
+                                        </span>
+                                    </div>
+                                </div>
+                            ) : null}
+                            <div className="identity-step-actions">
+                                <button
+                                    className="settings-light-button"
+                                    type="button"
+                                    onClick={() => setStep("details")}
+                                >
+                                    Back
+                                </button>
+                                <button
+                                    className="settings-dark-button"
+                                    type="submit"
+                                    disabled={
+                                        isSubmitting || !draft.documentFile
+                                    }
+                                >
+                                    {isSubmitting
+                                        ? "Submitting..."
+                                        : "Submit for review"}
+                                </button>
+                            </div>
+                        </>
+                    ) : null}
+                    {step === "review" ? (
+                        <div className="identity-complete-panel">
+                            <Icon name="verifiedUser" />
+                            <h3>Verification submitted</h3>
+                            <p>
+                                Your document is queued for manual review. You
+                                can keep using your dashboard while we review it.
+                            </p>
+                            <button
+                                className="settings-light-button"
+                                type="button"
+                                onClick={() => setStep("details")}
+                            >
+                                Submit another document
+                            </button>
+                        </div>
+                    ) : null}
                 </form>
             </div>
             <aside className="identity-info-card">
@@ -1003,4 +1201,33 @@ function buildNotificationState(rows = []) {
         return preferences;
     }, {});
 }
+
+function playNotificationPreview() {
+    const audio = new Audio(notificationSoundPath);
+    audio.play().catch(() => {});
+}
+
+function formatFileSize(size = 0) {
+    if (!size) {
+        return "0 KB";
+    }
+
+    if (size < 1024 * 1024) {
+        return `${Math.ceil(size / 1024)} KB`;
+    }
+
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatIdentityDate(value) {
+    try {
+        return new Intl.DateTimeFormat("en", {
+            dateStyle: "medium",
+            timeStyle: "short",
+        }).format(new Date(value));
+    } catch {
+        return value;
+    }
+}
+
 export default AccountSettingsPanel;

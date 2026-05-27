@@ -9,7 +9,9 @@ use App\Http\Resources\BuyerProfileResource;
 use App\Http\Resources\PublicSellerProfileResource;
 use App\Http\Resources\SellerProfileResource;
 use App\Models\User;
+use App\Services\CountryDetectorService;
 use App\Services\DashboardSummaryService;
+use App\Services\ProfileAvatarUploadService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -25,14 +27,17 @@ class UserController extends Controller
         ]);
     }
 
-    public function buyerProfile(Request $request): BuyerProfileResource
+    public function buyerProfile(Request $request, CountryDetectorService $countries): BuyerProfileResource
     {
+        $this->fillCountryFromRequest($request, $countries);
+
         return BuyerProfileResource::make($request->user()->loadMissing('buyerProfile'));
     }
 
-    public function updateBuyerProfile(UpdateBuyerProfileRequest $request): BuyerProfileResource
+    public function updateBuyerProfile(UpdateBuyerProfileRequest $request, CountryDetectorService $countries): BuyerProfileResource
     {
         $payload = $request->validated();
+        $this->fillCountryFromRequest($request, $countries);
 
         $user = $request->user();
         $user->forceFill(array_filter([
@@ -51,14 +56,17 @@ class UserController extends Controller
         return BuyerProfileResource::make($user->fresh('buyerProfile'));
     }
 
-    public function sellerProfile(Request $request): SellerProfileResource
+    public function sellerProfile(Request $request, CountryDetectorService $countries): SellerProfileResource
     {
+        $this->fillCountryFromRequest($request, $countries);
+
         return SellerProfileResource::make($request->user()->loadMissing('sellerProfile'));
     }
 
-    public function updateSellerProfile(UpdateSellerProfileRequest $request): SellerProfileResource
+    public function updateSellerProfile(UpdateSellerProfileRequest $request, CountryDetectorService $countries): SellerProfileResource
     {
         $payload = $request->validated();
+        $this->fillCountryFromRequest($request, $countries);
 
         $user = $request->user();
         $user->forceFill(array_filter([
@@ -72,6 +80,7 @@ class UserController extends Controller
             'languages' => $payload['languages'] ?? $user->sellerProfile?->languages,
             'skills' => $payload['skills'] ?? $user->sellerProfile?->skills,
             'portfolio_projects' => $payload['projects'] ?? $user->sellerProfile?->portfolio_projects,
+            'featured_clients' => $payload['featuredClients'] ?? $user->sellerProfile?->featured_clients,
             'work_experience' => $payload['workExperience'] ?? $user->sellerProfile?->work_experience,
             'education' => $payload['education'] ?? $user->sellerProfile?->education,
             'certification' => $payload['certification'] ?? $user->sellerProfile?->certification,
@@ -80,17 +89,19 @@ class UserController extends Controller
         return SellerProfileResource::make($user->fresh('sellerProfile'));
     }
 
-    public function avatar(Request $request): JsonResponse
+    public function avatar(Request $request, ProfileAvatarUploadService $uploads): JsonResponse
     {
         $payload = $request->validate([
-            'avatar' => ['required', 'string', 'max:1500000'],
+            'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
         ]);
 
-        $request->user()->forceFill(['avatar' => $payload['avatar']])->save();
+        $avatar = $uploads->store($payload['avatar'], $request->user()->id);
+
+        $request->user()->forceFill(['avatar' => $avatar])->save();
 
         return response()->json([
             'data' => [
-                'avatar' => $request->user()->avatar,
+                'avatar' => $avatar,
             ],
         ]);
     }
@@ -106,5 +117,18 @@ class UserController extends Controller
         abort_unless($user->sellerProfile || $user->gigs()->exists(), 404);
 
         return PublicSellerProfileResource::make($user->loadMissing(['sellerProfile', 'gigs.media']));
+    }
+
+    private function fillCountryFromRequest(Request $request, CountryDetectorService $countries): void
+    {
+        if ($request->user()->country) {
+            return;
+        }
+
+        $country = $countries->detect($request);
+
+        if ($country) {
+            $request->user()->forceFill(['country' => $country])->save();
+        }
     }
 }

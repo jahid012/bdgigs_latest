@@ -66,14 +66,6 @@
                     "withdrawBalance": "Withdraw balance",
                     "withdrawnToDate": "Withdrawn to date:",
                     "yourEarningsSinceJoining": "Your earnings since joining."
-                },
-                "sellerfinancialdocuments": {
-                    "document": "Document",
-                    "download": "Download",
-                    "downloadDocumentsReport": "Download documents report",
-                    "noFinancialDocumentsYet": "No financial documents yet...",
-                    "period": "Period",
-                    "status": "Status"
                 }
             },
             "financecontrols": {

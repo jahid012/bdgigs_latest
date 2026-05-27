@@ -23,9 +23,15 @@ class AuthController extends Controller
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
+            'remember' => ['sometimes', 'boolean'],
         ]);
+        $remember = (bool) ($credentials['remember'] ?? false);
+        $credentials = [
+            'email' => $credentials['email'],
+            'password' => $credentials['password'],
+        ];
 
-        if (! Auth::attempt($credentials)) {
+        if (! Auth::attempt($credentials, $remember)) {
             throw ValidationException::withMessages([
                 'email' => 'These admin credentials do not match our records.',
             ]);

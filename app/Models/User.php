@@ -102,6 +102,16 @@ class User extends Authenticatable
         return $this->hasOne(BillingProfile::class);
     }
 
+    public function wallet(): HasOne
+    {
+        return $this->hasOne(UserWallet::class);
+    }
+
+    public function walletTransactions(): HasMany
+    {
+        return $this->hasMany(WalletTransaction::class);
+    }
+
     public function notificationPreference(): HasOne
     {
         return $this->hasOne(NotificationPreference::class);

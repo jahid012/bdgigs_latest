@@ -56,14 +56,13 @@ button {
 .admin-logo {
   display: inline-flex;
   align-items: center;
-  color: #34363b;
-  font-size: 1.72rem;
-  font-weight: 900;
   line-height: 1;
 }
 
-.admin-logo span {
-  color: var(--admin-accent);
+.admin-logo img {
+  display: block;
+  width: 160px;
+  object-fit: contain;
 }
 
 .admin-eyebrow {
@@ -1141,7 +1140,7 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
-  margin-bottom: 0.95rem;
+  margin: 0.95rem 0;
 }
 
 .admin-filter-row button,
@@ -1831,6 +1830,15 @@ button {
 .admin-mini-card b {
   color: var(--admin-text);
   font-size: 0.9rem;
+}
+
+.admin-visitor-page-list .admin-mini-card {
+  align-items: flex-start;
+}
+
+.admin-visitor-page-list .admin-mini-card p,
+.admin-visitor-page-list .admin-mini-card strong {
+  overflow-wrap: anywhere;
 }
 
 .admin-side-insights ul {

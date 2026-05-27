@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import LoadingSkeleton from "../../common/LoadingSkeleton.jsx";
 import { Icon } from "../../common/Icons.jsx";
+import { useToast } from "../../common/ToastProvider.jsx";
 import { apiRequest } from "../../../api/apiClient.js";
+import { uploadProfileAvatar } from "../../../api/profileApi.js";
+import { buyerProfileStrength } from "../../../utils/profileStrength.js";
 
 const initialClientProfile = {
     name: "",
@@ -61,18 +65,71 @@ const communicationPreferenceOptions = [
     "Project brief only",
 ];
 
+function normalizeBuyerLanguages(languages = []) {
+    return languages.map((language, index) => {
+        if (typeof language === "string") {
+            return {
+                id: `language-${index}-${language}`,
+                language,
+                level: "Fluent",
+                communicationPreference: "Inbox messages",
+            };
+        }
+
+        return {
+            id: language.id || `language-${index}-${language.language}`,
+            language: language.language || "",
+            level: language.level || language.proficiency || "Fluent",
+            communicationPreference:
+                language.communicationPreference || "Inbox messages",
+        };
+    });
+}
+
+function normalizeBuyerProfile(profile) {
+    return {
+        ...initialClientProfile,
+        ...profile,
+        workingDays: {
+            ...initialClientProfile.workingDays,
+            ...(profile?.workingDays || {}),
+        },
+        workingHours: {
+            ...initialClientProfile.workingHours,
+            ...(profile?.workingHours || {}),
+        },
+        languages: normalizeBuyerLanguages(profile?.languages || []),
+    };
+}
+
+function initialsFromName(name) {
+    return String(name || "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part.slice(0, 1).toUpperCase())
+        .join("");
+}
+
 function BuyerClientProfilePage() {
     const [profile, setProfile] = useState(initialClientProfile);
     const [activeDrawer, setActiveDrawer] = useState("");
-    const [notice, setNotice] = useState("");
+    const [profileStatus, setProfileStatus] = useState("loading");
+    const notify = useToast();
 
     useEffect(() => {
+        setProfileStatus("loading");
         apiRequest("/api/user/profile/buyer")
-            .then(setProfile)
-            .catch((error) =>
-                setNotice(error.message || "Profile could not be loaded."),
-            );
-    }, []);
+            .then((nextProfile) => {
+                setProfile(normalizeBuyerProfile(nextProfile));
+                setProfileStatus("ready");
+            })
+            .catch((error) => {
+                setProfileStatus("error");
+                notify.error(error.message || "Profile could not be loaded.");
+            });
+    }, [notify]);
 
     useEffect(() => {
         if (!activeDrawer) {
@@ -110,19 +167,76 @@ function BuyerClientProfilePage() {
         return "";
     }, [activeDrawer]);
 
-    const updateProfile = (updates, shouldClose = true) => {
-        setProfile((current) => ({ ...current, ...updates }));
-        apiRequest("/api/user/profile/buyer", {
-            method: "PATCH",
-            body: updates,
-        })
-            .then(setProfile)
-            .catch((error) =>
-                setNotice(error.message || "Profile could not be saved."),
-            );
-        if (shouldClose) {
-            setActiveDrawer("");
+    const strength = useMemo(() => buyerProfileStrength(profile), [profile]);
+
+    const updateProfile = async (
+        updates,
+        { shouldClose = true, successMessage = "Profile saved." } = {},
+    ) => {
+        setProfile((current) =>
+            normalizeBuyerProfile({ ...current, ...updates }),
+        );
+
+        try {
+            const nextProfile = await apiRequest("/api/user/profile/buyer", {
+                method: "PATCH",
+                body: updates,
+            });
+
+            setProfile(normalizeBuyerProfile(nextProfile));
+            notify.success(successMessage);
+
+            if (shouldClose) {
+                setActiveDrawer("");
+            }
+
+            return nextProfile;
+        } catch (error) {
+            notify.error(error.message || "Profile could not be saved.");
+            throw error;
         }
+    };
+
+    const saveIdentityProfile = async (draft, avatarFile) => {
+        try {
+            let avatar = profile.avatar;
+
+            if (avatarFile) {
+                try {
+                    const uploaded = await uploadProfileAvatar(avatarFile);
+                    avatar = uploaded.avatar;
+                } catch (error) {
+                    notify.error(
+                        error.message || "Profile photo could not be uploaded.",
+                    );
+                    return;
+                }
+            }
+
+            await updateProfile(
+                {
+                    name: draft.name.trim(),
+                    avatar,
+                },
+                { successMessage: "Profile details saved." },
+            );
+        } catch {
+            // updateProfile surfaces save errors.
+        }
+    };
+
+    const saveCommunicationProfile = (updates, message) => {
+        updateProfile(updates, {
+            shouldClose: false,
+            successMessage: message || "Communication preferences saved.",
+        }).catch(() => {});
+    };
+
+    const saveOverviewProfile = (overview) => {
+        updateProfile(
+            { overview },
+            { successMessage: "Overview saved." },
+        ).catch(() => {});
     };
 
     return (
@@ -133,73 +247,83 @@ function BuyerClientProfilePage() {
                 <span>Client profile</span>
             </nav>
 
-            <header className="buyer-profile-top">
-                <div className="buyer-profile-intro">
-                    <p>
-                        Build your <strong>client profile</strong> on bdgigs.
-                    </p>
-                    <p>
-                        Are you a freelancer? Visit your{" "}
-                        <a href="/dashboard/seller/profile">
-                            freelancer profile
-                        </a>{" "}
-                        to view and update it.
-                    </p>
-                </div>
-                <a className="buyer-public-view" href="/dashboard/profile">
-                    <Icon name="eye" /> Public view
-                </a>
-                <BuyerProfileProgress />
-            </header>
-
-            <div className="buyer-profile-layout">
-                <div className="buyer-profile-main">
-                    <BuyerIdentityCard
-                        profile={profile}
-                        onEdit={() => setActiveDrawer("identity")}
-                    />
-
-                    <BuyerOverviewCard
-                        overview={profile.overview}
-                        onEdit={() => setActiveDrawer("overview")}
-                    />
-
-                    <BuyerCommunicationCard
-                        profile={profile}
-                        onEdit={() => setActiveDrawer("communication")}
-                    />
-
-                    <section className="buyer-profile-card buyer-reviews-card">
-                        <h2>Reviews from freelancers</h2>
-                        <div className="buyer-review-empty" aria-hidden="true">
-                            <span>*****</span>
+            {profileStatus === "loading" ? (
+                <BuyerProfileSkeleton />
+            ) : profileStatus === "error" ? (
+                <section className="buyer-profile-card buyer-profile-error">
+                    <h1>Profile could not be loaded.</h1>
+                    <p>Refresh the page and try again.</p>
+                </section>
+            ) : (
+                <>
+                    <header className="buyer-profile-top">
+                        <div className="buyer-profile-intro">
+                            <p>
+                                Build your <strong>client profile</strong> on
+                                bdgigs.
+                            </p>
+                            <p>
+                                Are you a freelancer? Visit your{" "}
+                                <a href="/dashboard/seller/profile">
+                                    freelancer profile
+                                </a>{" "}
+                                to view and update it.
+                            </p>
                         </div>
-                    </section>
-                </div>
+                        <a className="buyer-public-view" href="/dashboard/profile">
+                            <Icon name="eye" /> Public view
+                        </a>
+                        <BuyerProfileProgress strength={strength} />
+                    </header>
 
-                <aside className="buyer-profile-sidebar">
-                    <section className="buyer-profile-card buyer-progress-card-mobile">
-                        <BuyerProfileProgress />
-                    </section>
-                    <section className="buyer-profile-card buyer-quick-links">
-                        <h2>Quick links</h2>
-                        <a href="/dashboard/briefs">
-                            <Icon name="document" />
-                            Briefs
-                        </a>
-                        <a href="/dashboard/orders">
-                            <Icon name="orders" />
-                            Orders
-                        </a>
-                        <a href="/dashboard/saved-services">
-                            <Icon name="heart" />
-                            Lists
-                        </a>
-                    </section>
-                </aside>
-            </div>
+                    <div className="buyer-profile-layout">
+                        <div className="buyer-profile-main">
+                            <BuyerIdentityCard
+                                profile={profile}
+                                onEdit={() => setActiveDrawer("identity")}
+                            />
 
-            {notice ? <p className="account-settings-notice">{notice}</p> : null}
+                            <BuyerOverviewCard
+                                overview={profile.overview}
+                                onEdit={() => setActiveDrawer("overview")}
+                            />
+
+                            <BuyerCommunicationCard
+                                profile={profile}
+                                onEdit={() => setActiveDrawer("communication")}
+                            />
+
+                            <section className="buyer-profile-card buyer-reviews-card">
+                                <h2>Reviews from freelancers</h2>
+                                <p className="buyer-review-empty-text">
+                                    No freelancer reviews yet.
+                                </p>
+                            </section>
+                        </div>
+
+                        <aside className="buyer-profile-sidebar">
+                            <section className="buyer-profile-card buyer-progress-card-mobile">
+                                <BuyerProfileProgress strength={strength} />
+                            </section>
+                            <section className="buyer-profile-card buyer-quick-links">
+                                <h2>Quick links</h2>
+                                <a href="/dashboard/briefs">
+                                    <Icon name="document" />
+                                    Briefs
+                                </a>
+                                <a href="/dashboard/orders">
+                                    <Icon name="orders" />
+                                    Orders
+                                </a>
+                                <a href="/dashboard/saved-services">
+                                    <Icon name="heart" />
+                                    Lists
+                                </a>
+                            </section>
+                        </aside>
+                    </div>
+                </>
+            )}
 
             {activeDrawer ? (
                 <ClientProfileDrawer
@@ -210,20 +334,20 @@ function BuyerClientProfilePage() {
                         <IdentityEditForm
                             profile={profile}
                             onCancel={() => setActiveDrawer("")}
-                            onSave={updateProfile}
+                            onSave={saveIdentityProfile}
                         />
                     ) : null}
                     {activeDrawer === "overview" ? (
                         <OverviewEditForm
                             overview={profile.overview}
                             onCancel={() => setActiveDrawer("")}
-                            onSave={(overview) => updateProfile({ overview })}
+                            onSave={saveOverviewProfile}
                         />
                     ) : null}
                     {activeDrawer === "communication" ? (
                         <CommunicationEditForm
                             profile={profile}
-                            onSave={(updates) => updateProfile(updates, false)}
+                            onSave={saveCommunicationProfile}
                         />
                     ) : null}
                 </ClientProfileDrawer>
@@ -232,32 +356,91 @@ function BuyerClientProfilePage() {
     );
 }
 
-function BuyerProfileProgress() {
+function BuyerProfileSkeleton() {
     return (
-        <section className="buyer-progress-card">
+        <>
+            <header className="buyer-profile-top buyer-profile-skeleton-top">
+                <div className="buyer-profile-intro">
+                    <LoadingSkeleton className="buyer-skeleton-title" />
+                    <LoadingSkeleton className="buyer-skeleton-line wide" />
+                    <LoadingSkeleton className="buyer-skeleton-line" />
+                </div>
+                <LoadingSkeleton className="buyer-skeleton-button" />
+                <LoadingSkeleton className="buyer-skeleton-progress" />
+            </header>
+            <div className="buyer-profile-layout">
+                <div className="buyer-profile-main">
+                    <section className="buyer-profile-card buyer-identity-card">
+                        <LoadingSkeleton className="buyer-skeleton-avatar" />
+                        <div>
+                            <LoadingSkeleton className="buyer-skeleton-title" />
+                            <LoadingSkeleton className="buyer-skeleton-line" />
+                            <LoadingSkeleton className="buyer-skeleton-line wide" />
+                        </div>
+                    </section>
+                    <section className="buyer-profile-card buyer-overview-card">
+                        <div>
+                            <LoadingSkeleton className="buyer-skeleton-title" />
+                            <LoadingSkeleton className="buyer-skeleton-line wide" />
+                            <LoadingSkeleton className="buyer-skeleton-line" />
+                        </div>
+                        <LoadingSkeleton className="buyer-skeleton-illustration" />
+                    </section>
+                    <section className="buyer-profile-card buyer-communication-card">
+                        <LoadingSkeleton className="buyer-skeleton-title" />
+                        <LoadingSkeleton className="buyer-skeleton-line wide" />
+                        <LoadingSkeleton className="buyer-skeleton-line" />
+                    </section>
+                </div>
+                <aside className="buyer-profile-sidebar">
+                    <LoadingSkeleton className="buyer-skeleton-side-card" />
+                    <LoadingSkeleton className="buyer-skeleton-side-card" />
+                </aside>
+            </div>
+        </>
+    );
+}
+
+function BuyerProfileProgress({ strength }) {
+    const percent = Math.min(100, Math.max(0, strength?.percent ?? 0));
+
+    return (
+        <section
+            className="buyer-progress-card"
+            style={{ "--profile-strength": `${percent}%` }}
+        >
             <div className="buyer-progress-bar-head">
                 <span>0%</span>
-                <strong>35%</strong>
+                <strong>{percent}%</strong>
                 <span>100%</span>
             </div>
             <div className="buyer-progress-track">
                 <span></span>
             </div>
             <p>
-                You're nearly there, add a few more details to complete your
-                profile.
+                {percent >= 100
+                    ? "Your profile is complete and ready for marketplace activity."
+                    : "You're nearly there, add a few more details to complete your profile."}
             </p>
         </section>
     );
 }
 
 function BuyerIdentityCard({ profile, onEdit }) {
+    const initials = initialsFromName(profile.name);
+
     return (
         <section className="buyer-profile-card buyer-identity-card">
             <button type="button" onClick={onEdit}>
                 Edit
             </button>
-            <img src={profile.avatar} alt={`${profile.name} profile`} />
+            {profile.avatar ? (
+                <img src={profile.avatar} alt={`${profile.name} profile`} />
+            ) : (
+                <span className="buyer-identity-avatar-fallback">
+                    {initials}
+                </span>
+            )}
             <div>
                 <h1>{profile.name}</h1>
                 <span>{profile.handle}</span>
@@ -325,12 +508,16 @@ function BuyerCommunicationCard({ profile, onEdit }) {
             <div className="buyer-communication-grid">
                 <div>
                     <h3>Speaks</h3>
-                    {profile.languages.map((language) => (
-                        <p key={language.id}>
-                            <strong>{language.language}</strong>{" "}
-                            <span>({language.level})</span>
-                        </p>
-                    ))}
+                    {profile.languages.length ? (
+                        profile.languages.map((language) => (
+                            <p key={language.id || language.language}>
+                                <strong>{language.language}</strong>{" "}
+                                <span>({language.level})</span>
+                            </p>
+                        ))
+                    ) : (
+                        <p>No languages added yet.</p>
+                    )}
                 </div>
                 <div>
                     <h3>Preferred hours</h3>
@@ -381,12 +568,16 @@ function ClientProfileDrawer({ title, children, onClose }) {
 function IdentityEditForm({ profile, onCancel, onSave }) {
     const [draft, setDraft] = useState({
         name: profile.name,
-        avatar: profile.avatar,
+        avatarPreview: profile.avatar,
     });
+    const [avatarFile, setAvatarFile] = useState(null);
 
     const handleFileChange = (event) => {
-        const file = event.target.files?.[0];
+        const input = event.currentTarget;
+        const file = input.files?.[0];
+
         if (!file || !file.type.startsWith("image/")) {
+            input.blur();
             return;
         }
 
@@ -394,9 +585,12 @@ function IdentityEditForm({ profile, onCancel, onSave }) {
         reader.onload = () => {
             setDraft((current) => ({
                 ...current,
-                avatar: reader.result || current.avatar,
+                avatarPreview: reader.result || current.avatarPreview,
             }));
         };
+        setAvatarFile(file);
+        input.value = "";
+        input.blur();
         reader.readAsDataURL(file);
     };
 
@@ -405,7 +599,12 @@ function IdentityEditForm({ profile, onCancel, onSave }) {
             className="client-drawer-form"
             onSubmit={(event) => {
                 event.preventDefault();
-                onSave(draft);
+                onSave(
+                    {
+                        name: draft.name,
+                    },
+                    avatarFile,
+                );
             }}
         >
             <div className="client-drawer-body">
@@ -420,7 +619,13 @@ function IdentityEditForm({ profile, onCancel, onSave }) {
                         accept="image/*"
                         onChange={handleFileChange}
                     />
-                    <img src={draft.avatar} alt="" />
+                    {draft.avatarPreview ? (
+                        <img src={draft.avatarPreview} alt="" />
+                    ) : (
+                        <strong className="client-photo-fallback">
+                            {initialsFromName(draft.name)}
+                        </strong>
+                    )}
                     <span>
                         <Icon name="camera" />
                     </span>
@@ -498,17 +703,19 @@ function CommunicationEditForm({ profile, onSave }) {
     });
     const [activeLanguageMenu, setActiveLanguageMenu] = useState("");
     const [editingLanguageId, setEditingLanguageId] = useState("");
-    const [languageFormOpen, setLanguageFormOpen] = useState(true);
-    const [preferenceTouched, setPreferenceTouched] = useState(true);
+    const [languageFormOpen, setLanguageFormOpen] = useState(
+        profile.languages.length === 0,
+    );
+    const [preferenceTouched, setPreferenceTouched] = useState(false);
     const [languageDraft, setLanguageDraft] = useState({
         language: "Bengali",
         level: "Native/Bilingual",
         communicationPreference: "",
     });
 
-    const commitDraft = (nextDraft) => {
+    const commitDraft = (nextDraft, message) => {
         setDraft(nextDraft);
-        onSave(nextDraft);
+        onSave(nextDraft, message);
     };
 
     const updateWorkingHours = (field, value) => {
@@ -519,7 +726,7 @@ function CommunicationEditForm({ profile, onSave }) {
                 [field]: value,
             },
         };
-        commitDraft(nextDraft);
+        commitDraft(nextDraft, "Working hours saved.");
     };
 
     const openNewLanguageForm = () => {
@@ -529,7 +736,7 @@ function CommunicationEditForm({ profile, onSave }) {
             level: "Native/Bilingual",
             communicationPreference: "",
         });
-        setPreferenceTouched(true);
+        setPreferenceTouched(false);
         setLanguageFormOpen(true);
         setActiveLanguageMenu("");
     };
@@ -553,7 +760,7 @@ function CommunicationEditForm({ profile, onSave }) {
                 (language) => language.id !== languageId,
             ),
         };
-        commitDraft(nextDraft);
+        commitDraft(nextDraft, "Language removed.");
         setActiveLanguageMenu("");
     };
 
@@ -581,9 +788,13 @@ function CommunicationEditForm({ profile, onSave }) {
                   languages: [...draft.languages, languagePayload],
               };
 
-        commitDraft(nextDraft);
+        commitDraft(
+            nextDraft,
+            editingLanguageId ? "Language updated." : "Language added.",
+        );
         setLanguageFormOpen(false);
         setEditingLanguageId("");
+        setPreferenceTouched(false);
     };
 
     const cancelLanguageForm = () => {
@@ -599,7 +810,7 @@ function CommunicationEditForm({ profile, onSave }) {
         }));
 
         if (field === "communicationPreference") {
-            setPreferenceTouched(true);
+            setPreferenceTouched(false);
         }
     };
 

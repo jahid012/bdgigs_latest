@@ -9,6 +9,8 @@
             ['label' => 'Overview', 'route' => 'admin.dashboard', 'permission' => 'admin.access'],
             ['label' => 'Users', 'route' => 'admin.users', 'permission' => 'users.view'],
             ['label' => 'Gigs', 'route' => 'admin.gigs', 'permission' => 'gigs.view'],
+            ['label' => 'Categories', 'route' => 'admin.marketplace-categories', 'permission' => 'categories.manage'],
+            ['label' => 'Creator Content', 'route' => 'admin.creator-marketplace', 'permission' => 'content.manage'],
             ['label' => 'Orders', 'route' => 'admin.orders', 'permission' => 'orders.view'],
             ['label' => 'Payments', 'route' => 'admin.payments', 'permission' => 'payments.view'],
             ['label' => 'Manual Payments', 'route' => 'admin.manual-payments', 'permission' => 'manual-payments.view'],
@@ -23,8 +25,9 @@
     <div class="admin-shell">
         <aside class="admin-sidebar">
             <div class="admin-sidebar-brand">
-                <a class="admin-logo" href="{{ route('admin.dashboard') }}">bdgigs<span>.</span></a>
-                <small>Admin Panel</small>
+                <a class="admin-logo" href="{{ route('admin.dashboard') }}">
+                    <img src="{{ asset('assets/img/logo.png') }}" alt="bdgigs">
+                </a>
             </div>
 
             <nav aria-label="Admin navigation">

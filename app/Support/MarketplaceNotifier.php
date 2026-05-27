@@ -5,9 +5,14 @@ namespace App\Support;
 use App\Events\NotificationCreated;
 use App\Models\User;
 use App\Models\UserNotification;
+use App\Services\NotificationPreferenceService;
 
 class MarketplaceNotifier
 {
+    public function __construct(private readonly NotificationPreferenceService $preferences)
+    {
+    }
+
     public function notify(
         User $user,
         string $type,
@@ -16,6 +21,11 @@ class MarketplaceNotifier
         ?string $actionUrl = null,
         array $metadata = []
     ): UserNotification {
+        $metadata = [
+            ...$metadata,
+            'preferenceKey' => $metadata['preferenceKey']
+                ?? $this->preferences->preferenceKeyFor($type),
+        ];
         $notification = UserNotification::create([
             'user_id' => $user->id,
             'type' => $type,
@@ -25,7 +35,9 @@ class MarketplaceNotifier
             'metadata' => $metadata,
         ]);
 
-        event(new NotificationCreated($notification));
+        if ($this->preferences->allowsRealtime($user, $notification)) {
+            event(new NotificationCreated($notification));
+        }
 
         return $notification;
     }

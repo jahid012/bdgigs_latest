@@ -1,9 +1,13 @@
-import { useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Slider from "react-slick";
+import "slick-carousel/slick/slick-theme.css";
+import "slick-carousel/slick/slick.css";
 import {
     aiDirectors,
     creatorServiceCards,
     marketplaceBenefits,
 } from "../../data/homeData.js";
+import { apiRequest } from "../../api/apiClient.js";
 import { BrandMark, Icon } from "../common/Icons.jsx";
 import { useTranslation } from "react-i18next";
 const creatorRoutes = {
@@ -18,22 +22,91 @@ const creatorRoutes = {
 };
 function HowItWorks({ onNavigate }) {
     const { t } = useTranslation();
-    const cardsRef = useRef(null);
-    const scrollCards = () => {
-        cardsRef.current?.scrollBy({
-            left: 250,
-            behavior: "smooth",
-        });
+    const [creatorItems, setCreatorItems] = useState([]);
+    const [isCreatorLoading, setIsCreatorLoading] = useState(true);
+    const sliderItems = useMemo(
+        () =>
+            creatorItems.length
+                ? creatorItems.map((item) => ({
+                      title: item.title,
+                      image: item.image,
+                      color: item.color || "#f4f6f8",
+                      description: item.description,
+                      linkUrl:
+                          item.linkUrl ||
+                          `/search/gigs?query=${encodeURIComponent(item.title)}&source=creator-card`,
+                  }))
+                : creatorServiceCards.map((card) => ({
+                      ...card,
+                      linkUrl:
+                          creatorRoutes[card.title] ||
+                          "/search/gigs?source=creator-card",
+                  })),
+        [creatorItems],
+    );
+    const sliderSettings = {
+        arrows: true,
+        dots: true,
+        infinite: sliderItems.length > 4,
+        nextArrow: <CreatorSliderArrow direction="next" />,
+        prevArrow: <CreatorSliderArrow direction="prev" />,
+        responsive: [
+            {
+                breakpoint: 1100,
+                settings: { slidesToShow: 3 },
+            },
+            {
+                breakpoint: 760,
+                settings: { slidesToShow: 2 },
+            },
+            {
+                breakpoint: 560,
+                settings: { slidesToShow: 1 },
+            },
+        ],
+        slidesToScroll: 1,
+        slidesToShow: Math.min(4, Math.max(1, sliderItems.length)),
+        speed: 320,
     };
+
+    useEffect(() => {
+        let active = true;
+
+        apiRequest("/api/home/creator-marketplace")
+            .then((items) => {
+                if (active) {
+                    setCreatorItems(items || []);
+                }
+            })
+            .catch(() => {
+                if (active) {
+                    setCreatorItems([]);
+                }
+            })
+            .finally(() => {
+                if (active) {
+                    setIsCreatorLoading(false);
+                }
+            });
+
+        return () => {
+            active = false;
+        };
+    }, []);
+
     return (
         <>
             <section className="creator-marketplace-section" id="how-it-works">
                 <div className="container">
-                    <div className="creator-card-row" ref={cardsRef}>
-                        {creatorServiceCards.map((card) => (
+                    <div
+                        className={`creator-card-row creator-slick-slider${isCreatorLoading ? " is-loading" : ""}`}
+                    >
+                        <Slider {...sliderSettings}>
+                        {sliderItems.map((card) => (
                             <a
                                 className="creator-service-card"
                                 href={
+                                    card.linkUrl ||
                                     creatorRoutes[card.title] ||
                                     "/search/gigs?source=creator-card"
                                 }
@@ -44,12 +117,16 @@ function HowItWorks({ onNavigate }) {
                                 onClick={(event) => {
                                     event.preventDefault();
                                     onNavigate(
-                                        creatorRoutes[card.title] ||
+                                        card.linkUrl ||
+                                            creatorRoutes[card.title] ||
                                             "/search/gigs?source=creator-card",
                                     );
                                 }}
                             >
                                 <h3>{card.title}</h3>
+                                {card.description ? (
+                                    <p>{card.description}</p>
+                                ) : null}
                                 <span className="creator-service-image">
                                     <img
                                         src={card.image}
@@ -60,18 +137,8 @@ function HowItWorks({ onNavigate }) {
                                 </span>
                             </a>
                         ))}
+                        </Slider>
                     </div>
-
-                    <button
-                        className="creator-carousel-button"
-                        type="button"
-                        aria-label={t(
-                            "components.home.howitworks.viewMoreFreelancerServices",
-                        )}
-                        onClick={scrollCards}
-                    >
-                        <Icon name="arrowRight" />
-                    </button>
 
                     <div className="freelancer-benefit-header">
                         <h2>
@@ -79,7 +146,13 @@ function HowItWorks({ onNavigate }) {
                                 "components.home.howitworks.makeItAllHappenWithFreelancers",
                             )}
                         </h2>
-                        <a href="/?auth=register">
+                        <a
+                            href="/?auth=register"
+                            onClick={(event) => {
+                                event.preventDefault();
+                                onNavigate("/", "?auth=register");
+                            }}
+                        >
                             {t("components.home.howitworks.joinNow")}
                         </a>
                     </div>
@@ -168,8 +241,7 @@ function HowItWorks({ onNavigate }) {
                     <div className="expert-sourcing-panel">
                         <div className="expert-sourcing-copy">
                             <span className="pro-brand">
-                                <BrandMark />{" "}
-                                {t("components.home.howitworks.bdgigsPro")}{" "}
+                                <BrandMark />
                             </span>
                             <h2 id="expertSourcingTitle">
                                 {t(
@@ -252,6 +324,20 @@ function HowItWorks({ onNavigate }) {
                 </div>
             </section>
         </>
+    );
+}
+
+function CreatorSliderArrow({ className = "", direction, onClick, style }) {
+    return (
+        <button
+            className={`${className} creator-carousel-button ${direction}`}
+            type="button"
+            aria-label={direction === "next" ? "Next services" : "Previous services"}
+            onClick={onClick}
+            style={style}
+        >
+            <Icon name="arrowRight" />
+        </button>
     );
 }
 export default HowItWorks;

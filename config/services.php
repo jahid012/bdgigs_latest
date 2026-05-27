@@ -42,6 +42,11 @@ return [
         'offline_after' => env('FIREBASE_OFFLINE_AFTER', 90),
     ],
 
+    'ipinfo' => [
+        'token' => env('IPINFO_TOKEN'),
+        'endpoint' => env('IPINFO_ENDPOINT', 'https://api.ipinfo.io/lite'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

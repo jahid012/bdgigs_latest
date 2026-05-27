@@ -58,7 +58,6 @@ function DashboardPage({
                     onClose={() => setIsSidebarOpen(false)}
                     onNavigate={onNavigate}
                     items={isSeller ? sellerSidebarItems : undefined}
-                    label={isSeller ? "Seller tools" : "Workspace"}
                     upgradeEyebrow={isSeller ? "Growth insight" : undefined}
                     upgradeTitle={isSeller ? "Seller Plus" : undefined}
                     upgradeCopy={
@@ -86,6 +85,8 @@ function DashboardPage({
                         notificationActionLabel="View all updates"
                         profileName={currentUser?.name || "Guest"}
                         profileInitials={currentUser?.initials || "GU"}
+                        profileAvatar={currentUser?.avatar || ""}
+                        profileOnline={currentUser?.online ?? true}
                         profileLinks={
                             isSeller
                                 ? [
@@ -100,6 +101,10 @@ function DashboardPage({
                                       {
                                           label: "Payout settings",
                                           href: "/dashboard/seller/earnings",
+                                      },
+                                      {
+                                          label: "Buyer dashboard",
+                                          href: "/dashboard",
                                       },
                                   ]
                                 : undefined
