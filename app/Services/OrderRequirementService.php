@@ -75,11 +75,11 @@ class OrderRequirementService
 
             $order->forceFill([
                 'metadata' => $metadata,
-                'status' => strtolower((string) $order->status) === 'pending requirements'
-                    ? 'In Progress'
+                'status' => in_array(strtolower((string) $order->status), ['pending requirements', 'waiting for requirements'], true)
+                    ? 'Requirements Submitted'
                     : $order->status,
-                'status_class' => strtolower((string) $order->status) === 'pending requirements'
-                    ? 'status-progress'
+                'status_class' => in_array(strtolower((string) $order->status), ['pending requirements', 'waiting for requirements'], true)
+                    ? 'status-delivered'
                     : $order->status_class,
             ])->save();
 

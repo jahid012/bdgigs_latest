@@ -3,7 +3,11 @@
 namespace App\Services;
 
 use App\Events\ConversationUpdated;
+use App\Events\CustomOfferExpired;
+use App\Events\CustomOfferMessageReceived;
+use App\Events\CustomOfferPaymentFailed;
 use App\Events\MessageSent;
+use App\Events\OrderPlaced;
 use App\Http\Resources\ConversationResource;
 use App\Models\Conversation;
 use App\Models\CustomOffer;
@@ -21,6 +25,7 @@ class CustomOfferService
     public function __construct(
         private readonly UserWalletService $wallets,
         private readonly OrderEventNotificationService $events,
+        private readonly OrderPaymentLifecycleService $payments,
     ) {
     }
 
@@ -73,6 +78,19 @@ class CustomOfferService
                 ['conversationId' => $conversation->public_id, 'offerId' => $offer->id],
             );
 
+            $this->events->send(
+                $seller,
+                'custom_offer_sent_confirmation',
+                'Custom offer sent',
+                'Your custom offer '.$offer->code.' was sent to '.$buyer->name.'.',
+                '/dashboard/seller/messages?conversation='.$conversation->public_id,
+                [
+                    'conversationId' => $conversation->public_id,
+                    'offerId' => $offer->id,
+                    'customOfferTitle' => $offer->title,
+                ],
+            );
+
             return $offer->fresh(['conversation.participants.user', 'gig', 'order']);
         });
     }
@@ -116,102 +134,207 @@ class CustomOfferService
     {
         $this->authorizeBuyer($offer, $buyer);
         $this->ensurePayable($offer);
-
-        return DB::transaction(function () use ($offer, $buyer) {
-            $offer = CustomOffer::whereKey($offer->id)->lockForUpdate()->firstOrFail();
-            $this->ensurePayable($offer);
-
-            $this->wallets->debit($buyer, $offer->price_cents, 'Custom offer payment '.$offer->code, [
-                'customOfferId' => $offer->id,
-                'customOfferCode' => $offer->code,
+        if (! $buyer->hasVerifiedEmail()) {
+            throw ValidationException::withMessages([
+                'email' => 'Verify your email before paying for a custom offer.',
             ]);
+        }
 
-            $gig = $offer->gig;
-            $seller = $offer->seller;
-            $hasRequirements = collect($gig?->requirements ?: [])->isNotEmpty();
-            $order = Order::create([
-                'code' => $this->nextOrderCode(),
-                'buyer_id' => $buyer->id,
-                'seller_id' => $offer->seller_id,
-                'gig_id' => $offer->gig_id,
-                'service' => $offer->title,
-                'buyer_name' => $buyer->name,
-                'seller_name' => $seller?->name ?: $offer->conversation?->seller_name,
-                'status' => $hasRequirements ? 'Pending Requirements' : 'In Progress',
-                'status_class' => $hasRequirements ? 'status-delivered' : 'status-progress',
-                'due_date' => now()->addDays($offer->delivery_days)->toDateString(),
-                'price_cents' => $offer->price_cents,
-                'earnings_cents' => (int) round($offer->price_cents * 0.85),
-                'metadata' => [
-                    'itemSummary' => $offer->description ?: 'Custom offer',
-                    'quantity' => 1,
-                    'duration' => $offer->delivery_days.' day'.($offer->delivery_days === 1 ? '' : 's'),
-                    'revisions' => $offer->revisions,
+        try {
+            return DB::transaction(function () use ($offer, $buyer) {
+                $offer = CustomOffer::whereKey($offer->id)->lockForUpdate()->firstOrFail();
+                $this->ensurePayable($offer);
+
+                $paymentTransaction = $this->wallets->debit($buyer, $offer->price_cents, 'Custom offer payment '.$offer->code, [
+                    'customOfferId' => $offer->id,
                     'customOfferCode' => $offer->code,
-                    'customOfferTerms' => $offer->terms,
-                    'requirements' => collect($gig?->requirements ?: [])
-                        ->map(fn (array $item, int $index) => [
-                            'id' => (string) ($item['id'] ?? 'requirement-'.$index),
-                            'question' => $item['question'] ?? $item['label'] ?? 'Requirement',
-                            'label' => $item['label'] ?? $item['question'] ?? 'Requirement',
-                            'type' => $item['type'] ?? 'Free text',
-                            'required' => (bool) ($item['required'] ?? false),
-                            'optional' => ! (bool) ($item['required'] ?? false),
-                            'options' => array_values($item['options'] ?? []),
-                            'answer' => '',
-                            'files' => [],
-                        ])
-                        ->values()
-                        ->all(),
-                ],
-            ]);
+                ]);
 
-            $order->activities()->create([
-                'actor_id' => $buyer->id,
-                'type' => 'custom_offer_paid',
-                'title' => 'Custom offer paid',
-                'detail' => $buyer->name.' paid custom offer '.$offer->code.' and created order #'.$order->code.'.',
-                'metadata' => [
-                    'custom_offer_id' => $offer->id,
-                    'conversation_id' => $offer->conversation_id,
-                ],
-            ]);
+                $gig = $offer->gig;
+                $seller = $offer->seller;
+                $hasRequirements = collect($gig?->requirements ?: [])->isNotEmpty();
+                $order = Order::create([
+                    'code' => $this->nextOrderCode(),
+                    'buyer_id' => $buyer->id,
+                    'seller_id' => $offer->seller_id,
+                    'gig_id' => $offer->gig_id,
+                    'service' => $offer->title,
+                    'buyer_name' => $buyer->name,
+                    'seller_name' => $seller?->name ?: $offer->conversation?->seller_name,
+                    'status' => $hasRequirements ? 'Waiting for Requirements' : 'In Progress',
+                    'status_class' => $hasRequirements ? 'status-delivered' : 'status-progress',
+                    'payment_status' => 'pending',
+                    'payment_method' => 'wallet_balance',
+                    'transaction_id' => $paymentTransaction->code,
+                    'due_date' => now()->addDays($offer->delivery_days)->toDateString(),
+                    'price_cents' => $offer->price_cents,
+                    'earnings_cents' => (int) round($offer->price_cents * 0.85),
+                    'metadata' => [
+                        'itemSummary' => $offer->description ?: 'Custom offer',
+                        'quantity' => 1,
+                        'duration' => $offer->delivery_days.' day'.($offer->delivery_days === 1 ? '' : 's'),
+                        'revisions' => $offer->revisions,
+                        'customOfferCode' => $offer->code,
+                        'customOfferTerms' => $offer->terms,
+                        'requirements' => collect($gig?->requirements ?: [])
+                            ->map(fn (array $item, int $index) => [
+                                'id' => (string) ($item['id'] ?? 'requirement-'.$index),
+                                'question' => $item['question'] ?? $item['label'] ?? 'Requirement',
+                                'label' => $item['label'] ?? $item['question'] ?? 'Requirement',
+                                'type' => $item['type'] ?? 'Free text',
+                                'required' => (bool) ($item['required'] ?? false),
+                                'optional' => ! (bool) ($item['required'] ?? false),
+                                'options' => array_values($item['options'] ?? []),
+                                'answer' => '',
+                                'files' => [],
+                            ])
+                            ->values()
+                            ->all(),
+                    ],
+                ]);
 
+                $order->activities()->create([
+                    'actor_id' => $buyer->id,
+                    'type' => 'custom_offer_paid',
+                    'title' => 'Custom offer paid',
+                    'detail' => $buyer->name.' paid custom offer '.$offer->code.' and created order #'.$order->code.'.',
+                    'metadata' => [
+                        'custom_offer_id' => $offer->id,
+                        'conversation_id' => $offer->conversation_id,
+                    ],
+                ]);
+
+                DB::afterCommit(fn () => event(new OrderPlaced($order->fresh(['buyer', 'seller', 'gig']))));
+
+                $offer->forceFill([
+                    'order_id' => $order->id,
+                    'status' => 'paid',
+                    'accepted_at' => $offer->accepted_at ?: now(),
+                    'paid_at' => now(),
+                ])->save();
+
+                $this->createStatusMessage(
+                    $offer->refresh(),
+                    $buyer,
+                    $seller,
+                    $buyer->name.' paid the custom offer. Order #'.$order->code.' is ready.',
+                );
+
+                if ($seller) {
+                    $this->events->send(
+                        $seller,
+                        'custom_offer_paid',
+                        'Custom offer paid',
+                        $buyer->name.' paid custom offer '.$offer->code.'. Order #'.$order->code.' is ready.',
+                        '/dashboard/seller/orders/'.$order->code,
+                        [
+                            'orderId' => $order->code,
+                            'offerId' => $offer->id,
+                            'customOfferTitle' => $offer->title,
+                        ],
+                    );
+                }
+
+                $order = $this->payments->markSuccessful($order, 'wallet_balance', $paymentTransaction->code, $buyer, $paymentTransaction);
+
+                $this->events->send(
+                    $buyer,
+                    'order_created',
+                    'Order created',
+                    'Your custom offer payment created order #'.$order->code.'. Submit requirements to help the seller start.',
+                    '/dashboard/orders/'.$order->code,
+                    [
+                        'orderId' => $order->code,
+                        'offerId' => $offer->id,
+                        'customOfferTitle' => $offer->title,
+                        'emailTemplate' => 'order_created_from_custom_offer',
+                    ],
+                );
+
+                return $order->fresh(['buyer', 'seller', 'gig', 'activities']);
+            });
+        } catch (ValidationException $exception) {
+            $reason = collect($exception->errors())->flatten()->first() ?: $exception->getMessage();
+            $this->markPaymentFailed($offer->fresh(['buyer', 'seller', 'conversation']), (string) $reason);
+
+            throw $exception;
+        }
+    }
+
+    public function expireDueOffers(): int
+    {
+        $expired = 0;
+
+        CustomOffer::query()
+            ->with(['buyer', 'seller', 'conversation'])
+            ->whereIn('status', ['pending', 'accepted'])
+            ->whereNotNull('expires_at')
+            ->where('expires_at', '<=', now())
+            ->chunkById(100, function ($offers) use (&$expired) {
+                foreach ($offers as $offer) {
+                    $this->expire($offer);
+                    $expired++;
+                }
+            });
+
+        return $expired;
+    }
+
+    public function expire(CustomOffer $offer): CustomOffer
+    {
+        if (! in_array($offer->status, ['pending', 'accepted'], true)) {
+            return $offer;
+        }
+
+        return DB::transaction(function () use ($offer) {
             $offer->forceFill([
-                'order_id' => $order->id,
-                'status' => 'paid',
-                'accepted_at' => $offer->accepted_at ?: now(),
-                'paid_at' => now(),
+                'status' => 'expired',
+                'metadata' => [
+                    ...($offer->metadata ?: []),
+                    'expired_at' => now()->toISOString(),
+                ],
             ])->save();
 
-            $this->createStatusMessage(
-                $offer->refresh(),
-                $buyer,
-                $seller,
-                $buyer->name.' paid the custom offer. Order #'.$order->code.' is ready.',
-            );
-
-            if ($seller) {
-                $this->events->send(
-                    $seller,
-                    'custom_offer_paid',
-                    'Custom offer paid',
-                    $buyer->name.' paid custom offer '.$offer->code.'. Order #'.$order->code.' is ready.',
-                    '/dashboard/seller/orders/'.$order->code,
-                    ['orderId' => $order->code, 'offerId' => $offer->id],
+            if ($offer->seller && $offer->buyer) {
+                $this->createStatusMessage(
+                    $offer->refresh(),
+                    $offer->seller,
+                    $offer->buyer,
+                    'Custom offer '.$offer->code.' expired.',
                 );
             }
 
-            $this->events->send(
-                $buyer,
-                'order_created',
-                'Order created',
-                'Your custom offer payment created order #'.$order->code.'. Submit requirements to help the seller start.',
-                '/dashboard/orders/'.$order->code,
-                ['orderId' => $order->code, 'offerId' => $offer->id],
-            );
+            DB::afterCommit(fn () => event(new CustomOfferExpired($offer->fresh(['buyer', 'seller', 'conversation']))));
 
-            return $order->fresh(['buyer', 'seller', 'gig', 'activities']);
+            return $offer->fresh(['conversation.participants.user', 'gig', 'order']);
+        });
+    }
+
+    private function markPaymentFailed(CustomOffer $offer, string $reason): void
+    {
+        DB::transaction(function () use ($offer, $reason) {
+            $offer->forceFill([
+                'status' => 'payment_failed',
+                'payment_failed_at' => now(),
+                'metadata' => [
+                    ...($offer->metadata ?: []),
+                    'payment_failure_reason' => $reason,
+                ],
+            ])->save();
+
+            if ($offer->buyer && $offer->seller) {
+                $this->createStatusMessage(
+                    $offer->refresh(),
+                    $offer->buyer,
+                    $offer->seller,
+                    'Payment failed for custom offer '.$offer->code.'.',
+                );
+            }
+
+            DB::afterCommit(fn () => event(new CustomOfferPaymentFailed(
+                $offer->fresh(['buyer', 'seller', 'conversation']),
+                $reason,
+            )));
         });
     }
 
@@ -263,6 +386,10 @@ class CustomOfferService
         ]);
 
         $this->touchConversation($conversation, $sender, $recipient, $message);
+
+        if ($recipient && ! app(MessageAutomationService::class)->isRecipientActiveInConversation($message, $recipient)) {
+            event(new CustomOfferMessageReceived($offer, $message->fresh(['conversation', 'sender', 'customOffer']), $recipient));
+        }
 
         return $message;
     }
@@ -376,8 +503,8 @@ class CustomOfferService
 
     private function ensurePayable(CustomOffer $offer): void
     {
-        if ($offer->expires_at && $offer->expires_at->isPast() && $offer->status === 'pending') {
-            $offer->forceFill(['status' => 'expired'])->save();
+        if ($offer->expires_at && $offer->expires_at->isPast() && in_array($offer->status, ['pending', 'accepted'], true)) {
+            $this->expire($offer);
         }
 
         if (! $offer->isPayable()) {

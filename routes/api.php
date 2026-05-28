@@ -8,18 +8,21 @@ use App\Http\Controllers\Api\GigController;
 use App\Http\Controllers\Api\ManualCheckoutController;
 use App\Http\Controllers\Api\MarketplaceContentController;
 use App\Http\Controllers\Api\MessageSaveController;
+use App\Http\Controllers\Api\ModerationReportController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PageViewController;
 use App\Http\Controllers\Api\PresenceController;
 use App\Http\Controllers\Api\PushSubscriptionController;
 use App\Http\Controllers\Api\SavedServiceController;
+use App\Http\Controllers\Api\SellerApplicationController;
 use App\Http\Controllers\Api\SellerServiceController;
 use App\Http\Controllers\Api\SellerServiceMediaController;
 use App\Http\Controllers\Api\SellerPayoutMethodController;
 use App\Http\Controllers\Api\SellerWithdrawalController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\UserSettingsController;
+use App\Http\Controllers\Auth\EmailVerificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('api')->name('api.')->group(function () {
@@ -36,6 +39,8 @@ Route::prefix('api')->name('api.')->group(function () {
     Route::get('/users/{username}/profile', [UserController::class, 'publicSellerProfile'])->name('users.profile');
 
     Route::middleware(['auth', 'active'])->group(function () {
+        Route::post('/email/verification-notification', [EmailVerificationController::class, 'resend'])->name('verification.send');
+
         Route::get('/user/dashboard', [UserController::class, 'dashboard'])->name('user.dashboard');
         Route::get('/user/profile/buyer', [UserController::class, 'buyerProfile'])->name('user.profile.buyer');
         Route::patch('/user/profile/buyer', [UserController::class, 'updateBuyerProfile'])->name('user.profile.buyer.update');
@@ -61,6 +66,9 @@ Route::prefix('api')->name('api.')->group(function () {
         Route::post('/user/settings/identity-verification', [UserSettingsController::class, 'submitIdentity'])->name('user.settings.identity');
         Route::delete('/user/settings/sessions/{sessionId}', [UserSettingsController::class, 'destroySession'])->name('user.settings.sessions.destroy');
         Route::post('/user/settings/deactivate', [UserSettingsController::class, 'deactivate'])->name('user.settings.deactivate');
+        Route::get('/seller/application', [SellerApplicationController::class, 'show'])->name('seller.application.show');
+        Route::post('/seller/application', [SellerApplicationController::class, 'store'])->name('seller.application.store');
+        Route::post('/reports', [ModerationReportController::class, 'store'])->name('reports.store');
 
         Route::get('/seller/services', [SellerServiceController::class, 'index'])->name('seller.services.index');
         Route::post('/seller/services/media', [SellerServiceMediaController::class, 'store'])->name('seller.services.media.store');
@@ -76,9 +84,11 @@ Route::prefix('api')->name('api.')->group(function () {
 
         Route::get('/manual-payment-methods', [ManualCheckoutController::class, 'methods'])->name('manual-payment-methods.index');
         Route::post('/gigs/{gig:slug}/manual-checkout', [ManualCheckoutController::class, 'store'])->name('gigs.manual-checkout');
+        Route::post('/gigs/{gig:slug}/wallet-checkout', [ManualCheckoutController::class, 'wallet'])->name('gigs.wallet-checkout');
 
         Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
         Route::get('/orders/{order:code}', [OrderController::class, 'show'])->name('orders.show');
+        Route::get('/orders/{order:code}/receipt', [OrderController::class, 'receipt'])->name('orders.receipt');
         Route::post('/orders/{order:code}/time-extensions', [OrderController::class, 'requestTimeExtension'])->name('orders.time-extensions.store');
         Route::post('/orders/{order:code}/time-extensions/{extension}/decision', [OrderController::class, 'decideTimeExtension'])->name('orders.time-extensions.decision');
         Route::post('/orders/{order:code}/private-notes', [OrderController::class, 'storePrivateNote'])->name('orders.private-notes.store');
@@ -86,11 +96,15 @@ Route::prefix('api')->name('api.')->group(function () {
         Route::delete('/orders/{order:code}/private-notes/{note}', [OrderController::class, 'destroyPrivateNote'])->name('orders.private-notes.destroy');
         Route::post('/orders/{order:code}/disputes', [OrderController::class, 'storeDispute'])->name('orders.disputes.store');
         Route::post('/orders/{order:code}/disputes/{dispute}/messages', [OrderController::class, 'storeDisputeMessage'])->name('orders.disputes.messages.store');
+        Route::post('/orders/{order:code}/disputes/{dispute}/evidence', [OrderController::class, 'storeDisputeEvidence'])->name('orders.disputes.evidence.store');
         Route::post('/orders/{order:code}/reviews', [OrderController::class, 'storeReview'])->name('orders.reviews.store');
         Route::post('/orders/{order:code}/requirements', [OrderController::class, 'submitRequirements'])->name('orders.requirements.submit');
         Route::post('/orders/{order:code}/deliveries', [OrderController::class, 'submitDelivery'])->name('orders.deliveries.submit');
+        Route::post('/orders/{order:code}/start-work', [OrderController::class, 'startWork'])->name('orders.start-work');
         Route::post('/orders/{order:code}/revision-requests', [OrderController::class, 'requestRevision'])->name('orders.revisions.request');
         Route::post('/orders/{order:code}/complete', [OrderController::class, 'complete'])->name('orders.complete');
+        Route::post('/orders/{order:code}/cancellations', [OrderController::class, 'requestCancellation'])->name('orders.cancellations.request');
+        Route::post('/orders/{order:code}/cancellations/decision', [OrderController::class, 'decideCancellation'])->name('orders.cancellations.decision');
 
         Route::get('/conversations', [ConversationController::class, 'index'])->name('conversations.index');
         Route::post('/conversations', [ConversationController::class, 'store'])->name('conversations.store');

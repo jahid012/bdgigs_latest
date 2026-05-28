@@ -160,9 +160,20 @@ function BillingHistory({ history, onNavigate, onReport }) {
                                     <td>{item.currency}</td>
                                     <td>{item.total}</td>
                                     <td>
-                                        <span className="status-badge status-progress">
-                                            Unavailable
-                                        </span>
+                                        {item.documentUrl ? (
+                                            <a
+                                                className="status-badge status-completed"
+                                                href={item.documentUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                View
+                                            </a>
+                                        ) : (
+                                            <span className="status-badge status-progress">
+                                                Unavailable
+                                            </span>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

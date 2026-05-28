@@ -18,6 +18,8 @@ class OrderResource extends JsonResource
             'buyer' => $this->buyer_name,
             'status' => $this->status,
             'statusClass' => $this->status_class,
+            'paymentStatus' => $this->payment_status,
+            'paymentMethod' => $this->payment_method,
             'dueDate' => $this->due_date?->format('M j, Y'),
             'price' => '$'.number_format($this->price_cents / 100, 0),
             'earnings' => '$'.number_format($this->earnings_cents / 100, 0),

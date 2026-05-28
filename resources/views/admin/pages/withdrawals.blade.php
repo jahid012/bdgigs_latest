@@ -53,7 +53,7 @@
                                 $payout = $withdrawal->payout_snapshot ?? [];
                                 $statusClass = match ($withdrawal->status) {
                                     'paid' => 'status-completed',
-                                    'rejected', 'cancelled' => 'status-cancelled',
+                                    'rejected', 'cancelled', 'failed' => 'status-cancelled',
                                     default => 'status-delivered',
                                 };
                             @endphp
@@ -95,6 +95,12 @@
                                                     @method('PATCH')
                                                     <input type="text" name="note" placeholder="Reject note">
                                                     <button type="submit" name="action" value="reject">Reject</button>
+                                                </form>
+                                                <form class="admin-inline-select-form" method="POST" action="{{ route('admin.withdrawals.review', $withdrawal) }}">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <input type="text" name="note" placeholder="Failure note">
+                                                    <button type="submit" name="action" value="mark_failed">Mark failed</button>
                                                 </form>
                                             @endcan
                                         </div>

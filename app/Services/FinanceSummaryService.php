@@ -37,6 +37,7 @@ class FinanceSummaryService
             'currency' => 'USD',
             'total' => $this->money($order->price_cents),
             'status' => $order->status,
+            'documentUrl' => '/api/orders/'.$order->code.'/receipt',
             'sortAt' => $order->created_at?->getTimestamp() ?? 0,
         ]);
         $transactions = $walletHistory->map(fn (WalletTransaction $transaction) => [

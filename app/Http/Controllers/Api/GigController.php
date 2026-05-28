@@ -43,7 +43,7 @@ class GigController extends Controller
     {
         $query = Gig::query()
             ->with(['seller.sellerProfile', 'media'])
-            ->whereIn('status', ['Live', 'Published']);
+            ->whereIn('status', ['Live', 'Published', 'approved']);
 
         if ($request->user()) {
             $query->with([
@@ -56,6 +56,6 @@ class GigController extends Controller
 
     private function isMarketplaceVisible(Gig $gig): bool
     {
-        return in_array($gig->status, ['Live', 'Published'], true);
+        return in_array($gig->status, ['Live', 'Published', 'approved'], true);
     }
 }

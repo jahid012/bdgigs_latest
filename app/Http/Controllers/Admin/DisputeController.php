@@ -59,9 +59,9 @@ class DisputeController extends AdminController
             ->take($perPage)
             ->get();
 
-        $openCases = Dispute::whereNotIn('status', ['resolved', 'closed'])->count();
-        $buyerWaiting = Dispute::where('status', 'waiting_buyer')->count();
-        $sellerWaiting = Dispute::where('status', 'waiting_seller')->count();
+        $openCases = Dispute::whereNotIn('status', ['resolved', 'rejected', 'closed'])->count();
+        $buyerWaiting = Dispute::where('status', 'evidence_requested')->count();
+        $sellerWaiting = Dispute::where('status', 'awaiting_response')->count();
 
         return $this->panelView('admin.pages.disputes', [
             'pageTitle' => 'Disputes',
@@ -142,5 +142,48 @@ class DisputeController extends AdminController
         $disputes->update($dispute, $request->user(), $request->validated());
 
         return back()->withNotify('success', 'Dispute '.$dispute->case_code.' was updated.', 'Dispute updated');
+    }
+
+    public function join(Request $request, Dispute $dispute, AdminDisputeService $disputes)
+    {
+        $payload = $request->validate([
+            'note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $disputes->join($dispute->loadMissing('order'), $request->user(), $payload['note'] ?? null);
+
+        return back()->withNotify('success', 'You joined dispute '.$dispute->case_code.'.', 'Admin joined');
+    }
+
+    public function requestEvidence(Request $request, Dispute $dispute, AdminDisputeService $disputes)
+    {
+        $payload = $request->validate([
+            'recipient_id' => ['nullable', 'integer', 'exists:users,id'],
+            'note' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $recipient = isset($payload['recipient_id']) ? User::find($payload['recipient_id']) : null;
+        $disputes->requestEvidence($dispute->loadMissing('order.buyer', 'order.seller'), $request->user(), $recipient, $payload['note']);
+
+        return back()->withNotify('success', 'Evidence request sent.', 'Evidence requested');
+    }
+
+    public function refund(Request $request, Dispute $dispute, AdminDisputeService $disputes)
+    {
+        abort_unless($request->user()->can('payments.release'), 403);
+
+        $payload = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $disputes->issueRefund(
+            $dispute->loadMissing('order.buyer', 'order.seller', 'order.gig'),
+            $request->user(),
+            (int) round(((float) $payload['amount']) * 100),
+            $payload['reason'] ?? null,
+        );
+
+        return back()->withNotify('success', 'Dispute refund processed.', 'Refund issued');
     }
 }

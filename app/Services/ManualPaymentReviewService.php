@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\DB;
 
 class ManualPaymentReviewService
 {
+    public function __construct(private readonly OrderPaymentLifecycleService $payments)
+    {
+    }
+
     public function review(ManualPaymentSubmission $submission, User $reviewer, string $decision, ?string $note): ManualPaymentSubmission
     {
         return DB::transaction(function () use ($submission, $reviewer, $decision, $note) {
@@ -22,19 +26,9 @@ class ManualPaymentReviewService
                 'reviewed_at' => now(),
             ])->save();
 
-            $order->forceFill([
-                'status' => $approved ? 'Pending Requirements' : 'Payment Rejected',
-                'status_class' => $approved ? 'status-delivered' : 'status-progress',
-            ])->save();
-
-            $order->activities()->create([
-                'actor_id' => $reviewer->id,
-                'type' => 'manual_payment_review',
-                'title' => $approved ? 'Manual payment approved' : 'Manual payment rejected',
-                'detail' => $note ?: ($approved
-                    ? 'Admin approved the submitted payment reference.'
-                    : 'Admin rejected the submitted payment reference.'),
-            ]);
+            $approved
+                ? $this->payments->markSuccessful($order, 'manual_payment', $submission->reference, $reviewer)
+                : $this->payments->markFailed($order, $note ?: 'Admin rejected the submitted payment reference.', 'manual_payment', $reviewer);
 
             collect([$order->buyer_id, $order->seller_id])
                 ->filter()

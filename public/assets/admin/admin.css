@@ -901,6 +901,39 @@ button {
   border-color: var(--admin-ink);
 }
 
+.admin-linked-row {
+  cursor: pointer;
+}
+
+.admin-linked-row:hover td {
+  background: #fafafa;
+}
+
+.admin-table-primary-link,
+.admin-muted-link {
+  color: var(--admin-text);
+  font-weight: 900;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 160ms ease;
+}
+
+.admin-table-primary-link:hover,
+.admin-muted-link:hover {
+  text-decoration-color: currentColor;
+}
+
+.admin-table-wrap code,
+.admin-panel-head code {
+  border-radius: 4px;
+  background: #f1f5f9;
+  padding: 0.12rem 0.28rem;
+  color: var(--admin-ink);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
 .admin-muted-action {
   color: var(--admin-muted) !important;
   background: transparent !important;
@@ -1722,6 +1755,179 @@ button {
   resize: vertical;
 }
 
+.admin-detail-form code {
+  border-radius: 4px;
+  background: #f1f5f9;
+  padding: 0.12rem 0.25rem;
+  color: var(--admin-ink);
+  font-size: 0.82em;
+}
+
+.admin-detail-form .admin-check-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-detail-form .admin-check-row input[type="checkbox"] {
+  width: auto;
+  min-height: auto;
+}
+
+.admin-email-template-form {
+  padding: 0.9rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.admin-email-template-form > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-email-template-form > div button {
+  width: auto;
+}
+
+.admin-inline-test-form,
+.admin-email-log-panel,
+.admin-email-help-panel,
+.admin-variable-list,
+.admin-email-template-meta {
+  display: grid;
+  gap: 0.62rem;
+  padding: 0.85rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.admin-inline-test-form {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.admin-inline-test-form label {
+  display: grid;
+  gap: 0.34rem;
+  color: var(--admin-text);
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.admin-inline-test-form input {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 0.7rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.admin-inline-test-form button {
+  min-height: 38px;
+  padding: 0 0.85rem;
+  border-radius: 6px;
+  background: var(--admin-ink);
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 850;
+}
+
+.admin-email-log-panel {
+  margin-top: 1rem;
+}
+
+.admin-email-template-meta {
+  margin: 0;
+}
+
+.admin-email-template-meta div {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.admin-email-template-meta dt {
+  color: var(--admin-muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.admin-email-template-meta dd {
+  margin: 0;
+  color: var(--admin-text);
+  font-size: 0.82rem;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.admin-email-help-panel {
+  margin-top: 1rem;
+}
+
+.admin-variable-list {
+  margin-top: 1rem;
+}
+
+.admin-variable-list > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.admin-variable-list code {
+  border-radius: 999px;
+  background: #f1f5f9;
+  padding: 0.18rem 0.45rem;
+  color: var(--admin-ink);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.admin-email-log-panel h2,
+.admin-email-log-panel p,
+.admin-email-help-panel h2,
+.admin-email-help-panel p,
+.admin-variable-list h2 {
+  margin: 0;
+}
+
+.admin-email-log-panel p,
+.admin-email-help-panel p {
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.admin-email-log-panel article {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.65rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.admin-email-log-panel strong {
+  font-size: 0.82rem;
+}
+
+.admin-email-log-panel span,
+.admin-email-log-panel small,
+.admin-email-log-panel em {
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+  font-style: normal;
+}
+
+.admin-email-log-panel em {
+  color: #b91c1c;
+  line-height: 1.35;
+}
+
 .admin-detail-review-form > div {
   display: flex;
   flex-wrap: wrap;
@@ -2466,6 +2672,27 @@ button {
   font-size: 0.82rem;
   font-weight: 700;
   line-height: 1.45;
+}
+
+.admin-email-preview-frame {
+  background: #ffffff;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  min-height: 420px;
+  width: 100%;
+}
+
+.admin-code-block {
+  background: #0f172a;
+  border-radius: 8px;
+  color: #e5e7eb;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  max-height: 520px;
+  overflow: auto;
+  padding: 1rem;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .admin-user-access-panel,

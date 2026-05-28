@@ -26,6 +26,9 @@ class OrderDetailResource extends JsonResource
         $reviews = $this->relationLoaded('reviews')
             ? $this->reviews
             : collect();
+        $latestCancellation = $this->relationLoaded('latestCancellation')
+            ? $this->latestCancellation
+            : null;
 
         return [
             'id' => '#'.$this->code,
@@ -40,7 +43,20 @@ class OrderDetailResource extends JsonResource
             'totalPrice' => '$'.number_format($this->price_cents / 100, 0),
             'earnings' => '$'.number_format($this->earnings_cents / 100, 0),
             'status' => $this->status,
+            'statusKey' => str($this->status)->lower()->replace([' ', '-'], '_')->toString(),
             'statusClass' => $this->status_class,
+            'overdue' => (bool) $this->overdue_at,
+            'overdueAt' => $this->overdue_at?->format('M j, Y g:i A'),
+            'paymentStatus' => $this->payment_status,
+            'paymentMethod' => $this->payment_method,
+            'paidAt' => $this->paid_at?->format('M j, Y g:i A'),
+            'transactionId' => $this->transaction_id,
+            'refundAmount' => '$'.number_format(((int) $this->refund_amount_cents) / 100, 2),
+            'receipt' => $this->invoice ? [
+                'id' => $this->invoice->code,
+                'issuedAt' => $this->invoice->issued_at?->format('M j, Y g:i A'),
+                'url' => '/api/orders/'.$this->code.'/receipt',
+            ] : null,
             'counterpartyName' => $counterpartyName ?: 'Member',
             'counterpartyHandle' => $counterparty?->username ? '@'.$counterparty->username : '',
             'counterpartyInitials' => initialsFromOrderName($counterpartyName ?: 'Member'),
@@ -57,6 +73,7 @@ class OrderDetailResource extends JsonResource
             'deliveryFlow' => $this->deliveryFlowPayload($request),
             'activity' => $this->activityPayload(),
             'timeExtension' => $this->timeExtensionPayload($request, $timeExtensions),
+            'cancellation' => $this->cancellationPayload($request, $latestCancellation),
             'faq' => $this->faqPayload($request),
             'resolutionCenter' => $this->resolutionPayload($request, $disputes),
             'reviewsState' => $this->reviewsPayload($request, $reviews),
@@ -97,6 +114,12 @@ class OrderDetailResource extends JsonResource
         return [
             'deliveries' => $deliveries->all(),
             'latest' => $deliveries->last(),
+            'canStartWork' => (bool) (
+                $isSeller
+                && $status === 'requirements submitted'
+                && $this->requirementsAreSubmitted()
+                && ! $closed
+            ),
             'canSubmitDelivery' => (bool) ($isSeller && in_array($status, ['in progress', 'revision requested'], true)),
             'canRequestRevision' => (bool) ($isBuyer && $status === 'delivered'),
             'canComplete' => (bool) ($isBuyer && $status === 'delivered'),
@@ -252,6 +275,34 @@ class OrderDetailResource extends JsonResource
         ];
     }
 
+    private function cancellationPayload(Request $request, $latestCancellation): array
+    {
+        $user = $request->user();
+        $isBuyer = $user && (int) $this->buyer_id === (int) $user->id;
+        $isSeller = $user && (int) $this->seller_id === (int) $user->id;
+        $isParticipant = $isBuyer || $isSeller;
+        $closed = in_array(strtolower((string) $this->status), ['completed', 'cancelled', 'canceled'], true);
+        $pending = $latestCancellation && $latestCancellation->status === 'cancellation_requested';
+
+        return [
+            'status' => $this->cancellation_status,
+            'refundStatus' => $this->refund_status,
+            'canRequest' => (bool) ($isParticipant && ! $closed && ! $pending),
+            'canRespond' => (bool) ($isParticipant && $pending && (int) $latestCancellation->requester_id !== (int) $user?->id),
+            'latest' => $latestCancellation ? [
+                'id' => $latestCancellation->id,
+                'status' => $latestCancellation->status,
+                'statusLabel' => str($latestCancellation->status)->replace('_', ' ')->title()->toString(),
+                'reason' => $latestCancellation->reason,
+                'responseNote' => $latestCancellation->response_note,
+                'requestedAt' => $latestCancellation->requested_at?->format('M j, Y g:i A'),
+                'respondedAt' => $latestCancellation->responded_at?->format('M j, Y g:i A'),
+                'requesterName' => $latestCancellation->requester?->name,
+                'responderName' => $latestCancellation->responder?->name,
+            ] : null,
+        ];
+    }
+
     private function requirementRow(array $item, int $index): array
     {
         $question = $item['question'] ?? $item['label'] ?? 'Requirement';
@@ -356,7 +407,7 @@ class OrderDetailResource extends JsonResource
     {
         $user = $request->user();
         $activeDispute = $disputes
-            ->whereNotIn('status', ['resolved', 'closed'])
+            ->whereNotIn('status', ['resolved', 'rejected', 'closed'])
             ->sortByDesc('created_at')
             ->first();
 
@@ -493,6 +544,10 @@ class OrderDetailResource extends JsonResource
 
     private function reviewDeadline(): Carbon
     {
+        if ($this->review_period_expires_at) {
+            return $this->review_period_expires_at->copy();
+        }
+
         $completionActivity = $this->relationLoaded('activities')
             ? $this->activities
                 ->filter(fn ($activity) => str_contains(strtolower((string) $activity->detail), 'to completed'))
@@ -511,6 +566,23 @@ class OrderDetailResource extends JsonResource
         return (int) $this->buyer_id === (int) $user->id
             || (int) $this->seller_id === (int) $user->id
             || $user->can('orders.manage');
+    }
+
+    private function requirementsAreSubmitted(): bool
+    {
+        if (! empty($this->metadata['requirementsSubmittedAt'])) {
+            return true;
+        }
+
+        $items = collect($this->requirementsPayload());
+
+        if ($items->isEmpty()) {
+            return true;
+        }
+
+        return $items
+            ->filter(fn (array $item) => (bool) ($item['required'] ?? false))
+            ->every(fn (array $item) => $this->requirementHasAnswer($item));
     }
 
     private function activityIcon(?string $type): string

@@ -95,6 +95,9 @@ export const notificationRows = {
             push: true,
         },
         { id: "orderUpdates", label: "Order updates", email: true, push: true },
+        { id: "customOffers", label: "Custom offers", email: true, push: true },
+        { id: "payments", label: "Payments and wallet", email: true, push: true },
+        { id: "disputes", label: "Resolution Center", email: true, push: true },
         {
             id: "ratingReminders",
             label: "Rating reminders",
@@ -102,6 +105,7 @@ export const notificationRows = {
             push: true,
         },
         { id: "buyerBriefs", label: "Buyer briefs", email: true, push: true },
+        { id: "marketing", label: "Marketing and digest", email: false, push: false },
         {
             id: "accountUpdates",
             label: "Account updates",
@@ -130,6 +134,9 @@ export const notificationRows = {
             push: true,
         },
         { id: "orderUpdates", label: "Order updates", email: true, push: true },
+        { id: "customOffers", label: "Custom offers", email: true, push: true },
+        { id: "payments", label: "Payments and wallet", email: true, push: true },
+        { id: "disputes", label: "Resolution Center", email: true, push: true },
         {
             id: "ratingReminders",
             label: "Rating reminders",
@@ -137,6 +144,7 @@ export const notificationRows = {
             push: true,
         },
         { id: "buyerBriefs", label: "Buyer briefs", email: true, push: true },
+        { id: "marketing", label: "Marketing and digest", email: false, push: false },
         {
             id: "accountUpdates",
             label: "Account updates",

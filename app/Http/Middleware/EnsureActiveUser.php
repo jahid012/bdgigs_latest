@@ -11,12 +11,14 @@ class EnsureActiveUser
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->user()?->deactivated_at) {
+        $inactiveReason = $request->user()?->suspended_at ? 'suspended' : ($request->user()?->deactivated_at ? 'deactivated' : null);
+
+        if ($inactiveReason) {
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            abort(423, 'This account is deactivated.');
+            abort(423, 'This account is '.$inactiveReason.'.');
         }
 
         return $next($request);

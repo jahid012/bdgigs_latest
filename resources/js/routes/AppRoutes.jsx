@@ -7,6 +7,7 @@ import { useRealtimeMessaging } from "../realtime/useRealtimeMessaging.js";
 import { useSessionStore } from "../stores/useSessionStore.js";
 import {
     DASHBOARD_ROUTES,
+    AUTH_ROUTES,
     HOME_ROUTE,
     MARKETPLACE_ROUTES,
     SELLER_GIG_ROUTES,
@@ -28,6 +29,13 @@ function AppRoutes() {
                 path={HOME_ROUTE.path}
                 element={renderRoutePage(HOME_ROUTE, navigate)}
             />
+            {AUTH_ROUTES.map((route) => (
+                <Route
+                    key={route.key}
+                    path={route.path}
+                    element={renderRoutePage(route, navigate)}
+                />
+            ))}
             {MARKETPLACE_ROUTES.map((route) => (
                 <Route
                     key={route.key}

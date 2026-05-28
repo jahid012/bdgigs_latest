@@ -26,7 +26,7 @@ class SellerServiceResource extends JsonResource
             'delivery' => $this->delivery_days.' '.($this->delivery_days === 1 ? 'day' : 'days'),
             'orders' => $this->orders_label,
             'conversion' => $this->conversion_label,
-            'status' => $this->status,
+            'status' => str((string) $this->status)->replace('_', ' ')->title()->toString(),
             'statusClass' => $this->status_class,
             'statusKey' => $this->statusKey(),
             'previewPath' => '/gigs/'.$this->slug,
@@ -82,10 +82,11 @@ class SellerServiceResource extends JsonResource
     private function statusKey(): string
     {
         return match (Str::lower((string) $this->status)) {
-            'published', 'live' => 'live',
+            'published', 'live', 'approved' => 'live',
             'paused' => 'paused',
             'draft' => 'draft',
-            'pending', 'review', 'needs edit', 'rejected' => 'review',
+            'pending', 'pending_review', 'review', 'needs edit', 'rejected' => 'review',
+            'deactivated' => 'paused',
             default => Str::slug((string) $this->status),
         };
     }

@@ -265,7 +265,8 @@ class RoleController extends AdminController
             'manual_payments' => ['manual-payments.view', 'manual-payments.approve'],
             'withdrawals' => ['withdrawals.view', 'withdrawals.review', 'withdrawals.pay'],
             'disputes' => ['disputes.view', 'disputes.resolve'],
-            'reports' => ['reports.view'],
+            'reports' => ['reports.view', 'reports.manage'],
+            'security' => ['security.view', 'security.review'],
             'settings' => ['settings.view', 'settings.update'],
             'roles' => ['roles.manage'],
         ];
@@ -281,6 +282,8 @@ class RoleController extends AdminController
             'roles.manage',
             'users.suspend',
             'users.impersonate',
+            'security.review',
+            'reports.manage',
         ];
     }
 }

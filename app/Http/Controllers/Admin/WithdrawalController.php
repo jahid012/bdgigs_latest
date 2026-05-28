@@ -11,7 +11,7 @@ class WithdrawalController extends AdminController
     public function index(Request $request)
     {
         $status = trim((string) $request->query('status', 'pending'));
-        $allowedStatuses = ['all', 'pending', 'approved', 'paid', 'rejected', 'cancelled'];
+        $allowedStatuses = ['all', 'pending', 'approved', 'paid', 'failed', 'rejected', 'cancelled'];
         $status = in_array($status, $allowedStatuses, true) ? $status : 'pending';
         $search = trim((string) $request->query('q', ''));
         $query = WithdrawalRequest::query()
@@ -72,7 +72,7 @@ class WithdrawalController extends AdminController
         ManualWithdrawalReviewService $reviews
     ) {
         $payload = $request->validate([
-            'action' => ['required', 'string', 'in:approve,reject,mark_paid'],
+            'action' => ['required', 'string', 'in:approve,reject,mark_paid,mark_failed'],
             'note' => ['nullable', 'string', 'max:1000'],
             'payment_reference' => ['nullable', 'string', 'max:180', 'required_if:action,mark_paid'],
         ]);

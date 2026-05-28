@@ -32,6 +32,8 @@
                 <div><dt>Buyer</dt><dd>{{ $order->buyer?->email ?: $order->buyer_name ?: 'Unavailable' }}</dd></div>
                 <div><dt>Seller</dt><dd>{{ $order->seller?->email ?: $order->seller_name ?: 'Unavailable' }}</dd></div>
                 <div><dt>Gig</dt><dd>{{ $order->gig?->slug ?: 'No linked gig' }}</dd></div>
+                <div><dt>Payment status</dt><dd>{{ str($order->payment_status ?: 'unpaid')->replace('_', ' ')->title() }}</dd></div>
+                <div><dt>Transaction</dt><dd>{{ $order->transaction_id ?: 'No transaction recorded' }}</dd></div>
                 <div><dt>Created</dt><dd>{{ $order->created_at?->format('M j, Y g:i A') ?? 'Unknown' }}</dd></div>
                 <div><dt>Due</dt><dd>{{ $order->due_date?->format('M j, Y') ?? 'No due date' }}</dd></div>
                 <div><dt>Quantity</dt><dd>{{ $metadata['quantity'] ?? 1 }}</dd></div>
@@ -75,10 +77,82 @@
             @else
                 <p class="admin-empty-note">You can inspect this order but cannot change its status.</p>
             @endcan
+
+            @if (in_array($order->payment_status, ['paid', 'partially_refunded'], true))
+                @canany(['payments.release', 'orders.manage'])
+                    <form class="admin-detail-form" method="POST" action="{{ route('admin.orders.refund', $order) }}">
+                        @csrf
+                        <label>
+                            <span>Refund amount</span>
+                            <input name="amount" type="number" min="0.01" step="0.01" max="{{ max(0, ($order->price_cents - $order->refund_amount_cents) / 100) }}" placeholder="{{ number_format(max(0, ($order->price_cents - $order->refund_amount_cents) / 100), 2) }}">
+                        </label>
+                        <label>
+                            <span>Refund reason</span>
+                            <textarea name="reason" rows="3" placeholder="Cancelled order, dispute resolution, or admin adjustment"></textarea>
+                        </label>
+                        <button class="is-danger" type="submit">Refund order</button>
+                    </form>
+                @endcanany
+            @endif
+
+            @can('orders.manage')
+                @if (! in_array($order->status, ['Completed', 'Cancelled', 'Canceled'], true))
+                    <form class="admin-detail-form" method="POST" action="{{ route('admin.orders.cancel', $order) }}">
+                        @csrf
+                        <label>
+                            <span>Admin cancellation reason</span>
+                            <textarea name="reason" rows="3" required minlength="10" placeholder="Explain why support is cancelling this order"></textarea>
+                        </label>
+                        <button class="is-danger" type="submit">Cancel and refund order</button>
+                    </form>
+                @endif
+            @endcan
         </aside>
     </section>
 
     <section class="admin-detail-grid">
+        <article class="admin-panel">
+            <div class="admin-panel-head">
+                <div>
+                    <h2>Cancellation state</h2>
+                    <p>Buyer/seller cancellation requests and refund processing state.</p>
+                </div>
+            </div>
+            @if ($order->latestCancellation)
+                <dl class="admin-user-detail-list admin-detail-list">
+                    <div><dt>Status</dt><dd>{{ str($order->latestCancellation->status)->replace('_', ' ')->title() }}</dd></div>
+                    <div><dt>Refund</dt><dd>{{ str($order->latestCancellation->refund_status ?: 'none')->replace('_', ' ')->title() }}</dd></div>
+                    <div><dt>Requested by</dt><dd>{{ $order->latestCancellation->requester?->name ?: 'System' }}</dd></div>
+                    <div><dt>Responded by</dt><dd>{{ $order->latestCancellation->responder?->name ?: 'Pending' }}</dd></div>
+                    <div><dt>Reason</dt><dd>{{ $order->latestCancellation->reason ?: 'No reason stored' }}</dd></div>
+                    <div><dt>Response</dt><dd>{{ $order->latestCancellation->response_note ?: 'No response note' }}</dd></div>
+                </dl>
+            @else
+                <p class="admin-empty-note">No cancellation request has been recorded for this order.</p>
+            @endif
+        </article>
+
+        <article class="admin-panel">
+            <div class="admin-panel-head">
+                <div>
+                    <h2>Invoice and receipt</h2>
+                    <p>Generated after payment success and reused for email receipts.</p>
+                </div>
+            </div>
+            @if ($order->invoice)
+                <dl class="admin-user-detail-list admin-detail-list">
+                    <div><dt>Invoice</dt><dd>{{ $order->invoice->code }}</dd></div>
+                    <div><dt>Issued</dt><dd>{{ $order->invoice->issued_at?->format('M j, Y g:i A') ?? 'Not issued' }}</dd></div>
+                    <div><dt>Amount</dt><dd>${{ number_format($order->invoice->amount_cents / 100, 2) }}</dd></div>
+                    <div><dt>Platform fee</dt><dd>${{ number_format($order->invoice->platform_fee_cents / 100, 2) }}</dd></div>
+                    <div><dt>Payment method</dt><dd>{{ $order->invoice->payment_method ?: 'Manual' }}</dd></div>
+                    <div><dt>Transaction</dt><dd>{{ $order->invoice->transaction_id ?: 'No transaction ID' }}</dd></div>
+                </dl>
+            @else
+                <p class="admin-empty-note">No invoice has been generated yet. Payment success will generate one automatically.</p>
+            @endif
+        </article>
+
         <article class="admin-panel">
             <div class="admin-panel-head">
                 <div>

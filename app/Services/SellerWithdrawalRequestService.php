@@ -2,10 +2,11 @@
 
 namespace App\Services;
 
+use App\Events\WithdrawalAdminAlert;
+use App\Events\WithdrawalRequested;
 use App\Models\SellerPayoutMethod;
 use App\Models\User;
 use App\Models\WithdrawalRequest;
-use App\Support\MarketplaceNotifier;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -13,7 +14,7 @@ class SellerWithdrawalRequestService
 {
     public function __construct(
         private readonly SellerWithdrawalBalanceService $balances,
-        private readonly MarketplaceNotifier $notifier,
+        private readonly SuspiciousActivityService $suspicious,
     ) {
     }
 
@@ -50,14 +51,21 @@ class SellerWithdrawalRequestService
             ]);
             $method->forceFill(['last_used_at' => now()])->save();
 
-            $this->notifier->notify(
-                $seller,
-                'Withdrawal',
-                'Withdrawal request submitted',
-                $withdrawal->code.' is waiting for manual finance review.',
-                '/dashboard/seller/earnings',
-                ['withdrawal' => $withdrawal->code],
-            );
+            if ($amountCents >= 100000) {
+                $this->suspicious->log(
+                    $seller,
+                    'unusual_withdrawal_request',
+                    $amountCents >= 500000 ? 'critical' : 'high',
+                    'Large manual withdrawal request submitted.',
+                    ['withdrawal_code' => $withdrawal->code, 'amount_cents' => $amountCents],
+                );
+            }
+
+            DB::afterCommit(function () use ($withdrawal) {
+                $fresh = $withdrawal->fresh(['seller', 'payoutMethod', 'activities']);
+                event(new WithdrawalRequested($fresh));
+                event(new WithdrawalAdminAlert($fresh));
+            });
 
             return $withdrawal->load(['payoutMethod', 'activities']);
         });

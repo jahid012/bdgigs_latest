@@ -2,12 +2,12 @@
 
 namespace App\Jobs;
 
-use App\Mail\UnreadMessageReminderMail;
+use App\Events\UnreadMessageReminder;
 use App\Models\Message;
 use App\Models\User;
+use App\Services\MessageAutomationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Mail;
 
 class SendUnreadMessageReminder implements ShouldQueue
 {
@@ -19,7 +19,7 @@ class SendUnreadMessageReminder implements ShouldQueue
     ) {
     }
 
-    public function handle(): void
+    public function handle(MessageAutomationService $automation): void
     {
         $message = Message::with('conversation.participants.user')->find($this->messageId);
         $recipient = User::find($this->recipientId);
@@ -34,7 +34,15 @@ class SendUnreadMessageReminder implements ShouldQueue
             return;
         }
 
+        if ($message->sent_at && $message->sent_at->greaterThan(now()->subMinutes(15))) {
+            return;
+        }
+
         if ($participant->last_read_at && $participant->last_read_at->greaterThanOrEqualTo($message->sent_at)) {
+            return;
+        }
+
+        if ($automation->isRecipientActiveInConversation($message, $recipient)) {
             return;
         }
 
@@ -50,9 +58,6 @@ class SendUnreadMessageReminder implements ShouldQueue
             return;
         }
 
-        Mail::to($recipient)->send(new UnreadMessageReminderMail($message, $recipient));
-
-        $participant->forceFill(['last_email_reminded_at' => now()])->save();
-        $message->forceFill(['email_reminder_sent_at' => now()])->save();
+        event(new UnreadMessageReminder($message, $recipient));
     }
 }

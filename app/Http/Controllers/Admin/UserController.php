@@ -2,7 +2,12 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Events\EmailVerified;
+use App\Http\Requests\Admin\UpdateAdminUserStatusRequest;
+use App\Models\IdentityVerificationSubmission;
 use App\Models\User;
+use App\Services\AccountStatusService;
+use App\Services\IdentityVerificationReviewService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -14,7 +19,7 @@ class UserController extends AdminController
         $type = trim((string) $request->query('type', 'all'));
         $status = trim((string) $request->query('status', 'all'));
         $allowedTypes = ['all', 'buyers', 'sellers', 'flagged'];
-        $allowedStatuses = ['all', 'active', 'review', 'suspended', 'unverified', 'deactivated'];
+        $allowedStatuses = ['all', 'active', 'review', 'submitted', 'under_review', 'suspended', 'unverified', 'deactivated'];
         $type = in_array($type, $allowedTypes, true) ? $type : 'all';
         $status = in_array($status, $allowedStatuses, true) ? $status : 'all';
 
@@ -58,7 +63,9 @@ class UserController extends AdminController
                 ->whereNull('suspended_at')
                 ->whereNull('deactivated_at')
                 ->where('verification_status', '!=', 'review'),
-            'review' => $usersQuery->where('verification_status', 'review'),
+            'review' => $usersQuery->whereIn('verification_status', ['review', 'submitted', 'under_review', 'additional_document_required']),
+            'submitted' => $usersQuery->where('verification_status', 'submitted'),
+            'under_review' => $usersQuery->whereIn('verification_status', ['under_review', 'review']),
             'suspended' => $usersQuery->whereNotNull('suspended_at'),
             'unverified' => $usersQuery->whereNull('email_verified_at'),
             'deactivated' => $usersQuery->whereNotNull('deactivated_at'),
@@ -75,7 +82,7 @@ class UserController extends AdminController
             ->map(fn (User $user) => $this->userRow($user))
             ->all();
 
-        $reviewUsers = User::where('verification_status', 'review')->count();
+        $reviewUsers = User::whereIn('verification_status', ['review', 'submitted', 'under_review', 'additional_document_required'])->count();
         $suspendedUsers = User::whereNotNull('suspended_at')->count();
         $sellerCount = $this->sellerQuery()->count();
         $buyerCount = $this->buyerQuery()->count();
@@ -106,6 +113,8 @@ class UserController extends AdminController
                 ['label' => 'Any status', 'value' => 'all'],
                 ['label' => 'Active', 'value' => 'active'],
                 ['label' => 'Awaiting review', 'value' => 'review'],
+                ['label' => 'Submitted', 'value' => 'submitted'],
+                ['label' => 'Under review', 'value' => 'under_review'],
                 ['label' => 'Suspended', 'value' => 'suspended'],
                 ['label' => 'Email unverified', 'value' => 'unverified'],
                 ['label' => 'Deactivated', 'value' => 'deactivated'],
@@ -131,6 +140,7 @@ class UserController extends AdminController
             'sellerProfile',
             'billingProfile',
             'identityVerificationSubmissions' => fn ($submissions) => $submissions->latest()->take(3),
+            'accountStatusEvents' => fn ($events) => $events->with('actor')->latest()->take(10),
         ])->loadCount(['gigs', 'buyerOrders', 'sellerOrders', 'savedServices']);
 
         return $this->panelView('admin.pages.user-details', [
@@ -198,37 +208,70 @@ class UserController extends AdminController
 
     public function verify(User $user)
     {
+        $wasUnverified = ! $user->email_verified_at;
         $user->forceFill([
             'verification_status' => 'verified',
             'email_verified_at' => $user->email_verified_at ?: now(),
             'suspended_at' => null,
         ])->save();
 
+        if ($wasUnverified) {
+            event(new EmailVerified($user->fresh()));
+        }
+
         return back()->withNotify('success', $user->name.' is now verified.', 'User verified');
     }
 
-    public function suspend(User $user)
+    public function suspend(UpdateAdminUserStatusRequest $request, User $user, AccountStatusService $accounts)
     {
-        if ($user->is(auth()->user())) {
+        if ($user->is($request->user())) {
             return back()->withNotify('error', 'You cannot suspend your own admin account.', 'Action blocked');
         }
 
-        $user->forceFill([
-            'verification_status' => 'suspended',
-            'suspended_at' => now(),
-        ])->save();
+        $accounts->suspend($user, $request->user(), $request->validated('reason'));
 
         return back()->withNotify('success', $user->name.' has been suspended.', 'User suspended');
     }
 
-    public function restore(User $user)
+    public function restore(UpdateAdminUserStatusRequest $request, User $user, AccountStatusService $accounts)
     {
-        $user->forceFill([
-            'verification_status' => $user->email_verified_at ? 'verified' : 'active',
-            'suspended_at' => null,
-        ])->save();
+        $accounts->reactivate($user, $request->user(), $request->validated('reason'));
 
         return back()->withNotify('success', $user->name.' has been restored.', 'User restored');
+    }
+
+    public function deactivate(UpdateAdminUserStatusRequest $request, User $user, AccountStatusService $accounts)
+    {
+        if ($user->is($request->user())) {
+            return back()->withNotify('error', 'You cannot deactivate your own admin account.', 'Action blocked');
+        }
+
+        $accounts->deactivate($user, $request->user(), $request->validated('reason'));
+
+        return back()->withNotify('success', $user->name.' has been deactivated.', 'User deactivated');
+    }
+
+    public function reviewIdentity(
+        Request $request,
+        User $user,
+        IdentityVerificationSubmission $submission,
+        IdentityVerificationReviewService $reviews
+    ) {
+        abort_unless((int) $submission->user_id === (int) $user->id, 404);
+
+        $payload = $request->validate([
+            'action' => ['required', 'string', 'in:under_review,approve,reject,request_documents'],
+            'note' => ['nullable', 'string', 'max:1000', 'required_if:action,reject,request_documents'],
+        ]);
+
+        match ($payload['action']) {
+            'approve' => $reviews->approve($submission, $request->user(), $payload['note'] ?? null),
+            'reject' => $reviews->reject($submission, $request->user(), $payload['note']),
+            'request_documents' => $reviews->requestAdditionalDocument($submission, $request->user(), $payload['note']),
+            default => $reviews->markUnderReview($submission, $request->user()),
+        };
+
+        return back()->withNotify('success', 'Identity verification updated.', 'Identity reviewed');
     }
 
     private function userRow(User $user): array
@@ -252,11 +295,12 @@ class UserController extends AdminController
             'country' => $user->country ?: 'Unknown',
             'status' => $user->suspended_at
                 ? 'Suspended'
-                : str($user->verification_status ?: 'active')->replace('_', ' ')->title()->toString(),
-            'status_class' => $user->suspended_at ? 'is-danger' : (($user->verification_status === 'review') ? 'is-warn' : 'is-good'),
+                : ($user->deactivated_at ? 'Deactivated' : str($user->verification_status ?: 'active')->replace('_', ' ')->title()->toString()),
+            'status_class' => ($user->suspended_at || $user->deactivated_at) ? 'is-danger' : (in_array($user->verification_status, ['review', 'submitted', 'under_review', 'additional_document_required'], true) ? 'is-warn' : 'is-good'),
             'joined' => $user->created_at?->format('M Y') ?? 'Unknown',
-            'can_suspend' => ! $user->is(auth()->user()) && ! $user->suspended_at,
-            'can_restore' => (bool) $user->suspended_at,
+            'can_suspend' => ! $user->is(auth()->user()) && ! $user->suspended_at && ! $user->deactivated_at,
+            'can_deactivate' => ! $user->is(auth()->user()) && ! $user->deactivated_at,
+            'can_restore' => (bool) ($user->suspended_at || $user->deactivated_at),
             'can_impersonate' => $this->canImpersonate($user),
         ];
     }

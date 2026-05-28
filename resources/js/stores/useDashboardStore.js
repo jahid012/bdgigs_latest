@@ -320,11 +320,15 @@ export const useDashboardStore = create((set, get) => ({
         return conversation;
     },
 
-    sendMessage: async (conversationId, text) => {
+    sendMessage: async (conversationId, text, attachments = []) => {
         const clientId = createClientId();
+        const body =
+            attachments.length > 0
+                ? buildMessageFormData(text, clientId, attachments)
+                : { text, clientId };
         const message = normalizeMessage(
             await apiRequest(`/api/conversations/${conversationId}/messages`, {
-                body: { text, clientId },
+                body,
             }),
         );
 
@@ -630,6 +634,15 @@ function updateConversationState(state, conversation) {
 
 function createClientId() {
     return `client-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function buildMessageFormData(text, clientId, attachments) {
+    const form = new FormData();
+    form.append("text", text || "");
+    form.append("clientId", clientId);
+    attachments.forEach((file) => form.append("attachments[]", file));
+
+    return form;
 }
 
 function replaceNotification(notifications, notification) {

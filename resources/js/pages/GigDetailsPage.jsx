@@ -46,6 +46,11 @@ function GigDetailsPage({ onNavigate }) {
     const [isReportOpen, setIsReportOpen] = useState(false);
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
     const [contactStatus, setContactStatus] = useState("");
+    const [reportDraft, setReportDraft] = useState({
+        reason: "Policy or quality concern",
+        description: "",
+    });
+    const [isReportSubmitting, setIsReportSubmitting] = useState(false);
     const [gigLoadError, setGigLoadError] = useState("");
     const reportRef = useRef(null);
     const selectedPackage =
@@ -139,6 +144,39 @@ function GigDetailsPage({ onNavigate }) {
 
         setIsCheckoutOpen(true);
     };
+    const submitGigReport = async (event) => {
+        event.preventDefault();
+
+        if (!currentUser?.authenticated) {
+            onNavigate(
+                `/?auth=login&redirect=${encodeURIComponent(`/gigs/${gigId}`)}`,
+            );
+            return;
+        }
+
+        setIsReportSubmitting(true);
+
+        try {
+            const report = await apiRequest("/api/reports", {
+                body: {
+                    type: "gig",
+                    targetId: gigId,
+                    reason: reportDraft.reason,
+                    description: reportDraft.description,
+                },
+            });
+            setContactStatus(`Report ${report.code} was sent to moderation.`);
+            setReportDraft({
+                reason: "Policy or quality concern",
+                description: "",
+            });
+            setIsReportOpen(false);
+        } catch (error) {
+            setContactStatus(error.message || "Report could not be submitted.");
+        } finally {
+            setIsReportSubmitting(false);
+        }
+    };
 
     if (!detail || !selectedPackage) {
         return <GigDetailStatus error={gigLoadError} onNavigate={onNavigate} />;
@@ -195,7 +233,11 @@ function GigDetailsPage({ onNavigate }) {
                                     setIsReportOpen((open) => !open)
                                 }
                                 reportRef={reportRef}
+                                reportDraft={reportDraft}
                                 reviewCount={detail.reviews.count}
+                                isReportSubmitting={isReportSubmitting}
+                                onReportChange={setReportDraft}
+                                onReportSubmit={submitGigReport}
                             />
                             <PackageCard
                                 activePackage={activePackage}
@@ -447,9 +489,13 @@ function TopActions({
     isReportOpen,
     isSaved,
     onSave,
+    onReportChange,
+    onReportSubmit,
     onToggleReport,
     reportRef,
+    reportDraft,
     reviewCount,
+    isReportSubmitting,
 }) {
     const { t } = useTranslation();
     return (
@@ -483,10 +529,45 @@ function TopActions({
             </button>
             {isReportOpen ? (
                 <div className="report-popover">
-                    <button type="button">
-                        <Icon name="flag" />{" "}
-                        {t("pages.gigdetailspage.reportAnIssue")}{" "}
-                    </button>
+                    <form onSubmit={onReportSubmit}>
+                        <label>
+                            <span className="sr-only">Report reason</span>
+                            <select
+                                value={reportDraft.reason}
+                                onChange={(event) =>
+                                    onReportChange((current) => ({
+                                        ...current,
+                                        reason: event.target.value,
+                                    }))
+                                }
+                            >
+                                <option>Policy or quality concern</option>
+                                <option>Misleading service details</option>
+                                <option>Spam or external contact</option>
+                                <option>Unsafe or prohibited service</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span className="sr-only">Report details</span>
+                            <textarea
+                                value={reportDraft.description}
+                                onChange={(event) =>
+                                    onReportChange((current) => ({
+                                        ...current,
+                                        description: event.target.value,
+                                    }))
+                                }
+                                rows={3}
+                                placeholder="Add details for moderation"
+                            />
+                        </label>
+                        <button type="submit" disabled={isReportSubmitting}>
+                            <Icon name="flag" />{" "}
+                            {isReportSubmitting
+                                ? "Sending..."
+                                : t("pages.gigdetailspage.reportAnIssue")}
+                        </button>
+                    </form>
                 </div>
             ) : null}
         </div>
@@ -655,6 +736,28 @@ function ManualCheckoutDialog({ gig, onClose, onNavigate, packageData }) {
             setStatus("ready");
         }
     };
+    const submitWalletCheckout = async () => {
+        setStatus("submitting-wallet");
+        setError("");
+
+        try {
+            const order = await apiRequest(
+                `/api/gigs/${gig.id}/wallet-checkout`,
+                {
+                    body: {
+                        packageId: packageData.id,
+                        note: note || undefined,
+                    },
+                },
+            );
+
+            onClose();
+            onNavigate(`/dashboard/orders/${order.orderNumber}`);
+        } catch (nextError) {
+            setError(nextError.message || "Unable to complete wallet checkout.");
+            setStatus("ready");
+        }
+    };
 
     return (
         <div className="manual-checkout-backdrop" role="presentation">
@@ -752,7 +855,19 @@ function ManualCheckoutDialog({ gig, onClose, onNavigate, packageData }) {
                             !reference.trim()
                         }
                     >
-                        Submit order for payment review
+                        {status === "submitting"
+                            ? "Submitting..."
+                            : "Submit order for payment review"}
+                    </button>
+                    <button
+                        className="btn btn-secondary"
+                        type="button"
+                        disabled={status !== "ready"}
+                        onClick={submitWalletCheckout}
+                    >
+                        {status === "submitting-wallet"
+                            ? "Processing..."
+                            : "Pay with bdgigs wallet"}
                     </button>
                 </form>
             </section>

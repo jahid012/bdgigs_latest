@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\GigCreated;
+use App\Events\GigEdited;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\SellerServiceResource;
 use App\Models\Gig;
@@ -54,6 +56,7 @@ class SellerServiceController extends Controller
 
         $gig = Gig::create($this->attributesFromPayload($payload, $request));
         $gig = $mediaSync->sync($gig, $payload['media'] ?? [], $payload['galleryImages'] ?? []);
+        event(new GigCreated($gig->fresh(['seller', 'media'])));
 
         $notifier->notify(
             $request->user(),
@@ -104,6 +107,7 @@ class SellerServiceController extends Controller
 
         $gig->update($this->attributesFromPayload($payload, $request, $gig));
         $gig = $mediaSync->sync($gig, $payload['media'] ?? [], $payload['galleryImages'] ?? $gig->gallery_images ?? []);
+        event(new GigEdited($gig->fresh(['seller', 'media'])));
 
         $notifier->notify(
             $request->user(),
@@ -125,17 +129,27 @@ class SellerServiceController extends Controller
         $this->authorizeSeller($request, $gig);
 
         $payload = $request->validate([
-            'action' => ['required', 'string', 'in:activate,pause'],
+            'action' => ['required', 'string', 'in:activate,pause,submit_review'],
         ]);
 
-        $gig = $payload['action'] === 'activate'
-            ? $lifecycle->activate($gig)
-            : $lifecycle->pause($gig);
+        if (in_array($payload['action'], ['activate', 'submit_review'], true)) {
+            abort_unless($request->user()->seller_status === 'approved', 422, 'Your seller account must be approved before publishing gigs.');
+        }
+
+        $gig = match ($payload['action']) {
+            'activate' => $lifecycle->activate($gig, $request->user()),
+            'submit_review' => $lifecycle->submitForReview($gig, $request->user()),
+            default => $lifecycle->pause($gig, $request->user()),
+        };
 
         $notifier->notify(
             $request->user(),
             'Gig update',
-            $payload['action'] === 'activate' ? 'Gig activated' : 'Gig paused',
+            match ($payload['action']) {
+                'activate' => 'Gig activated',
+                'submit_review' => 'Gig submitted for review',
+                default => 'Gig paused',
+            },
             "{$gig->title} is now {$gig->status}.",
             "/dashboard/seller/services/{$gig->slug}/edit",
         );
@@ -215,8 +229,8 @@ class SellerServiceController extends Controller
             'tag' => $tags[0] ?? $existing?->tag ?? 'New Gig',
             'orders_label' => $existing?->orders_label ?? '0 active',
             'conversion_label' => $existing?->conversion_label ?? 'New listing',
-            'status' => $existing?->status ?? 'Live',
-            'status_class' => $existing?->status_class ?? 'status-completed',
+            'status' => $existing?->status ?? 'draft',
+            'status_class' => $existing?->status_class ?? 'status-progress',
             'packages' => $packages,
             'extras' => $payload['extras'] ?? $existing?->extras ?? [],
             'requirements' => $payload['requirements'] ?? $existing?->requirements ?? [],

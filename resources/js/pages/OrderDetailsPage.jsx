@@ -34,6 +34,7 @@ function OrderDetailsPage({ variant = "buyer" }) {
     const [reviewLoading, setReviewLoading] = useState(false);
     const [requirementsLoading, setRequirementsLoading] = useState(false);
     const [lifecycleLoading, setLifecycleLoading] = useState("");
+    const [cancellationLoading, setCancellationLoading] = useState("");
     const [activeActionModal, setActiveActionModal] = useState(null);
     const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
     const [noteLoading, setNoteLoading] = useState("");
@@ -273,6 +274,25 @@ function OrderDetailsPage({ variant = "buyer" }) {
             setLifecycleLoading("");
         }
     };
+    const startWork = async () => {
+        if (!order) return;
+
+        setLifecycleLoading("start-work");
+
+        try {
+            const updatedOrder = await apiRequest(
+                `/api/orders/${encodeURIComponent(order.orderNumber)}/start-work?role=seller`,
+                { body: {} },
+            );
+            setOrder(updatedOrder);
+            notify.success("Order moved to in progress.");
+            setActiveTab("activity");
+        } catch (error) {
+            notify.error(error.message || "Work could not be started yet.");
+        } finally {
+            setLifecycleLoading("");
+        }
+    };
     const requestRevision = async (payload) => {
         if (!order) return false;
 
@@ -293,6 +313,56 @@ function OrderDetailsPage({ variant = "buyer" }) {
             return false;
         } finally {
             setLifecycleLoading("");
+        }
+    };
+    const requestCancellation = async (reason) => {
+        if (!order) return false;
+
+        setCancellationLoading("request");
+
+        try {
+            const updatedOrder = await apiRequest(
+                `/api/orders/${encodeURIComponent(order.orderNumber)}/cancellations?role=${isSeller ? "seller" : "buyer"}`,
+                { body: { reason } },
+            );
+            setOrder(updatedOrder);
+            notify.success("Cancellation request sent.");
+            setActiveTab("activity");
+            return true;
+        } catch (error) {
+            notify.error(
+                error.message || "Cancellation request could not be sent.",
+            );
+            return false;
+        } finally {
+            setCancellationLoading("");
+        }
+    };
+    const decideCancellation = async (decision, note = "") => {
+        if (!order) return false;
+
+        setCancellationLoading(decision);
+
+        try {
+            const updatedOrder = await apiRequest(
+                `/api/orders/${encodeURIComponent(order.orderNumber)}/cancellations/decision?role=${isSeller ? "seller" : "buyer"}`,
+                { body: { decision, note } },
+            );
+            setOrder(updatedOrder);
+            notify.success(
+                decision === "accept"
+                    ? "Cancellation accepted and refund processing started."
+                    : "Cancellation rejected.",
+            );
+            setActiveTab("activity");
+            return true;
+        } catch (error) {
+            notify.error(
+                error.message || "Cancellation decision could not be saved.",
+            );
+            return false;
+        } finally {
+            setCancellationLoading("");
         }
     };
     const completeOrder = async () => {
@@ -364,9 +434,12 @@ function OrderDetailsPage({ variant = "buyer" }) {
                 </section>
 
                 <OrderDetailsSidebar
+                    cancellationLoading={cancellationLoading}
                     conversationStatus={conversationStatus}
                     extensionLoading={extensionLoading}
                     isSeller={isSeller}
+                    lifecycleLoading={lifecycleLoading}
+                    onDecideCancellation={decideCancellation}
                     onDecideExtension={decideTimeExtension}
                     onOpenConversation={openOrderConversation}
                     onOpenHelp={() => setActiveActionModal("help")}
@@ -374,7 +447,9 @@ function OrderDetailsPage({ variant = "buyer" }) {
                     onOpenResolution={() => setActiveActionModal("resolution")}
                     onOpenTimeExtension={() => setActiveActionModal("time-extension")}
                     onOpenDelivery={() => setActiveActionModal("delivery")}
+                    onRequestCancellation={requestCancellation}
                     onRequestExtension={requestTimeExtension}
+                    onStartWork={startWork}
                     order={order}
                 />
             </div>
@@ -481,6 +556,27 @@ function OrderDetailsPanel({ order }) {
             <div className="order-number-row">
                 <span>{t("pages.orderdetailspage.orderNumber")}</span>
                 <strong>{order.orderNumber}</strong>
+            </div>
+
+            {order.receipt ? (
+                <div className="order-number-row">
+                    <span>Receipt</span>
+                    <a
+                        href={order.receipt.url}
+                        target="_blank"
+                        rel="noreferrer"
+                    >
+                        {order.receipt.id}
+                    </a>
+                </div>
+            ) : null}
+
+            <div className="order-number-row">
+                <span>Payment</span>
+                <strong>
+                    {formatPaymentStatus(order.paymentStatus)}{" "}
+                    {order.transactionId ? `- ${order.transactionId}` : ""}
+                </strong>
             </div>
 
             {order.orderBullets?.length ? (
@@ -1699,9 +1795,12 @@ function ReviewCard({ avatar, heading, message, name }) {
     );
 }
 function OrderDetailsSidebar({
+    cancellationLoading = "",
     conversationStatus = "",
     extensionLoading = "",
     isSeller,
+    lifecycleLoading = "",
+    onDecideCancellation,
     onDecideExtension,
     onOpenConversation,
     onOpenDelivery,
@@ -1709,7 +1808,9 @@ function OrderDetailsSidebar({
     onOpenPrivateNotes,
     onOpenResolution,
     onOpenTimeExtension,
+    onRequestCancellation,
     onRequestExtension,
+    onStartWork,
     order,
 }) {
     const { t } = useTranslation();
@@ -1745,6 +1846,18 @@ function OrderDetailsSidebar({
                         </small>
                     </div>
                 </div>
+                {order.overdue ? (
+                    <div className="order-overdue-alert" role="status">
+                        <Icon name="clock" />
+                        <span>
+                            <strong>Order is overdue</strong>
+                            <small>
+                                Deadline passed
+                                {order.overdueAt ? ` on ${order.overdueAt}` : ""}.
+                            </small>
+                        </span>
+                    </div>
+                ) : null}
                 <OrderCountdown
                     deliveryDate={order.deliveryDate}
                     dueAt={order.deliveryDueAt}
@@ -1761,7 +1874,15 @@ function OrderDetailsSidebar({
                 <OrderDeliveryControls
                     deliveryFlow={order.deliveryFlow}
                     isSeller={isSeller}
+                    isLoading={lifecycleLoading}
                     onOpen={onOpenDelivery}
+                    onStartWork={onStartWork}
+                />
+                <OrderCancellationControls
+                    cancellation={order.cancellation}
+                    isLoading={cancellationLoading}
+                    onDecide={onDecideCancellation}
+                    onRequest={onRequestCancellation}
                 />
                 <button
                     className="order-conversation-button"
@@ -1854,6 +1975,164 @@ function OrderDetailsSidebar({
                 </div>
             </section>
         </aside>
+    );
+}
+
+function OrderCancellationControls({
+    cancellation = {},
+    isLoading = "",
+    onDecide,
+    onRequest,
+}) {
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [reason, setReason] = useState("");
+    const [note, setNote] = useState("");
+    const [error, setError] = useState("");
+    const latest = cancellation?.latest;
+    const canRequest = Boolean(cancellation?.canRequest);
+    const canRespond = Boolean(cancellation?.canRespond);
+    const hasCancellationState = latest || cancellation?.status || canRequest;
+
+    if (!hasCancellationState) {
+        return null;
+    }
+
+    const submitRequest = async (event) => {
+        event.preventDefault();
+
+        if (reason.trim().length < 10) {
+            setError("Write at least 10 characters for the cancellation reason.");
+            return;
+        }
+
+        setError("");
+        const saved = await onRequest(reason.trim());
+
+        if (saved) {
+            setReason("");
+            setIsFormOpen(false);
+        }
+    };
+    const submitDecision = async (decision) => {
+        const saved = await onDecide(decision, note.trim());
+
+        if (saved) {
+            setNote("");
+        }
+    };
+
+    return (
+        <section className="order-extension-card order-cancellation-card">
+            <div>
+                <strong>Cancellation</strong>
+                <span>
+                    {latest
+                        ? latest.statusLabel
+                        : cancellation?.status
+                            ? formatPaymentStatus(cancellation.status)
+                            : "No request yet"}
+                </span>
+            </div>
+            {latest ? (
+                <article className="order-extension-summary">
+                    <span>
+                        Requested by {latest.requesterName || "participant"}
+                        {latest.requestedAt ? ` on ${latest.requestedAt}` : ""}
+                    </span>
+                    <p>{latest.reason}</p>
+                    {latest.responseNote ? (
+                        <p>
+                            <strong>Response:</strong> {latest.responseNote}
+                        </p>
+                    ) : null}
+                    {cancellation.refundStatus ? (
+                        <small>
+                            Refund: {formatPaymentStatus(cancellation.refundStatus)}
+                        </small>
+                    ) : null}
+                </article>
+            ) : null}
+            {canRespond ? (
+                <div className="order-cancellation-response">
+                    <label>
+                        <span>Response note</span>
+                        <textarea
+                            rows="3"
+                            value={note}
+                            placeholder="Optional note for the other party."
+                            onChange={(event) => setNote(event.target.value)}
+                        />
+                    </label>
+                    <div>
+                        <button
+                            type="button"
+                            disabled={Boolean(isLoading)}
+                            onClick={() => submitDecision("reject")}
+                        >
+                            {isLoading === "reject"
+                                ? "Rejecting..."
+                                : "Reject"}
+                        </button>
+                        <button
+                            type="button"
+                            disabled={Boolean(isLoading)}
+                            onClick={() => submitDecision("accept")}
+                        >
+                            {isLoading === "accept"
+                                ? "Accepting..."
+                                : "Accept"}
+                        </button>
+                    </div>
+                </div>
+            ) : null}
+            {canRequest && !isFormOpen ? (
+                <button
+                    className="order-extension-button secondary"
+                    type="button"
+                    onClick={() => setIsFormOpen(true)}
+                >
+                    Request cancellation
+                </button>
+            ) : null}
+            {canRequest && isFormOpen ? (
+                <form
+                    className="order-cancellation-form"
+                    onSubmit={submitRequest}
+                >
+                    <label>
+                        <span>Reason</span>
+                        <textarea
+                            rows="4"
+                            value={reason}
+                            placeholder="Explain why this order should be cancelled."
+                            onChange={(event) => setReason(event.target.value)}
+                            required
+                        />
+                    </label>
+                    {error ? (
+                        <p className="order-note-error" role="alert">
+                            {error}
+                        </p>
+                    ) : null}
+                    <div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsFormOpen(false);
+                                setError("");
+                            }}
+                        >
+                            Keep order
+                        </button>
+                        <button type="submit" disabled={isLoading === "request"}>
+                            {isLoading === "request"
+                                ? "Sending..."
+                                : "Send request"}
+                        </button>
+                    </div>
+                </form>
+            ) : null}
+        </section>
     );
 }
 
@@ -1982,10 +2261,16 @@ function OrderTimeExtensionControls({
     );
 }
 
-function OrderDeliveryControls({ deliveryFlow = {}, isSeller, onOpen }) {
+function OrderDeliveryControls({
+    deliveryFlow = {},
+    isLoading = "",
+    isSeller,
+    onOpen,
+    onStartWork,
+}) {
     const latest = deliveryFlow.latest;
     const canAct = isSeller
-        ? deliveryFlow.canSubmitDelivery
+        ? deliveryFlow.canStartWork || deliveryFlow.canSubmitDelivery
         : deliveryFlow.canRequestRevision || deliveryFlow.canComplete;
 
     if (!deliveryFlow) {
@@ -2008,7 +2293,19 @@ function OrderDeliveryControls({ deliveryFlow = {}, isSeller, onOpen }) {
                     <p>{latest.message}</p>
                 </article>
             ) : null}
-            {canAct ? (
+            {isSeller && deliveryFlow.canStartWork ? (
+                <button
+                    className="order-extension-button"
+                    type="button"
+                    disabled={isLoading === "start-work"}
+                    onClick={onStartWork}
+                >
+                    {isLoading === "start-work"
+                        ? "Starting..."
+                        : "Start Work"}
+                </button>
+            ) : null}
+            {canAct && !deliveryFlow.canStartWork ? (
                 <button
                     className="order-extension-button"
                     type="button"
@@ -2341,4 +2638,11 @@ function PrivateNotesModal({
         </div>
     );
 }
+
+function formatPaymentStatus(status = "") {
+    return String(status || "unpaid")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 export default OrderDetailsPage;

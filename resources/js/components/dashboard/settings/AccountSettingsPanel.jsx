@@ -40,6 +40,10 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
     });
     const [sessions, setSessions] = useState([]);
     const [identity, setIdentity] = useState(null);
+    const [sellerApplication, setSellerApplication] = useState(null);
+    const [sellerApplicationReason, setSellerApplicationReason] = useState("");
+    const [isSellerApplicationSubmitting, setIsSellerApplicationSubmitting] =
+        useState(false);
     const [isIdentitySubmitting, setIsIdentitySubmitting] = useState(false);
     const [twoFactorSetup, setTwoFactorSetup] = useState({
         qrSvg: "",
@@ -89,6 +93,15 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
                 setNotice(message);
                 notify.error(message);
             });
+
+        if (variant === "seller") {
+            apiRequest("/api/seller/application")
+                .then((application) => {
+                    setSellerApplication(application);
+                    setSellerApplicationReason(application.reason || "");
+                })
+                .catch(() => {});
+        }
     }, [notify, variant]);
 
     const handleNotificationChange = (rowId, channel) => {
@@ -254,15 +267,30 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
             setIsIdentitySubmitting(false);
         }
     };
-    const deactivateAccount = async (password) => {
+    const deactivateAccount = async (password, reason) => {
         try {
             await apiRequest("/api/user/settings/deactivate", {
-                body: { password },
+                body: { password, reason },
             });
             setCurrentUser(null);
             onNavigate("home");
         } catch (error) {
             notify.error(error.message || "Account deactivation failed.");
+        }
+    };
+    const submitSellerApplication = async () => {
+        setIsSellerApplicationSubmitting(true);
+
+        try {
+            const application = await apiRequest("/api/seller/application", {
+                body: { reason: sellerApplicationReason },
+            });
+            setSellerApplication(application);
+            notify.success("Seller application submitted for review.");
+        } catch (error) {
+            notify.error(error.message || "Seller application could not be submitted.");
+        } finally {
+            setIsSellerApplicationSubmitting(false);
         }
     };
     if (settingsPage && !settingsPageTitles[settingsPage]) {
@@ -293,7 +321,18 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
             ) : null}
 
             {activePage === "overview" ? (
-                <SettingsHubCards basePath={basePath} />
+                <>
+                    {variant === "seller" ? (
+                        <SellerApplicationStatus
+                            application={sellerApplication}
+                            isSubmitting={isSellerApplicationSubmitting}
+                            reason={sellerApplicationReason}
+                            onReasonChange={setSellerApplicationReason}
+                            onSubmit={submitSellerApplication}
+                        />
+                    ) : null}
+                    <SettingsHubCards basePath={basePath} />
+                </>
             ) : null}
             {activePage === "personal-information" ? (
                 <PersonalInformationSection
@@ -358,6 +397,75 @@ function AccountSettingsPanel({ onNavigate, variant = "buyer" }) {
         </main>
     );
 }
+
+function SellerApplicationStatus({
+    application,
+    isSubmitting,
+    onReasonChange,
+    onSubmit,
+    reason,
+}) {
+    const status = application?.status || "not_applied";
+    const canSubmit = application?.canSubmit ?? status === "not_applied";
+
+    return (
+        <section className="account-settings-section seller-application-section">
+            <div className="settings-section-heading">
+                <div>
+                    <span>Seller onboarding</span>
+                    <h2>Seller application</h2>
+                    <p>
+                        Your seller status controls whether gigs can be
+                        submitted for marketplace review.
+                    </p>
+                </div>
+                <span className="status-badge status-progress">
+                    {formatStatusLabel(status)}
+                </span>
+            </div>
+            {application?.reason ? (
+                <p className="account-settings-notice">{application.reason}</p>
+            ) : null}
+            {canSubmit ? (
+                <div className="security-password-form">
+                    <label>
+                        <span>Application note</span>
+                        <textarea
+                            value={reason}
+                            onChange={(event) =>
+                                onReasonChange(event.target.value)
+                            }
+                            rows={3}
+                            placeholder="Tell the marketplace team what services you plan to sell."
+                        />
+                    </label>
+                    <button
+                        className="settings-dark-button"
+                        type="button"
+                        onClick={onSubmit}
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting ? "Submitting..." : "Submit application"}
+                    </button>
+                </div>
+            ) : null}
+            {application?.history?.length ? (
+                <div className="settings-session-list">
+                    {application.history.slice(0, 3).map((item, index) => (
+                        <article key={`${item.to}-${index}`}>
+                            <div>
+                                <strong>{formatStatusLabel(item.to)}</strong>
+                                <p>{item.reason || "No reason recorded."}</p>
+                            </div>
+                            <span>{item.createdAt}</span>
+                        </article>
+                    ))}
+                </div>
+            ) : null}
+        </section>
+    );
+}
+
 function SettingsHubCards({ basePath }) {
     const { t } = useTranslation();
     return (
@@ -389,6 +497,7 @@ function PersonalInformationSection({
 }) {
     const { t } = useTranslation();
     const [password, setPassword] = useState("");
+    const [reason, setReason] = useState("");
     return (
         <section
             className="account-settings-section personal-info-section"
@@ -421,7 +530,7 @@ function PersonalInformationSection({
                 className="security-password-form account-deactivate-form"
                 onSubmit={(event) => {
                     event.preventDefault();
-                    onDeactivate(password);
+                    onDeactivate(password, reason);
                 }}
             >
                 <h3>Deactivate account</h3>
@@ -437,6 +546,15 @@ function PersonalInformationSection({
                         value={password}
                         onChange={(event) => setPassword(event.target.value)}
                         required
+                    />
+                </label>
+                <label>
+                    <span>Reason</span>
+                    <textarea
+                        rows="3"
+                        value={reason}
+                        onChange={(event) => setReason(event.target.value)}
+                        placeholder="Optional reason for support records"
                     />
                 </label>
                 <button
@@ -1205,6 +1323,12 @@ function buildNotificationState(rows = []) {
 function playNotificationPreview() {
     const audio = new Audio(notificationSoundPath);
     audio.play().catch(() => {});
+}
+
+function formatStatusLabel(status = "") {
+    return String(status || "not_applied")
+        .replace(/[_-]/g, " ")
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function formatFileSize(size = 0) {

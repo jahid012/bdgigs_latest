@@ -78,11 +78,17 @@
             @else
                 <div class="admin-detail-action-list">
                     @can('gigs.publish')
-                        @foreach (['publish' => 'Publish', 'pause' => 'Pause'] as $action => $label)
+                        @foreach (['approve' => 'Approve', 'pause' => 'Pause', 'deactivate' => 'Deactivate', 'reactivate' => 'Reactivate'] as $action => $label)
                             <form method="POST" action="{{ route('admin.gigs.status', $gig) }}">
                                 @csrf
                                 @method('PATCH')
                                 <input type="hidden" name="action" value="{{ $action }}">
+                                @if (in_array($action, ['pause', 'deactivate'], true))
+                                    <label>
+                                        <span class="sr-only">{{ $label }} reason</span>
+                                        <textarea name="reason" rows="2" placeholder="{{ $label }} reason"></textarea>
+                                    </label>
+                                @endif
                                 <button type="submit">{{ $label }}</button>
                             </form>
                         @endforeach
@@ -93,6 +99,10 @@
                                 @csrf
                                 @method('PATCH')
                                 <input type="hidden" name="action" value="{{ $action }}">
+                                <label>
+                                    <span class="sr-only">{{ $label }} reason</span>
+                                    <textarea name="reason" rows="2" placeholder="{{ $label }} reason"></textarea>
+                                </label>
                                 <button class="{{ $action === 'reject' ? 'is-danger' : '' }}" type="submit">{{ $label }}</button>
                             </form>
                         @endforeach

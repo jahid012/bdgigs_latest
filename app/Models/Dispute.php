@@ -13,10 +13,11 @@ class Dispute extends Model
 
     public const STATUSES = [
         'open',
-        'reviewing',
-        'waiting_buyer',
-        'waiting_seller',
+        'awaiting_response',
+        'evidence_requested',
+        'under_admin_review',
         'resolved',
+        'rejected',
         'closed',
     ];
 
@@ -87,6 +88,6 @@ class Dispute extends Model
 
     public function isTerminal(): bool
     {
-        return in_array($this->status, ['resolved', 'closed'], true);
+        return in_array($this->status, ['resolved', 'rejected', 'closed'], true);
     }
 }

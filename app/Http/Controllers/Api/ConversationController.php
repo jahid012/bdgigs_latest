@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Events\ConversationUpdated;
+use App\Events\AdminSupportMessageReceived;
+use App\Events\GigInquiryReceived;
+use App\Events\MessageAttachmentReceived;
 use App\Events\MessageSent;
 use App\Events\MessageRead;
 use App\Events\UserTyping;
@@ -17,9 +20,12 @@ use App\Models\Message;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\OfflinePushNotifier;
+use App\Services\MessageAutomationService;
 use App\Support\MarketplaceNotifier;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -142,22 +148,27 @@ class ConversationController extends Controller
         Request $request,
         Conversation $conversation,
         MarketplaceNotifier $notifier,
-        OfflinePushNotifier $pushNotifier
+        OfflinePushNotifier $pushNotifier,
+        MessageAutomationService $messageAutomation
     ): MessageResource {
         $this->authorizeParticipant($request, $conversation);
 
         $payload = $request->validate([
-            'text' => ['required', 'string', 'max:4000'],
+            'text' => ['nullable', 'required_without:attachments', 'string', 'max:4000'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['nullable', 'file', 'max:51200'],
             'clientId' => ['nullable', 'string', 'max:120'],
         ]);
 
         $message = $this->createMessage(
             $request,
             $conversation,
-            $payload['text'],
+            $payload['text'] ?? '',
             $notifier,
             $pushNotifier,
             $payload['clientId'] ?? null,
+            $payload['attachments'] ?? [],
+            $messageAutomation,
         );
 
         return MessageResource::make($message);
@@ -270,6 +281,8 @@ class ConversationController extends Controller
         MarketplaceNotifier $notifier,
         OfflinePushNotifier $pushNotifier,
         ?string $clientId = null,
+        array $attachments = [],
+        ?MessageAutomationService $messageAutomation = null,
     ): Message {
         $conversation->loadMissing('participants.user');
         $sender = $request->user();
@@ -293,10 +306,15 @@ class ConversationController extends Controller
             'sender_id' => $sender->id,
             'recipient_id' => $primaryRecipient?->id,
             'sender_name' => $sender->name,
-            'body' => $body,
+            'body' => trim($body) !== '' ? $body : 'Shared an attachment.',
             'client_id' => $clientId,
             'sent_at' => now(),
         ]);
+
+        $storedAttachments = collect($attachments)
+            ->filter(fn ($file) => $file instanceof UploadedFile)
+            ->map(fn (UploadedFile $file) => $this->storeMessageAttachment($conversation, $message, $file))
+            ->values();
 
         $conversation->forceFill([
             'last_message_at' => $message->sent_at,
@@ -311,6 +329,21 @@ class ConversationController extends Controller
             ]);
 
         $sender->forceFill(['last_seen_at' => now()])->save();
+
+        $recentMessageCount = Message::where('sender_id', $sender->id)
+            ->where('created_at', '>=', now()->subMinutes(10))
+            ->count();
+
+        if ($recentMessageCount > 25) {
+            app(\App\Services\SuspiciousActivityService::class)->log(
+                $sender,
+                'rapid_message_volume',
+                $recentMessageCount > 50 ? 'critical' : 'high',
+                'Many messages were sent in a short period.',
+                ['message_count' => $recentMessageCount, 'conversation_id' => $conversation->public_id],
+                $request,
+            );
+        }
 
         foreach ($recipientParticipants as $participant) {
             $participant->increment('unread_count');
@@ -341,7 +374,7 @@ class ConversationController extends Controller
             );
 
             SendUnreadMessageReminder::dispatch($message->id, $recipient->id)
-                ->delay(now()->addMinutes(3));
+                ->delay(now()->addMinutes(15));
 
             $freshConversation = $conversation->fresh([
                 'gig',
@@ -362,11 +395,47 @@ class ConversationController extends Controller
                 $recipient->id,
                 $this->conversationPayloadForUser($freshConversation, $recipient),
             ));
+
+            $messageAutomation ??= app(MessageAutomationService::class);
+
+            if (! $messageAutomation->isRecipientActiveInConversation($message, $recipient)) {
+                if ($storedAttachments->isNotEmpty()) {
+                    event(new MessageAttachmentReceived($message->fresh(['conversation', 'sender', 'attachments']), $recipient));
+                }
+
+                if ($sender->can('admin.access')) {
+                    event(new AdminSupportMessageReceived($message->fresh(['conversation', 'sender']), $recipient));
+                }
+            }
+        }
+
+        if ($conversation->context_type === 'gig' && $conversation->gig && (int) $message->sender_id !== (int) $conversation->gig->seller_id) {
+            event(new GigInquiryReceived($conversation->gig, $message->fresh(['conversation', 'sender'])));
         }
 
         $this->syncLegacyUnreadCounts($conversation);
 
         return $message->load(['conversation', 'attachments', 'customOffer.gig', 'customOffer.order']);
+    }
+
+    private function storeMessageAttachment(Conversation $conversation, Message $message, UploadedFile $file)
+    {
+        $directory = public_path('uploads/message-attachments/'.$conversation->public_id);
+        File::ensureDirectoryExists($directory);
+
+        $extension = $file->guessExtension() ?: $file->getClientOriginalExtension() ?: 'bin';
+        $filename = Str::uuid()->toString().'.'.$extension;
+        $file->move($directory, $filename);
+        $path = 'uploads/message-attachments/'.$conversation->public_id.'/'.$filename;
+
+        return $message->attachments()->create([
+            'disk' => 'public',
+            'path' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'mime_type' => $file->getClientMimeType(),
+            'size' => $file->getSize(),
+            'url' => '/'.$path,
+        ]);
     }
 
     private function findOrCreateConversation(

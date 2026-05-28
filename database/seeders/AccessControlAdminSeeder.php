@@ -27,7 +27,9 @@ class AccessControlAdminSeeder extends Seeder
             'manual_payments' => ['manual-payments.view', 'manual-payments.approve'],
             'withdrawals' => ['withdrawals.view', 'withdrawals.review', 'withdrawals.pay'],
             'disputes' => ['disputes.view', 'disputes.resolve'],
-            'reports' => ['reports.view'],
+            'reports' => ['reports.view', 'reports.manage'],
+            'security' => ['security.view', 'security.review'],
+            'emails' => ['emails.manage'],
             'settings' => ['settings.view', 'settings.update'],
             'roles' => ['roles.manage'],
         ];
@@ -71,7 +73,9 @@ class AccessControlAdminSeeder extends Seeder
                 'manual-payments.view',
                 'withdrawals.view', 'withdrawals.review',
                 'disputes.view', 'disputes.resolve',
-                'reports.view',
+                'reports.view', 'reports.manage',
+                'security.view', 'security.review',
+                'emails.manage',
                 'settings.view',
             ],
             'finance_manager' => [
@@ -80,25 +84,29 @@ class AccessControlAdminSeeder extends Seeder
                 'manual-payments.view', 'manual-payments.approve',
                 'withdrawals.view', 'withdrawals.review', 'withdrawals.pay',
                 'reports.view',
+                'emails.manage',
             ],
             'support_agent' => [
                 'admin.access',
                 'users.view', 'users.verify',
                 'orders.view', 'orders.manage',
                 'disputes.view', 'disputes.resolve',
+                'emails.manage',
             ],
             'catalog_moderator' => [
                 'admin.access',
                 'gigs.view', 'gigs.review', 'gigs.publish',
                 'categories.manage', 'content.manage',
-                'reports.view',
+                'reports.view', 'reports.manage',
+                'security.view', 'security.review',
             ],
             'trust_safety' => [
                 'admin.access',
                 'users.view', 'users.suspend',
                 'gigs.view', 'gigs.review',
                 'disputes.view', 'disputes.resolve',
-                'reports.view',
+                'reports.view', 'reports.manage',
+                'security.view', 'security.review',
             ],
         ];
     }

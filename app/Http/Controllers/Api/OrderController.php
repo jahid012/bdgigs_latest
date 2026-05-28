@@ -19,6 +19,8 @@ use App\Models\Order;
 use App\Models\OrderPrivateNote;
 use App\Models\OrderTimeExtensionRequest;
 use App\Services\OrderDisputeService;
+use App\Services\OrderInvoiceService;
+use App\Services\OrderCancellationService;
 use App\Services\OrderLifecycleService;
 use App\Services\OrderPrivateNoteService;
 use App\Services\OrderRequirementService;
@@ -136,6 +138,24 @@ class OrderController extends Controller
         return $this->detailResponse($request, $order->refresh());
     }
 
+    public function storeDisputeEvidence(
+        Request $request,
+        Order $order,
+        Dispute $dispute,
+        OrderDisputeService $disputes
+    ): OrderDetailResource {
+        $payload = $request->validate([
+            'note' => ['nullable', 'string', 'max:2000'],
+            'message' => ['nullable', 'string', 'max:2000'],
+            'attachments' => ['nullable', 'array', 'max:5'],
+            'attachments.*' => ['file', 'max:10240'],
+        ]);
+
+        $disputes->evidence($order->loadMissing(['buyer', 'seller']), $dispute, $request->user(), $payload);
+
+        return $this->detailResponse($request, $order->refresh());
+    }
+
     public function storeReview(
         StoreOrderReviewRequest $request,
         Order $order,
@@ -166,6 +186,16 @@ class OrderController extends Controller
         return $this->detailResponse($request, $order->refresh());
     }
 
+    public function startWork(
+        Request $request,
+        Order $order,
+        OrderLifecycleService $lifecycle
+    ): OrderDetailResource {
+        $lifecycle->startWork($order->loadMissing(['buyer', 'seller']), $request->user());
+
+        return $this->detailResponse($request, $order->refresh());
+    }
+
     public function requestRevision(
         RequestOrderRevisionRequest $request,
         Order $order,
@@ -186,6 +216,58 @@ class OrderController extends Controller
         return $this->detailResponse($request, $order->refresh());
     }
 
+    public function requestCancellation(
+        Request $request,
+        Order $order,
+        OrderCancellationService $cancellations
+    ): OrderDetailResource {
+        $payload = $request->validate([
+            'reason' => ['required', 'string', 'min:10', 'max:1000'],
+        ]);
+
+        $cancellations->request($order->loadMissing(['buyer', 'seller', 'latestCancellation']), $request->user(), $payload['reason']);
+
+        return $this->detailResponse($request, $order->refresh());
+    }
+
+    public function decideCancellation(
+        Request $request,
+        Order $order,
+        OrderCancellationService $cancellations
+    ): OrderDetailResource {
+        $payload = $request->validate([
+            'decision' => ['required', 'string', 'in:accept,reject'],
+            'note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $payload['decision'] === 'accept'
+            ? $cancellations->accept($order->loadMissing(['buyer', 'seller', 'latestCancellation']), $request->user(), $payload['note'] ?? null)
+            : $cancellations->reject($order->loadMissing(['buyer', 'seller', 'latestCancellation']), $request->user(), $payload['note'] ?? null);
+
+        return $this->detailResponse($request, $order->refresh());
+    }
+
+    public function receipt(Request $request, Order $order, OrderInvoiceService $invoices)
+    {
+        abort_unless(
+            $order->buyer_id === $request->user()->id ||
+                $order->seller_id === $request->user()->id ||
+                $request->user()->can('orders.view') ||
+                $request->user()->can('orders.manage'),
+            403,
+        );
+
+        $invoice = $order->invoice ?: $invoices->generate($order->loadMissing(['buyer', 'seller', 'gig']));
+
+        $payload = $invoices->payload($invoice->fresh());
+
+        if (! $request->expectsJson()) {
+            return response()->view('receipts.order', ['receipt' => $payload]);
+        }
+
+        return response()->json(['data' => $payload]);
+    }
+
     private function detailResponse(Request $request, Order $order): OrderDetailResource
     {
         $order->loadMissing([
@@ -193,6 +275,9 @@ class OrderController extends Controller
             'seller',
             'gig',
             'activities.actor',
+            'invoice',
+            'latestCancellation.requester',
+            'latestCancellation.responder',
             'manualPaymentSubmission.method',
             'timeExtensionRequests.requester',
             'timeExtensionRequests.reviewer',

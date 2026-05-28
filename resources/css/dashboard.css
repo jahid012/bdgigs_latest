@@ -287,6 +287,54 @@ body.dashboard-page .btn {
   min-width: 0;
 }
 
+.dashboard-verification-banner {
+  align-items: center;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  color: #7c2d12;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin: 1.25rem 1.5rem 0;
+  padding: 1rem;
+}
+
+.dashboard-verification-banner strong {
+  display: block;
+  font-size: 1rem;
+  margin-bottom: 0.2rem;
+}
+
+.dashboard-verification-banner p {
+  margin: 0;
+}
+
+.dashboard-verification-banner button {
+  background: #111827;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  flex: 0 0 auto;
+  font-weight: 800;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+}
+
+.dashboard-verification-banner button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+@media (max-width: 720px) {
+  .dashboard-verification-banner {
+    align-items: stretch;
+    flex-direction: column;
+    margin-inline: 1rem;
+  }
+}
+
 .dashboard-topbar {
   position: sticky;
   top: 0;
@@ -2688,6 +2736,40 @@ body.dashboard-page .btn {
   background: #f8fafc;
 }
 
+.order-overdue-alert {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.55rem;
+  padding: 0.72rem;
+  border: 1px solid rgba(244, 63, 94, 0.22);
+  border-radius: var(--dashboard-radius);
+  background: #fff1f2;
+  color: #9f1239;
+}
+
+.order-overdue-alert svg {
+  width: 17px;
+  height: 17px;
+  margin-top: 0.12rem;
+}
+
+.order-overdue-alert span {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.order-overdue-alert strong {
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.order-overdue-alert small {
+  color: #be123c;
+  font-size: 0.74rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
 .order-extension-card-action {
   text-align: left;
   cursor: pointer;
@@ -2778,7 +2860,9 @@ body.dashboard-page .btn {
 
 .order-extension-button,
 .order-extension-form button,
-.order-extension-actions button {
+.order-extension-actions button,
+.order-cancellation-form button,
+.order-cancellation-response button {
   display: inline-flex;
   min-height: 32px;
   align-items: center;
@@ -2792,37 +2876,55 @@ body.dashboard-page .btn {
 
 .order-extension-button,
 .order-extension-form button[type="submit"],
-.order-extension-actions button:last-child {
+.order-extension-actions button:last-child,
+.order-cancellation-form button[type="submit"],
+.order-cancellation-response button:last-child {
   border: 0;
   background: #020617;
   color: #ffffff;
 }
 
-.order-extension-form button[type="button"],
-.order-extension-actions button:first-child {
+.order-extension-button.secondary {
   border: 1px solid rgba(203, 213, 225, 0.95);
   background: #ffffff;
   color: #020617;
 }
 
-.order-extension-form {
+.order-extension-form button[type="button"],
+.order-extension-actions button:first-child,
+.order-cancellation-form button[type="button"],
+.order-cancellation-response button:first-child {
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  background: #ffffff;
+  color: #020617;
+}
+
+.order-extension-form,
+.order-cancellation-form,
+.order-cancellation-response {
   display: grid;
   gap: 0.62rem;
 }
 
-.order-extension-form label {
+.order-extension-form label,
+.order-cancellation-form label,
+.order-cancellation-response label {
   display: grid;
   gap: 0.28rem;
 }
 
-.order-extension-form label span {
+.order-extension-form label span,
+.order-cancellation-form label span,
+.order-cancellation-response label span {
   color: #475569;
   font-size: 0.72rem;
   font-weight: 900;
 }
 
 .order-extension-form input,
-.order-extension-form textarea {
+.order-extension-form textarea,
+.order-cancellation-form textarea,
+.order-cancellation-response textarea {
   width: 100%;
   min-height: 34px;
   padding: 0.48rem 0.58rem;
@@ -2834,12 +2936,16 @@ body.dashboard-page .btn {
   font-size: 0.78rem;
 }
 
-.order-extension-form textarea {
+.order-extension-form textarea,
+.order-cancellation-form textarea,
+.order-cancellation-response textarea {
   resize: vertical;
 }
 
 .order-extension-form > div,
-.order-extension-actions {
+.order-extension-actions,
+.order-cancellation-form > div,
+.order-cancellation-response > div {
   display: flex;
   flex-wrap: wrap;
   gap: 0.48rem;
@@ -2847,7 +2953,10 @@ body.dashboard-page .btn {
 }
 
 .order-extension-form button:disabled,
-.order-extension-actions button:disabled {
+.order-extension-actions button:disabled,
+.order-extension-button:disabled,
+.order-cancellation-form button:disabled,
+.order-cancellation-response button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
 }
@@ -4046,6 +4155,56 @@ body.dashboard-page .btn {
 .composer-send svg {
   width: 18px;
   height: 18px;
+}
+
+.message-attachments,
+.composer-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+  margin-top: 0.62rem;
+}
+
+.message-attachments a,
+.composer-attachments span {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.34rem 0.55rem;
+  overflow: hidden;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #020617;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-bubble.own .message-attachments {
+  justify-content: flex-end;
+}
+
+.message-attachments svg,
+.composer-attachments svg {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+}
+
+.composer-attachments button {
+  min-height: 29px;
+  padding: 0 0.58rem;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #020617;
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 900;
 }
 
 .conversation-details-panel {

@@ -13,7 +13,7 @@ class GigController extends AdminController
     {
         $search = trim((string) $request->query('q', ''));
         $status = trim((string) $request->query('status', 'all'));
-        $allowedStatuses = ['all', 'published', 'review', 'paused', 'rejected', 'deleted'];
+        $allowedStatuses = ['all', 'published', 'review', 'paused', 'rejected', 'deactivated', 'deleted'];
         $status = in_array($status, $allowedStatuses, true) ? $status : 'all';
 
         $gigsQuery = ($status === 'deleted' ? Gig::onlyTrashed() : Gig::query())
@@ -31,10 +31,11 @@ class GigController extends AdminController
         }
 
         match ($status) {
-            'published' => $gigsQuery->whereIn('status', ['Live', 'Published']),
-            'review' => $gigsQuery->whereNotIn('status', ['Live', 'Published', 'Paused', 'Rejected']),
-            'paused' => $gigsQuery->where('status', 'Paused'),
-            'rejected' => $gigsQuery->where('status', 'Rejected'),
+            'published' => $gigsQuery->whereIn('status', ['Live', 'Published', 'approved']),
+            'review' => $gigsQuery->whereIn('status', ['draft', 'pending_review', 'Needs edit', 'review']),
+            'paused' => $gigsQuery->whereIn('status', ['Paused', 'paused']),
+            'rejected' => $gigsQuery->whereIn('status', ['Rejected', 'rejected']),
+            'deactivated' => $gigsQuery->where('status', 'deactivated'),
             default => null,
         };
 
@@ -48,9 +49,9 @@ class GigController extends AdminController
             ->map(fn (Gig $gig) => $this->gigRow($gig))
             ->all();
 
-        $published = Gig::whereIn('status', ['Live', 'Published'])->count();
-        $pending = Gig::whereNotIn('status', ['Live', 'Published', 'Paused', 'Rejected'])->count();
-        $rejected = Gig::where('status', 'Rejected')->count();
+        $published = Gig::whereIn('status', ['Live', 'Published', 'approved'])->count();
+        $pending = Gig::whereIn('status', ['draft', 'pending_review', 'Needs edit', 'review'])->count();
+        $rejected = Gig::whereIn('status', ['Rejected', 'rejected'])->count();
         $featured = Gig::where('featured', true)->count();
         $deleted = Gig::onlyTrashed()->count();
 
@@ -71,8 +72,9 @@ class GigController extends AdminController
                 ['label' => 'All', 'value' => 'all', 'count' => Gig::count()],
                 ['label' => 'Published', 'value' => 'published', 'count' => $published],
                 ['label' => 'Review', 'value' => 'review', 'count' => $pending],
-                ['label' => 'Paused', 'value' => 'paused', 'count' => Gig::where('status', 'Paused')->count()],
+                ['label' => 'Paused', 'value' => 'paused', 'count' => Gig::whereIn('status', ['Paused', 'paused'])->count()],
                 ['label' => 'Rejected', 'value' => 'rejected', 'count' => $rejected],
+                ['label' => 'Deactivated', 'value' => 'deactivated', 'count' => Gig::where('status', 'deactivated')->count()],
                 ['label' => 'Deleted', 'value' => 'deleted', 'count' => $deleted],
             ],
             'currentFilter' => $status,
@@ -114,7 +116,13 @@ class GigController extends AdminController
         Gig $gig,
         AdminGigModerationService $moderation
     ) {
-        $gig = $moderation->updateStatus($gig, $request->validated()['action']);
+        $payload = $request->validated();
+        $gig = $moderation->updateStatus(
+            $gig,
+            $payload['action'],
+            $request->user(),
+            $payload['reason'] ?? null,
+        );
 
         return back()->withNotify('success', 'Gig status updated to '.$gig->status.'.', 'Gig updated');
     }

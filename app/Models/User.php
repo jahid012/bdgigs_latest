@@ -2,8 +2,9 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use Illuminate\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,12 +17,14 @@ use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'username', 'email', 'password', 'email_verified_at', 'profile_type', 'country', 'avatar', 'verification_status', 'suspended_at', 'deactivated_at', 'last_seen_at'])]
+#[Fillable(['name', 'username', 'email', 'password', 'email_verified_at', 'profile_type', 'seller_status', 'seller_status_reason', 'seller_status_reviewed_by', 'seller_status_reviewed_at', 'country', 'avatar', 'verification_status', 'suspended_at', 'suspension_reason', 'suspended_by', 'deactivated_at', 'deactivation_reason', 'deactivated_by', 'reactivated_at', 'last_seen_at', 'profile_completion_reminded_at', 'marketing_unsubscribed_at'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmailContract
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
+    use HasFactory, HasRoles, MustVerifyEmail, Notifiable, TwoFactorAuthenticatable {
+        MustVerifyEmail::sendEmailVerificationNotification as protected sendDefaultEmailVerificationNotification;
+    }
 
     /**
      * Get the attributes that should be cast.
@@ -34,7 +37,11 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'suspended_at' => 'datetime',
             'deactivated_at' => 'datetime',
+            'reactivated_at' => 'datetime',
             'last_seen_at' => 'datetime',
+            'seller_status_reviewed_at' => 'datetime',
+            'profile_completion_reminded_at' => 'datetime',
+            'marketing_unsubscribed_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
@@ -117,6 +124,31 @@ class User extends Authenticatable
         return $this->hasOne(NotificationPreference::class);
     }
 
+    public function emailPreferences(): HasMany
+    {
+        return $this->hasMany(UserEmailPreference::class);
+    }
+
+    public function emailLogs(): HasMany
+    {
+        return $this->hasMany(EmailLog::class);
+    }
+
+    public function loginDevices(): HasMany
+    {
+        return $this->hasMany(UserLoginDevice::class);
+    }
+
+    public function accountStatusEvents(): HasMany
+    {
+        return $this->hasMany(AccountStatusEvent::class);
+    }
+
+    public function accountStatusActions(): HasMany
+    {
+        return $this->hasMany(AccountStatusEvent::class, 'actor_id');
+    }
+
     public function identityVerificationSubmissions(): HasMany
     {
         return $this->hasMany(IdentityVerificationSubmission::class);
@@ -155,5 +187,49 @@ class User extends Authenticatable
     public function withdrawalRequests(): HasMany
     {
         return $this->hasMany(WithdrawalRequest::class, 'seller_id');
+    }
+
+    public function sellerStatusEvents(): HasMany
+    {
+        return $this->hasMany(SellerStatusEvent::class);
+    }
+
+    public function moderationReportsMade(): HasMany
+    {
+        return $this->hasMany(ModerationReport::class, 'reporter_id');
+    }
+
+    public function moderationReportsReceived(): HasMany
+    {
+        return $this->hasMany(ModerationReport::class, 'reported_user_id');
+    }
+
+    public function suspiciousActivityLogs(): HasMany
+    {
+        return $this->hasMany(SuspiciousActivityLog::class);
+    }
+
+    public function emailPreferenceTokens(): HasMany
+    {
+        return $this->hasMany(EmailPreferenceToken::class);
+    }
+
+    public function emailCampaignLogs(): HasMany
+    {
+        return $this->hasMany(EmailCampaignLog::class);
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        event(new \App\Events\PasswordResetRequested(
+            $this,
+            $token,
+            url('/reset-password/'.$token.'?email='.urlencode((string) $this->email)),
+        ));
+    }
+
+    public function sendEmailVerificationNotification(): void
+    {
+        event(new \App\Events\EmailVerificationRequested($this));
     }
 }

@@ -11,6 +11,10 @@ use Illuminate\Validation\ValidationException;
 
 class UserWalletService
 {
+    public function __construct(private readonly EmailService $emails)
+    {
+    }
+
     public function wallet(User $user): UserWallet
     {
         return $user->wallet()->firstOrCreate([], [
@@ -29,7 +33,7 @@ class UserWalletService
 
             $wallet->increment('balance_cents', $amountCents);
 
-            return $wallet->transactions()->create([
+            $transaction = $wallet->transactions()->create([
                 'user_id' => $user->id,
                 'code' => $this->nextCode(),
                 'type' => 'deposit',
@@ -41,6 +45,15 @@ class UserWalletService
                 'metadata' => ['note' => $note],
                 'processed_at' => now(),
             ]);
+
+            DB::afterCommit(fn () => $this->emails->queueTemplateEmail('balance_added_successfully', $user, [
+                'transaction_id' => $transaction->code,
+                'order_amount' => '$'.number_format($amountCents / 100, 2),
+                'action_url' => '/dashboard/payments',
+                'notification_detail' => 'Your wallet balance was updated successfully.',
+            ]));
+
+            return $transaction;
         });
     }
 
@@ -65,6 +78,63 @@ class UserWalletService
                 'currency' => $wallet->currency,
                 'status' => 'completed',
                 'method' => 'wallet_balance',
+                'description' => $description,
+                'metadata' => $metadata,
+                'processed_at' => now(),
+            ]);
+        });
+    }
+
+    public function refund(User $user, int $amountCents, string $description, array $metadata = []): WalletTransaction
+    {
+        return DB::transaction(function () use ($user, $amountCents, $description, $metadata) {
+            $wallet = UserWallet::whereKey($this->wallet($user)->id)->lockForUpdate()->firstOrFail();
+
+            $wallet->increment('balance_cents', $amountCents);
+            $wallet->increment('refunded_cents', $amountCents);
+
+            return $wallet->transactions()->create([
+                'user_id' => $user->id,
+                'code' => $this->nextCode(),
+                'type' => 'refund',
+                'amount_cents' => abs($amountCents),
+                'currency' => $wallet->currency,
+                'status' => 'completed',
+                'method' => 'wallet_balance',
+                'description' => $description,
+                'metadata' => $metadata,
+                'processed_at' => now(),
+            ]);
+        });
+    }
+
+    public function record(
+        User $user,
+        string $type,
+        int $amountCents,
+        string $status,
+        string $method,
+        string $description,
+        array $metadata = [],
+        bool $adjustBalance = false
+    ): WalletTransaction {
+        return DB::transaction(function () use ($user, $type, $amountCents, $status, $method, $description, $metadata, $adjustBalance) {
+            $wallet = UserWallet::whereKey($this->wallet($user)->id)->lockForUpdate()->firstOrFail();
+
+            if ($adjustBalance && $status === 'completed') {
+                $amountCents >= 0
+                    ? $wallet->increment('balance_cents', $amountCents)
+                    : $wallet->decrement('balance_cents', abs($amountCents));
+            }
+
+            return $wallet->transactions()->create([
+                'user_id' => $user->id,
+                'code' => $this->nextCode(),
+                'type' => $type,
+                'amount_cents' => $amountCents,
+                'currency' => $wallet->currency,
+                'status' => $status,
+                'method' => $method,
                 'description' => $description,
                 'metadata' => $metadata,
                 'processed_at' => now(),

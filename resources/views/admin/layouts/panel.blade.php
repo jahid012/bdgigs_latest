@@ -8,6 +8,7 @@
         $navItems = [
             ['label' => 'Overview', 'route' => 'admin.dashboard', 'permission' => 'admin.access'],
             ['label' => 'Users', 'route' => 'admin.users', 'permission' => 'users.view'],
+            ['label' => 'Seller Applications', 'route' => 'admin.seller-applications', 'permission' => 'users.verify'],
             ['label' => 'Gigs', 'route' => 'admin.gigs', 'permission' => 'gigs.view'],
             ['label' => 'Categories', 'route' => 'admin.marketplace-categories', 'permission' => 'categories.manage'],
             ['label' => 'Creator Content', 'route' => 'admin.creator-marketplace', 'permission' => 'content.manage'],
@@ -17,6 +18,10 @@
             ['label' => 'Withdrawals', 'route' => 'admin.withdrawals', 'permission' => 'withdrawals.view'],
             ['label' => 'Disputes', 'route' => 'admin.disputes', 'permission' => 'disputes.view'],
             ['label' => 'Reports', 'route' => 'admin.reports', 'permission' => 'reports.view'],
+            ['label' => 'Moderation Reports', 'route' => 'admin.moderation-reports', 'permission' => 'reports.view'],
+            ['label' => 'Suspicious Activity', 'route' => 'admin.suspicious-activities', 'permission' => 'security.view'],
+            ['label' => 'Email Templates', 'route' => 'admin.email-templates', 'permission' => 'emails.manage'],
+            ['label' => 'Email Logs', 'route' => 'admin.email-logs', 'permission' => 'emails.manage'],
             ['label' => 'Settings', 'route' => 'admin.settings', 'permission' => 'settings.view'],
             ['label' => 'Access Control', 'route' => 'admin.roles', 'permission' => 'roles.manage'],
         ];

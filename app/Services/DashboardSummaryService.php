@@ -73,7 +73,7 @@ class DashboardSummaryService
                 $this->stat('Unread Messages', $this->unreadCount($user), $this->plural($this->unreadCount($user), 'thread update', 'thread updates'), 'message'),
             ],
             'highlights' => [
-                ['label' => 'Live gigs', 'value' => (string) $user->gigs()->where('status', 'Live')->count()],
+                ['label' => 'Live gigs', 'value' => (string) $user->gigs()->whereIn('status', ['Live', 'Published', 'approved'])->count()],
                 ['label' => 'Next due', 'value' => $this->nextDueLabel($activeOrders)],
                 ['label' => 'Active buyers', 'value' => (string) $activeOrders->pluck('buyer_id')->filter()->unique()->count()],
             ],

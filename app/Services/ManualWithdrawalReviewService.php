@@ -2,17 +2,16 @@
 
 namespace App\Services;
 
+use App\Events\WithdrawalApproved;
+use App\Events\WithdrawalFailed;
+use App\Events\WithdrawalPaid;
+use App\Events\WithdrawalRejected;
 use App\Models\User;
 use App\Models\WithdrawalRequest;
-use App\Support\MarketplaceNotifier;
 use Illuminate\Support\Facades\DB;
 
 class ManualWithdrawalReviewService
 {
-    public function __construct(private readonly MarketplaceNotifier $notifier)
-    {
-    }
-
     public function decide(
         WithdrawalRequest $withdrawal,
         User $admin,
@@ -25,6 +24,7 @@ class ManualWithdrawalReviewService
                 'approve' => $this->approve($withdrawal, $admin, $note),
                 'reject' => $this->reject($withdrawal, $admin, $note),
                 'mark_paid' => $this->markPaid($withdrawal, $admin, $note, $paymentReference),
+                'mark_failed' => $this->markFailed($withdrawal, $admin, $note),
             };
         });
     }
@@ -96,6 +96,26 @@ class ManualWithdrawalReviewService
         );
     }
 
+    private function markFailed(WithdrawalRequest $withdrawal, User $admin, ?string $note): WithdrawalRequest
+    {
+        abort_unless(in_array($withdrawal->status, ['approved', 'paid'], true), 422, 'Only approved or paid withdrawals can be marked failed.');
+
+        $withdrawal->forceFill([
+            'status' => 'failed',
+            'review_note' => $note ?: $withdrawal->review_note,
+            'reviewed_by' => $admin->id,
+            'reviewed_at' => now(),
+        ])->save();
+
+        return $this->record(
+            $withdrawal,
+            $admin,
+            'failed',
+            'Withdrawal marked failed',
+            $note ?: 'Finance marked this manual payout as failed.',
+        );
+    }
+
     private function record(
         WithdrawalRequest $withdrawal,
         User $admin,
@@ -110,14 +130,17 @@ class ManualWithdrawalReviewService
             'detail' => $detail,
         ]);
 
-        $this->notifier->notify(
-            $withdrawal->seller,
-            'Withdrawal',
-            $title,
-            $withdrawal->code.': '.$detail,
-            '/dashboard/seller/earnings',
-            ['withdrawal' => $withdrawal->code, 'status' => $withdrawal->status],
-        );
+        DB::afterCommit(function () use ($withdrawal, $admin) {
+            $fresh = $withdrawal->fresh(['seller', 'payoutMethod', 'reviewer', 'payer', 'activities']);
+
+            match ($fresh->status) {
+                'approved' => event(new WithdrawalApproved($fresh, $admin)),
+                'rejected' => event(new WithdrawalRejected($fresh, $admin)),
+                'paid' => event(new WithdrawalPaid($fresh, $admin)),
+                'failed' => event(new WithdrawalFailed($fresh, $admin, $fresh->review_note)),
+                default => null,
+            };
+        });
 
         return $withdrawal->refresh(['seller', 'payoutMethod', 'reviewer', 'payer', 'activities']);
     }

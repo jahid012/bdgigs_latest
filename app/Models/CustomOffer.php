@@ -14,6 +14,7 @@ class CustomOffer extends Model
         'declined',
         'expired',
         'cancelled',
+        'payment_failed',
     ];
 
     protected $fillable = [
@@ -34,6 +35,7 @@ class CustomOffer extends Model
         'expires_at',
         'accepted_at',
         'paid_at',
+        'payment_failed_at',
         'declined_at',
         'cancelled_at',
         'metadata',
@@ -47,6 +49,7 @@ class CustomOffer extends Model
             'expires_at' => 'datetime',
             'accepted_at' => 'datetime',
             'paid_at' => 'datetime',
+            'payment_failed_at' => 'datetime',
             'declined_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'metadata' => 'array',

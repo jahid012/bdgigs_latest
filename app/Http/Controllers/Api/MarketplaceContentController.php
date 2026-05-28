@@ -56,7 +56,7 @@ class MarketplaceContentController extends Controller
         }
 
         $gigs = Gig::query()
-            ->whereIn('status', ['Live', 'Published'])
+            ->whereIn('status', ['Live', 'Published', 'approved'])
             ->where(function ($gigs) use ($query) {
                 $gigs
                     ->where('title', 'like', "%{$query}%")
@@ -95,7 +95,7 @@ class MarketplaceContentController extends Controller
             ]);
 
         $keywords = Gig::query()
-            ->whereIn('status', ['Live', 'Published'])
+            ->whereIn('status', ['Live', 'Published', 'approved'])
             ->where('category_label', 'like', "%{$query}%")
             ->select('category_label')
             ->distinct()

@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Requests\Admin\RefundOrderRequest;
 use App\Http\Requests\Admin\UpdateAdminOrderStatusRequest;
 use App\Models\Order;
 use App\Services\AdminOrderStatusService;
+use App\Services\OrderCancellationService;
+use App\Services\OrderPaymentLifecycleService;
 use Illuminate\Http\Request;
 
 class OrderController extends AdminController
@@ -102,6 +105,9 @@ class OrderController extends AdminController
             'manualPaymentSubmission.method',
             'manualPaymentSubmission.reviewer',
             'disputes.assignedTo',
+            'invoice',
+            'latestCancellation.requester',
+            'latestCancellation.responder',
         ]);
 
         return $this->panelView('admin.pages.order-details', [
@@ -114,8 +120,8 @@ class OrderController extends AdminController
             'stats' => [
                 ['label' => 'Order value', 'value' => $this->money((int) $order->price_cents), 'meta' => 'Buyer amount'],
                 ['label' => 'Seller earnings', 'value' => $this->money((int) $order->earnings_cents), 'meta' => 'Current order record'],
+                ['label' => 'Payment', 'value' => str($order->payment_status ?: 'unpaid')->replace('_', ' ')->title()->toString(), 'meta' => $order->transaction_id ?: 'No transaction'],
                 ['label' => 'Due date', 'value' => $order->due_date?->format('M j') ?? 'None', 'meta' => $order->due_date?->diffForHumans() ?? 'No delivery date'],
-                ['label' => 'Activity', 'value' => number_format($order->activities->count()), 'meta' => 'Audit entries'],
             ],
         ]);
     }
@@ -128,6 +134,35 @@ class OrderController extends AdminController
         $statuses->update($order, $request->user(), $request->validated()['status']);
 
         return back()->withNotify('success', 'Order #'.$order->code.' is now '.$request->validated()['status'].'.', 'Order updated');
+    }
+
+    public function refund(
+        RefundOrderRequest $request,
+        Order $order,
+        OrderPaymentLifecycleService $payments
+    ) {
+        $payments->refund(
+            $order->loadMissing(['buyer', 'seller', 'gig']),
+            $request->user(),
+            $request->amountCents(),
+            $request->validated('reason'),
+        );
+
+        return back()->withNotify('success', 'Order #'.$order->code.' was refunded.', 'Refund processed');
+    }
+
+    public function cancel(
+        Request $request,
+        Order $order,
+        OrderCancellationService $cancellations
+    ) {
+        $payload = $request->validate([
+            'reason' => ['required', 'string', 'min:10', 'max:1000'],
+        ]);
+
+        $cancellations->adminCancel($order->loadMissing(['buyer', 'seller']), $request->user(), $payload['reason']);
+
+        return back()->withNotify('success', 'Order #'.$order->code.' was cancelled.', 'Order cancelled');
     }
 
     private function lateOrdersQuery()
@@ -156,8 +191,10 @@ class OrderController extends AdminController
         return [
             'Pending Payment Review',
             'Payment Rejected',
-            'Pending Requirements',
+            'Waiting for Requirements',
+            'Requirements Submitted',
             'In Progress',
+            'Overdue',
             'Revision Requested',
             'Delivered',
             'Completed',

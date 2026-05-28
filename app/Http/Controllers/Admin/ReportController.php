@@ -35,7 +35,7 @@ class ReportController extends AdminController
             'stats' => [
                 ['label' => 'Users today', 'value' => number_format(User::whereDate('created_at', now()->toDateString())->count()), 'meta' => 'New registrations'],
                 ['label' => 'Verified users', 'value' => number_format(User::where('verification_status', 'verified')->count()), 'meta' => 'Admin or email verified'],
-                ['label' => 'Published gigs', 'value' => number_format(Gig::whereIn('status', ['Live', 'Published'])->count()), 'meta' => number_format(Gig::where('created_at', '>=', now()->startOfMonth())->count()).' this month'],
+                ['label' => 'Published gigs', 'value' => number_format(Gig::whereIn('status', ['Live', 'Published', 'approved'])->count()), 'meta' => number_format(Gig::where('created_at', '>=', now()->startOfMonth())->count()).' this month'],
                 ['label' => 'Gross orders', 'value' => $this->money((int) Order::sum('price_cents')), 'meta' => number_format(Order::count()).' orders'],
             ],
             'marketplaceGrowth' => $this->marketplaceGrowthChart($growthFrom, $growthTo),

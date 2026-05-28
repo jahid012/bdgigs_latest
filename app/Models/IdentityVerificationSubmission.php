@@ -17,6 +17,11 @@ class IdentityVerificationSubmission extends Model
         'document_path',
         'submitted_at',
         'reviewed_at',
+        'reviewed_by',
+        'review_note',
+        'additional_document_requested_at',
+        'additional_document_note',
+        'metadata',
     ];
 
     protected function casts(): array
@@ -25,11 +30,18 @@ class IdentityVerificationSubmission extends Model
             'details' => 'array',
             'submitted_at' => 'datetime',
             'reviewed_at' => 'datetime',
+            'additional_document_requested_at' => 'datetime',
+            'metadata' => 'array',
         ];
     }
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 }

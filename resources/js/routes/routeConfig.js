@@ -4,11 +4,13 @@ import BuyerOrdersPage from "../pages/BuyerOrdersPage.jsx";
 import DashboardProfilePage from "../pages/DashboardProfilePage.jsx";
 import DashboardSettingsPage from "../pages/DashboardSettingsPage.jsx";
 import EarningsPage from "../pages/EarningsPage.jsx";
+import ForgotPasswordPage from "../pages/ForgotPasswordPage.jsx";
 import GigDetailsPage from "../pages/GigDetailsPage.jsx";
 import GigListingPage from "../pages/GigListingPage.jsx";
 import HomePage from "../pages/HomePage.jsx";
 import OrderDetailsPage from "../pages/OrderDetailsPage.jsx";
 import PaymentsPage from "../pages/PaymentsPage.jsx";
+import ResetPasswordPage from "../pages/ResetPasswordPage.jsx";
 import SavedServicesPage from "../pages/SavedServicesPage.jsx";
 import SellerDashboardPage from "../pages/SellerDashboardPage.jsx";
 import SellerGigEditorPage from "../pages/SellerGigEditorPage.jsx";
@@ -16,6 +18,7 @@ import SellerMessagesPage from "../pages/SellerMessagesPage.jsx";
 import SellerOrdersPage from "../pages/SellerOrdersPage.jsx";
 import SellerServicesPage from "../pages/SellerServicesPage.jsx";
 import UserProfilePage from "../pages/UserProfilePage.jsx";
+import VerifyEmailPage from "../pages/VerifyEmailPage.jsx";
 
 export const HOME_ROUTE = {
     key: "home",
@@ -244,6 +247,37 @@ export const MARKETPLACE_ROUTES = [
     },
 ];
 
+export const AUTH_ROUTES = [
+    {
+        key: "verify-email",
+        path: "/verify-email",
+        documentTitle: "Verify Email | bdgigs",
+        Component: VerifyEmailPage,
+        withNavigation: true,
+    },
+    {
+        key: "verify-email-status",
+        path: "/verify-email/:status",
+        documentTitle: "Verify Email | bdgigs",
+        Component: VerifyEmailPage,
+        withNavigation: true,
+    },
+    {
+        key: "forgot-password",
+        path: "/forgot-password",
+        documentTitle: "Forgot Password | bdgigs",
+        Component: ForgotPasswordPage,
+        withNavigation: true,
+    },
+    {
+        key: "reset-password",
+        path: "/reset-password/:token",
+        documentTitle: "Reset Password | bdgigs",
+        Component: ResetPasswordPage,
+        withNavigation: true,
+    },
+];
+
 export const SELLER_GIG_ROUTES = [
     {
         key: "seller-gig-create",
@@ -267,6 +301,7 @@ export const SELLER_GIG_ROUTES = [
 
 const APP_ROUTES = [
     HOME_ROUTE,
+    ...AUTH_ROUTES,
     ...MARKETPLACE_ROUTES,
     ...SELLER_GIG_ROUTES,
     ...DASHBOARD_ROUTES,
@@ -287,6 +322,14 @@ export function getPageKind(pathname) {
 
     if (path.startsWith("/dashboard")) {
         return "dashboard";
+    }
+
+    if (
+        path.startsWith("/verify-email") ||
+        path.startsWith("/forgot-password") ||
+        path.startsWith("/reset-password")
+    ) {
+        return "home";
     }
 
     if (
@@ -360,6 +403,18 @@ export function getDocumentTitle(pathname) {
 
     if (path.startsWith("/categories")) {
         return "Category Gigs | bdgigs";
+    }
+
+    if (path.startsWith("/verify-email")) {
+        return "Verify Email | bdgigs";
+    }
+
+    if (path.startsWith("/forgot-password")) {
+        return "Forgot Password | bdgigs";
+    }
+
+    if (path.startsWith("/reset-password")) {
+        return "Reset Password | bdgigs";
     }
 
     if (path.startsWith("/dashboard/seller")) {

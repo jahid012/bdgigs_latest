@@ -208,12 +208,13 @@ class AdminPanelDynamicTest extends TestCase
         $this->actingAs($this->admin)
             ->patch(route('admin.gigs.status', $gig), [
                 'action' => 'reject',
+                'reason' => 'The service needs clearer scope before approval.',
             ])
             ->assertRedirect();
 
         $gig->refresh();
 
-        $this->assertSame('Rejected', $gig->status);
+        $this->assertSame('rejected', $gig->status);
         $this->assertSame('status-cancelled', $gig->status_class);
     }
 
@@ -373,7 +374,7 @@ class AdminPanelDynamicTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame('approved', $submission->fresh()->status);
-        $this->assertSame('Pending Requirements', $submission->order->fresh()->status);
+        $this->assertSame('Waiting for Requirements', $submission->order->fresh()->status);
     }
 
     public function test_admin_can_review_and_mark_manual_withdrawal_paid(): void

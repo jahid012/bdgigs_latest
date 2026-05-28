@@ -221,6 +221,8 @@ class MarketplaceApiTest extends TestCase
 
     public function test_seller_can_pause_preview_activate_and_soft_delete_own_service(): void
     {
+        $this->user->forceFill(['seller_status' => 'approved'])->save();
+
         $gig = Gig::factory()->withSeller($this->user)->create([
             'slug' => 'seller-lifecycle-gig',
             'status' => 'Live',
@@ -244,7 +246,8 @@ class MarketplaceApiTest extends TestCase
                 'action' => 'activate',
             ])
             ->assertOk()
-            ->assertJsonPath('data.status', 'Live');
+            ->assertJsonPath('data.status', 'Approved')
+            ->assertJsonPath('data.statusKey', 'live');
 
         $this->actingAs($this->user)
             ->deleteJson("/api/seller/services/{$gig->slug}")

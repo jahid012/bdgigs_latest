@@ -4,13 +4,20 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\UserNotification;
+use App\Support\EmailTemplateDefaults;
 use Illuminate\Support\Str;
 
 class NotificationPreferenceService
 {
     private const TYPE_TO_PREFERENCE = [
         'message' => 'inboxMessages',
+        'custom_offer' => 'customOffers',
+        'dispute' => 'disputes',
+        'resolution' => 'disputes',
+        'review' => 'ratingReminders',
         'order' => 'orderUpdates',
+        'payment' => 'payments',
+        'wallet' => 'payments',
         'manual_payment_review' => 'orderUpdates',
         'withdrawal' => 'payouts',
         'gig update' => 'gigUpdates',
@@ -60,6 +67,15 @@ class NotificationPreferenceService
 
     public function allowsEmail(User $user, string $preferenceKey): bool
     {
+        $emailType = EmailTemplateDefaults::categoryForPreferenceKey($preferenceKey);
+        $explicit = $user->emailPreferences()
+            ->where('email_type', $emailType)
+            ->first();
+
+        if ($explicit) {
+            return $explicit->is_enabled;
+        }
+
         $preference = $user->notificationPreference()->first();
         $preferences = $preference?->preferences ?: [];
 
@@ -72,5 +88,25 @@ class NotificationPreferenceService
         }
 
         return true;
+    }
+
+    public function syncEmailPreferencesFromDashboard(User $user, array $preferences): void
+    {
+        foreach ($preferences as $preferenceKey => $channels) {
+            if (! is_array($channels) || ! array_key_exists('email', $channels)) {
+                continue;
+            }
+
+            $user->emailPreferences()->updateOrCreate(
+                ['email_type' => $emailType = EmailTemplateDefaults::categoryForPreferenceKey((string) $preferenceKey)],
+                ['is_enabled' => (bool) $channels['email']],
+            );
+
+            if ($emailType === 'marketing') {
+                $user->forceFill([
+                    'marketing_unsubscribed_at' => (bool) $channels['email'] ? null : now(),
+                ])->save();
+            }
+        }
     }
 }

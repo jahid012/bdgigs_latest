@@ -102,6 +102,12 @@
                                                         <button class="is-danger" type="submit">Suspend account</button>
                                                     </form>
                                                 @endif
+                                                @if ($user['can_deactivate'])
+                                                    <form method="POST" action="{{ route('admin.users.deactivate', $user['id']) }}">
+                                                        @csrf
+                                                        <button class="is-danger" type="submit">Deactivate account</button>
+                                                    </form>
+                                                @endif
                                             @endcan
                                         </div>
                                     </details>

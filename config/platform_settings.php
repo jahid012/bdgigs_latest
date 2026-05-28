@@ -61,6 +61,7 @@ return [
             'description' => 'Protect marketplace communication, uploads, localization, and admin access.',
             'settings' => [
                 ['type' => 'toggle', 'name' => 'block_external_contact', 'label' => 'Block external contact sharing', 'description' => 'Detect and restrict messages that move work outside the platform.', 'value' => true],
+                ['type' => 'toggle', 'name' => 'login_security_alerts_enabled', 'label' => 'Login security alerts', 'description' => 'Email users when a new device or IP address signs in.', 'value' => true],
                 ['type' => 'number', 'name' => 'file_upload_limit', 'label' => 'Maximum file upload size', 'description' => 'Largest file size allowed in messages and order delivery.', 'value' => 50, 'suffix' => 'MB'],
                 ['type' => 'text', 'name' => 'allowed_file_types', 'label' => 'Allowed file types', 'description' => 'Comma-separated extensions allowed in delivery and messages.', 'value' => 'jpg, png, pdf, zip, mp4'],
                 ['type' => 'select', 'name' => 'default_language', 'label' => 'Default platform language', 'description' => 'Fallback language for public pages and dashboards.', 'value' => 'English', 'options' => ['English', 'Bangla']],

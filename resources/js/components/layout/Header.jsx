@@ -725,6 +725,7 @@ function Header({
                 <AuthModal
                     mode={authMode}
                     onClose={() => setAuthMode(null)}
+                    onNavigate={onNavigate}
                     onSuccess={handleAuthSuccess}
                     onModeChange={setAuthMode}
                 />
@@ -964,7 +965,7 @@ function HeaderFeedMenu({
     );
 }
 
-function AuthModal({ mode, onClose, onModeChange, onSuccess }) {
+function AuthModal({ mode, onClose, onModeChange, onNavigate, onSuccess }) {
     const { t } = useTranslation();
     const isRegister = mode === "register";
     const login = useSessionStore((state) => state.login);
@@ -1056,6 +1057,10 @@ function AuthModal({ mode, onClose, onModeChange, onSuccess }) {
                     error.message,
             );
         }
+    };
+    const openForgotPassword = () => {
+        onClose?.();
+        onNavigate?.("/forgot-password");
     };
 
     return (
@@ -1282,6 +1287,7 @@ function AuthModal({ mode, onClose, onModeChange, onSuccess }) {
                                 <button
                                     className="auth-forgot-link"
                                     type="button"
+                                    onClick={openForgotPassword}
                                 >
                                     Forgot password?
                                 </button>

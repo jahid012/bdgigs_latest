@@ -38,7 +38,7 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::authenticateUsing(function (Request $request) {
             $user = \App\Models\User::where('email', $request->input('email'))->first();
 
-            if (! $user || $user->deactivated_at || ! Hash::check((string) $request->input('password'), $user->password)) {
+            if (! $user || $user->deactivated_at || $user->suspended_at || ! Hash::check((string) $request->input('password'), $user->password)) {
                 return null;
             }
 

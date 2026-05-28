@@ -79,9 +79,9 @@ abstract class AdminController extends Controller
     protected function gigStatusClass(string $status): string
     {
         return match (strtolower($status)) {
-            'live', 'published' => 'status-completed',
-            'rejected' => 'status-cancelled',
-            'paused', 'pending', 'needs edit', 'review', 'optimize' => 'status-delivered',
+            'live', 'published', 'approved' => 'status-completed',
+            'rejected', 'deactivated' => 'status-cancelled',
+            'paused', 'pending', 'pending_review', 'needs edit', 'review', 'draft', 'optimize' => 'status-delivered',
             default => 'status-progress',
         };
     }
@@ -110,7 +110,7 @@ abstract class AdminController extends Controller
             ->whereNotIn('status', ['Delivered', 'Completed', 'Cancelled'])
             ->count();
         $reviewGigs = Gig::query()
-            ->whereNotIn('status', ['Live', 'Published'])
+            ->whereNotIn('status', ['Live', 'Published', 'approved'])
             ->count();
         $priorityMessages = Conversation::query()
             ->where(function ($query) {

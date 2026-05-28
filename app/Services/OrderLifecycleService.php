@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Events\RevisionDelivered;
+use App\Events\SellerStartedWorking;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -15,6 +17,37 @@ class OrderLifecycleService
 {
     public function __construct(private readonly OrderEventNotificationService $events)
     {
+    }
+
+    public function startWork(Order $order, User $seller): Order
+    {
+        if ((int) $order->seller_id !== (int) $seller->id) {
+            throw new AuthorizationException('Only the seller can start work.');
+        }
+
+        if (! $this->requirementsSubmitted($order)) {
+            throw ValidationException::withMessages([
+                'requirements' => 'Buyer requirements must be submitted before work can start.',
+            ]);
+        }
+
+        if (! in_array($this->normalizedStatus($order), ['requirements submitted', 'waiting for requirements', 'pending requirements'], true)) {
+            throw ValidationException::withMessages([
+                'order' => 'This order is not waiting for seller start.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($order, $seller) {
+            $order->forceFill([
+                'status' => 'In Progress',
+                'status_class' => 'status-progress',
+                'work_started_at' => $order->work_started_at ?: now(),
+            ])->save();
+
+            DB::afterCommit(fn () => event(new SellerStartedWorking($order->fresh(['buyer', 'seller', 'gig']), $seller)));
+
+            return $order->refresh();
+        });
     }
 
     public function submitDelivery(Order $order, User $seller, array $payload): Order
@@ -36,6 +69,7 @@ class OrderLifecycleService
         }
 
         return DB::transaction(function () use ($order, $seller, $payload) {
+            $isRevisionDelivery = $this->normalizedStatus($order) === 'revision requested';
             $metadata = $order->metadata ?: [];
             $deliveries = collect($metadata['deliveries'] ?? []);
             $delivery = [
@@ -47,6 +81,7 @@ class OrderLifecycleService
                     ->values()
                     ->all(),
                 'status' => 'submitted',
+                'type' => $isRevisionDelivery ? 'revision' : 'delivery',
                 'submittedAt' => now()->toISOString(),
                 'submittedBy' => $seller->id,
             ];
@@ -59,15 +94,22 @@ class OrderLifecycleService
                 'status_class' => 'status-completed',
             ])->save();
 
-            $order->activities()->create([
-                'actor_id' => $seller->id,
-                'type' => 'delivery_submitted',
-                'title' => 'Delivery submitted',
-                'detail' => $seller->name.' submitted the delivery for buyer review.',
-                'metadata' => ['delivery_id' => $delivery['id']],
-            ]);
+            if ($isRevisionDelivery) {
+                DB::afterCommit(fn () => event(new RevisionDelivered(
+                    $order->fresh(['buyer', 'seller', 'gig']),
+                    $delivery,
+                )));
+            } else {
+                $order->activities()->create([
+                    'actor_id' => $seller->id,
+                    'type' => 'delivery_submitted',
+                    'title' => 'Delivery submitted',
+                    'detail' => $seller->name.' submitted the delivery for buyer review.',
+                    'metadata' => ['delivery_id' => $delivery['id']],
+                ]);
+            }
 
-            if ($order->buyer) {
+            if (! $isRevisionDelivery && $order->buyer) {
                 $this->events->send(
                     $order->buyer,
                     'order_delivery_submitted',
@@ -161,10 +203,13 @@ class OrderLifecycleService
 
             $metadata['deliveries'] = $deliveries->values()->all();
 
+            $reviewDeadline = $order->review_period_expires_at ?: now()->addDays(OrderReviewService::DEADLINE_DAYS)->endOfDay();
+
             $order->forceFill([
                 'metadata' => $metadata,
                 'status' => 'Completed',
                 'status_class' => 'status-completed',
+                'review_period_expires_at' => $reviewDeadline,
             ])->save();
 
             $order->activities()->create([
@@ -185,6 +230,19 @@ class OrderLifecycleService
                 );
             }
 
+            $this->events->send(
+                $buyer,
+                'buyer_review_request',
+                'Review your completed order',
+                'Order #'.$order->code.' is complete. Share your review within 15 days.',
+                '/dashboard/orders/'.$order->code,
+                [
+                    'preferenceKey' => 'ratingReminders',
+                    'orderId' => $order->code,
+                    'review_deadline' => $reviewDeadline->format('M j, Y'),
+                ],
+            );
+
             return $order->refresh();
         });
     }
@@ -192,6 +250,23 @@ class OrderLifecycleService
     private function normalizedStatus(Order $order): string
     {
         return strtolower((string) $order->status);
+    }
+
+    private function requirementsSubmitted(Order $order): bool
+    {
+        if (! empty($order->metadata['requirementsSubmittedAt'])) {
+            return true;
+        }
+
+        $items = collect($order->metadata['requirements'] ?? []);
+
+        if ($items->isEmpty()) {
+            return true;
+        }
+
+        return $items
+            ->filter(fn (array $item) => (bool) ($item['required'] ?? false))
+            ->every(fn (array $item) => filled($item['answer'] ?? null) || count($item['files'] ?? []) > 0);
     }
 
     private function storeDeliveryFile(Order $order, UploadedFile $file): array

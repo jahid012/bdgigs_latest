@@ -49,6 +49,19 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
+        'phpmailer' => [
+            'transport' => 'phpmailer',
+            'host' => env('MAIL_HOST', '127.0.0.1'),
+            'port' => env('MAIL_PORT', 587),
+            'username' => env('MAIL_USERNAME'),
+            'password' => env('MAIL_PASSWORD'),
+            'encryption' => env('MAIL_ENCRYPTION', env('MAIL_SCHEME', 'tls')),
+            'timeout' => env('MAIL_TIMEOUT', 30),
+            'reply_to' => env('MAIL_REPLY_TO_ADDRESS'),
+            'reply_to_name' => env('MAIL_REPLY_TO_NAME', env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel'))),
+            'debug' => env('MAIL_DEBUG', false),
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],

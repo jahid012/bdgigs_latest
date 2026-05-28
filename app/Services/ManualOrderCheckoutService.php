@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\OrderPlaced;
 use App\Models\Gig;
 use App\Models\ManualPaymentMethod;
 use App\Models\Order;
@@ -11,8 +12,13 @@ use Illuminate\Support\Str;
 
 class ManualOrderCheckoutService
 {
+    public function __construct(private readonly OrderPaymentLifecycleService $payments)
+    {
+    }
+
     public function create(User $buyer, Gig $gig, array $payload): Order
     {
+        $this->payments->ensureVerifiedBuyer($buyer);
         abort_unless($gig->seller, 422, 'This gig does not have an available seller.');
         abort_if($gig->seller_id === $buyer->id, 422, 'You cannot order your own gig.');
 
@@ -40,6 +46,9 @@ class ManualOrderCheckoutService
                 'seller_name' => $gig->seller->name,
                 'status' => 'Pending Payment Review',
                 'status_class' => 'status-delivered',
+                'payment_status' => 'pending',
+                'payment_method' => 'manual_payment',
+                'transaction_id' => trim($payload['reference']),
                 'due_date' => now()->addDays($this->deliveryDays($package, $gig))->toDateString(),
                 'price_cents' => $priceCents,
                 'earnings_cents' => (int) round($priceCents * 0.85),
@@ -81,6 +90,8 @@ class ManualOrderCheckoutService
                 'title' => 'Manual payment submitted',
                 'detail' => 'The buyer created the order and submitted a payment reference for admin review.',
             ]);
+
+            DB::afterCommit(fn () => event(new OrderPlaced($order->fresh(['buyer', 'seller', 'gig']))));
 
             return $order->load(['buyer', 'seller', 'gig', 'activities', 'manualPaymentSubmission.method']);
         });

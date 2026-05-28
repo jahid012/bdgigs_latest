@@ -40,6 +40,12 @@ class Gig extends Model
         'conversion_label',
         'status',
         'status_class',
+        'submitted_for_review_at',
+        'moderated_by',
+        'moderated_at',
+        'moderation_reason',
+        'paused_at',
+        'deactivated_at',
         'packages',
         'extras',
         'requirements',
@@ -64,6 +70,10 @@ class Gig extends Model
             'extras' => 'array',
             'requirements' => 'array',
             'gallery_images' => 'array',
+            'submitted_for_review_at' => 'datetime',
+            'moderated_at' => 'datetime',
+            'paused_at' => 'datetime',
+            'deactivated_at' => 'datetime',
             'metadata' => 'array',
         ];
     }
@@ -91,5 +101,15 @@ class Gig extends Model
     public function media(): HasMany
     {
         return $this->hasMany(GigMedia::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function moderationEvents(): HasMany
+    {
+        return $this->hasMany(GigModerationEvent::class);
+    }
+
+    public function moderationReports(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(ModerationReport::class, 'reportable');
     }
 }

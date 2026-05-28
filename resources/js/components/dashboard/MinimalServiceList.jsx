@@ -412,7 +412,7 @@ function MinimalServiceRowsSkeleton() {
 function sellerServiceMatchesFilter(service, filter) {
     const status = sellerServiceStatusKey(service);
 
-    if (filter === "live") return ["live", "published"].includes(status);
+    if (filter === "live") return ["live", "published", "approved"].includes(status);
     if (filter === "review") {
         return ["needs-edit", "pending", "rejected", "review"].includes(status);
     }

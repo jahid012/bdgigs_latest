@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Events\DisputeEvidenceSubmitted;
+use App\Events\DisputeOpened;
+use App\Events\DisputeResponseReceived;
 use App\Models\Dispute;
 use App\Models\Order;
 use App\Models\User;
@@ -11,11 +14,15 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Models\Permission;
+use App\Services\SuspiciousActivityService;
 
 class OrderDisputeService
 {
-    public function __construct(private readonly OrderEventNotificationService $events)
-    {
+    public function __construct(
+        private readonly OrderEventNotificationService $events,
+        private readonly EmailService $emails,
+    ) {
     }
 
     public function open(Order $order, User $actor, array $payload): Dispute
@@ -66,13 +73,21 @@ class OrderDisputeService
                 'detail' => $actor->name.' opened '.$dispute->case_code.' for '.$payload['reason'].'.',
             ]);
 
-            $this->notifyOtherParticipant(
-                $order,
-                $actor,
-                'dispute_opened',
-                'Resolution Center case opened',
-                $actor->name.' opened '.$dispute->case_code.' for order #'.$order->code.'.',
-            );
+            $recentDisputes = $actor->id
+                ? Dispute::where('opened_by_id', $actor->id)->where('created_at', '>=', now()->subDays(7))->count()
+                : 0;
+
+            if ($recentDisputes >= 3) {
+                app(SuspiciousActivityService::class)->log(
+                    $actor,
+                    'multiple_dispute_openings',
+                    $recentDisputes >= 5 ? 'critical' : 'high',
+                    'Multiple disputes were opened in a short period.',
+                    ['dispute_count' => $recentDisputes],
+                );
+            }
+
+            DB::afterCommit(fn () => event(new DisputeOpened($dispute->fresh(['order.buyer', 'order.seller', 'openedBy']))));
 
             return $dispute->fresh(['openedBy', 'activities.actor']);
         });
@@ -110,13 +125,59 @@ class OrderDisputeService
                 'detail' => Str::limit($message, 180),
             ]);
 
-            $this->notifyOtherParticipant(
-                $order,
+            DB::afterCommit(fn () => event(new DisputeResponseReceived(
+                $dispute->fresh(['order.buyer', 'order.seller', 'openedBy']),
                 $actor,
-                'dispute_updated',
-                'Resolution Center updated',
-                $actor->name.' added a message to the resolution case for order #'.$order->code.'.',
-            );
+                $message,
+            )));
+
+            return $dispute->refresh()->load(['openedBy', 'activities.actor']);
+        });
+    }
+
+    public function evidence(Order $order, Dispute $dispute, User $actor, array $payload): Dispute
+    {
+        $this->authorizeParticipant($order, $actor);
+        $this->ensureDisputeBelongsToOrder($order, $dispute);
+
+        if ($dispute->isTerminal()) {
+            throw ValidationException::withMessages([
+                'evidence' => 'Resolved or closed cases cannot receive new evidence.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($order, $dispute, $actor, $payload) {
+            $attachments = collect($payload['attachments'] ?? [])
+                ->filter(fn ($file) => $file instanceof UploadedFile)
+                ->map(fn (UploadedFile $file) => $this->storeAttachment($order, $file))
+                ->values()
+                ->all();
+            $note = $payload['note'] ?? $payload['message'] ?? 'Evidence submitted.';
+
+            $dispute->activities()->create([
+                'actor_id' => $actor->id,
+                'type' => 'evidence_submitted',
+                'title' => $actor->name.' submitted evidence',
+                'detail' => $note,
+                'metadata' => [
+                    'attachments' => $attachments,
+                    'actor_role' => $this->participantRole($order, $actor),
+                ],
+            ]);
+
+            $order->activities()->create([
+                'actor_id' => $actor->id,
+                'type' => 'resolution_evidence_submitted',
+                'title' => 'Dispute evidence submitted',
+                'detail' => Str::limit($note, 180),
+                'metadata' => ['dispute_id' => $dispute->id],
+            ]);
+
+            DB::afterCommit(fn () => event(new DisputeEvidenceSubmitted(
+                $dispute->fresh(['order.buyer', 'order.seller', 'openedBy']),
+                $actor,
+                ['note' => $note, 'attachments' => $attachments],
+            )));
 
             return $dispute->refresh()->load(['openedBy', 'activities.actor']);
         });
@@ -147,7 +208,7 @@ class OrderDisputeService
     private function activeDispute(Order $order): ?Dispute
     {
         return $order->disputes()
-            ->whereNotIn('status', ['resolved', 'closed'])
+            ->whereNotIn('status', ['resolved', 'rejected', 'closed'])
             ->latest()
             ->first();
     }
@@ -205,5 +266,16 @@ class OrderDisputeService
             'mimeType' => $file->getClientMimeType(),
             'size' => $file->getSize(),
         ];
+    }
+
+    private function notifyAdmins(string $templateKey, array $data): void
+    {
+        if (! Permission::where('name', 'disputes.view')->where('guard_name', 'web')->exists()) {
+            return;
+        }
+
+        User::permission('disputes.view')
+            ->get()
+            ->each(fn (User $admin) => $this->emails->queueTemplateEmail($templateKey, $admin, $data));
     }
 }

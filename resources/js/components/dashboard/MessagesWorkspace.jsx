@@ -73,7 +73,9 @@ function MessagesWorkspace({ variant = "buyer" }) {
     const [customOfferOptions, setCustomOfferOptions] = useState([]);
     const [customOfferLoading, setCustomOfferLoading] = useState("");
     const [draft, setDraft] = useState("");
+    const [attachments, setAttachments] = useState([]);
     const searchInputRef = useRef(null);
+    const attachmentInputRef = useRef(null);
     const textareaRef = useRef(null);
     const lastTypingSentAtRef = useRef(0);
     const workspaceRef = useRef(null);
@@ -166,13 +168,16 @@ function MessagesWorkspace({ variant = "buyer" }) {
     }, [activeConversationView, activeThread, savedMessages]);
     const handleSendMessage = async () => {
         const text = draft.trim();
-        if (!text || !activeThread?.id) return;
+        if ((!text && attachments.length === 0) || !activeThread?.id) return;
         setDraft("");
+        const files = attachments;
+        setAttachments([]);
 
         try {
-            await sendMessage(activeThread.id, text);
+            await sendMessage(activeThread.id, text, files);
         } catch {
             setDraft(text);
+            setAttachments(files);
         }
     };
     const openCustomOfferModal = async () => {
@@ -255,6 +260,11 @@ function MessagesWorkspace({ variant = "buyer" }) {
             event.preventDefault();
             handleSendMessage();
         }
+    };
+    const selectAttachments = (event) => {
+        const files = Array.from(event.target.files || []);
+        setAttachments(files.slice(0, 5));
+        event.target.value = "";
     };
     return (
         <main
@@ -722,6 +732,30 @@ function MessagesWorkspace({ variant = "buyer" }) {
                                                     }
                                                 />
                                             ) : null}
+                                            {message.attachments?.length ? (
+                                                <div className="message-attachments">
+                                                    {message.attachments.map(
+                                                        (attachment) => (
+                                                            <a
+                                                                href={
+                                                                    attachment.url ||
+                                                                    "#files"
+                                                                }
+                                                                key={
+                                                                    attachment.id ||
+                                                                    attachment.name
+                                                                }
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                            >
+                                                                <Icon name="paperclip" />
+                                                                {attachment.name ||
+                                                                    "Attachment"}
+                                                            </a>
+                                                        ),
+                                                    )}
+                                                </div>
+                                            ) : null}
                                         </article>
                                     );
                                 })}
@@ -785,9 +819,19 @@ function MessagesWorkspace({ variant = "buyer" }) {
                                                 aria-label={t(
                                                     "components.dashboard.messagesworkspace.attachFile",
                                                 )}
+                                                onClick={() =>
+                                                    attachmentInputRef.current?.click()
+                                                }
                                             >
                                                 <Icon name="paperclip" />
                                             </button>
+                                            <input
+                                                ref={attachmentInputRef}
+                                                className="sr-only"
+                                                type="file"
+                                                multiple
+                                                onChange={selectAttachments}
+                                            />
                                             <button
                                                 type="button"
                                                 aria-label={t(
@@ -809,12 +853,30 @@ function MessagesWorkspace({ variant = "buyer" }) {
                                                 "components.dashboard.messagesworkspace.sendMessage",
                                             )}
                                             disabled={
-                                                !draft.trim() || !activeThread
+                                                (!draft.trim() &&
+                                                    attachments.length === 0) ||
+                                                !activeThread
                                             }
                                         >
                                             <Icon name="send" />
                                         </button>
                                     </div>
+                                    {attachments.length ? (
+                                        <div className="composer-attachments">
+                                            {attachments.map((file) => (
+                                                <span key={`${file.name}-${file.size}`}>
+                                                    <Icon name="paperclip" />
+                                                    {file.name}
+                                                </span>
+                                            ))}
+                                            <button
+                                                type="button"
+                                                onClick={() => setAttachments([])}
+                                            >
+                                                Clear
+                                            </button>
+                                        </div>
+                                    ) : null}
                                 </form>
                             ) : null}
                         </>

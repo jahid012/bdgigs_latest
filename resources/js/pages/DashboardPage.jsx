@@ -5,6 +5,8 @@ import Topbar from "../components/dashboard/Topbar.jsx";
 import { useTranslation } from "react-i18next";
 import { useDashboardStore } from "../stores/useDashboardStore.js";
 import { useSessionStore } from "../stores/useSessionStore.js";
+import { apiRequest } from "../api/apiClient.js";
+import { useToast } from "../components/common/ToastProvider.jsx";
 function DashboardPage({
     children,
     messagesActive = false,
@@ -14,7 +16,9 @@ function DashboardPage({
     variant = "buyer",
 }) {
     const { t } = useTranslation();
+    const notify = useToast();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [verificationSending, setVerificationSending] = useState(false);
     const isSeller = variant === "seller";
     const currentUser = useSessionStore((state) => state.currentUser);
     const messageItems = useDashboardStore((state) =>
@@ -36,6 +40,22 @@ function DashboardPage({
         (isSeller
             ? "Search orders, buyers, gigs..."
             : "Search orders, sellers, services...");
+
+    const resendVerification = async () => {
+        setVerificationSending(true);
+
+        try {
+            const response = await apiRequest(
+                "/api/email/verification-notification",
+                { body: {} },
+            );
+            notify.success(response.message || "Verification email sent.");
+        } catch (error) {
+            notify.error(error.message || "Verification email could not be sent.");
+        } finally {
+            setVerificationSending(false);
+        }
+    };
 
     useEffect(() => {
         hydrateSession();
@@ -110,6 +130,23 @@ function DashboardPage({
                                 : undefined
                         }
                     />
+                    {currentUser?.authenticated && currentUser.emailVerified === false ? (
+                        <section className="dashboard-verification-banner" role="status">
+                            <div>
+                                <strong>Verify your email</strong>
+                                <p>
+                                    Protected checkout, order payments, and sensitive account actions require a verified email address.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                disabled={verificationSending}
+                                onClick={resendVerification}
+                            >
+                                {verificationSending ? "Sending..." : "Resend email"}
+                            </button>
+                        </section>
+                    ) : null}
                     {children}
                 </div>
             </div>

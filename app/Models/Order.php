@@ -22,7 +22,21 @@ class Order extends Model
         'seller_name',
         'status',
         'status_class',
+        'payment_status',
+        'paid_at',
+        'payment_method',
+        'transaction_id',
+        'refunded_at',
+        'refund_amount_cents',
         'due_date',
+        'work_started_at',
+        'overdue_at',
+        'cancelled_at',
+        'cancellation_status',
+        'refund_status',
+        'review_period_expires_at',
+        'review_period_expired_at',
+        'reviews_visible_at',
         'price_cents',
         'earnings_cents',
         'metadata',
@@ -32,8 +46,17 @@ class Order extends Model
     {
         return [
             'due_date' => 'date',
+            'paid_at' => 'datetime',
+            'refunded_at' => 'datetime',
+            'work_started_at' => 'datetime',
+            'overdue_at' => 'datetime',
+            'cancelled_at' => 'datetime',
+            'review_period_expires_at' => 'datetime',
+            'review_period_expired_at' => 'datetime',
+            'reviews_visible_at' => 'datetime',
             'price_cents' => 'integer',
             'earnings_cents' => 'integer',
+            'refund_amount_cents' => 'integer',
             'metadata' => 'array',
         ];
     }
@@ -86,5 +109,25 @@ class Order extends Model
     public function customOffer(): HasOne
     {
         return $this->hasOne(CustomOffer::class);
+    }
+
+    public function invoice(): HasOne
+    {
+        return $this->hasOne(OrderInvoice::class);
+    }
+
+    public function reminders(): HasMany
+    {
+        return $this->hasMany(OrderReminder::class);
+    }
+
+    public function cancellations(): HasMany
+    {
+        return $this->hasMany(OrderCancellation::class);
+    }
+
+    public function latestCancellation(): HasOne
+    {
+        return $this->hasOne(OrderCancellation::class)->latestOfMany();
     }
 }

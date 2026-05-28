@@ -9,7 +9,7 @@
         $order = $dispute->order;
         $statusClass = in_array($dispute->status, ['resolved', 'closed'], true)
             ? 'status-completed'
-            : ($dispute->status === 'open' ? 'status-cancelled' : 'status-delivered');
+            : (in_array($dispute->status, ['open', 'rejected'], true) ? 'status-cancelled' : 'status-delivered');
         $priorityClass = match ($dispute->priority) {
             'critical' => 'status-cancelled',
             'high' => 'status-delivered',
@@ -94,6 +94,48 @@
                     </label>
                     <button type="submit">Save case update</button>
                 </form>
+                <form class="admin-detail-form" method="POST" action="{{ route('admin.disputes.join', $dispute) }}">
+                    @csrf
+                    <label>
+                        <span>Join note</span>
+                        <textarea name="note" rows="2" placeholder="Optional note for participants"></textarea>
+                    </label>
+                    <button type="submit">Join case</button>
+                </form>
+                <form class="admin-detail-form" method="POST" action="{{ route('admin.disputes.evidence-request', $dispute) }}">
+                    @csrf
+                    <label>
+                        <span>Recipient</span>
+                        <select name="recipient_id">
+                            <option value="">Buyer and seller</option>
+                            @if ($order->buyer)
+                                <option value="{{ $order->buyer->id }}">Buyer - {{ $order->buyer->name }}</option>
+                            @endif
+                            @if ($order->seller)
+                                <option value="{{ $order->seller->id }}">Seller - {{ $order->seller->name }}</option>
+                            @endif
+                        </select>
+                    </label>
+                    <label>
+                        <span>Evidence request</span>
+                        <textarea name="note" rows="3" required placeholder="Explain what evidence is needed"></textarea>
+                    </label>
+                    <button type="submit">Request evidence</button>
+                </form>
+                @can('payments.release')
+                    <form class="admin-detail-form" method="POST" action="{{ route('admin.disputes.refund', $dispute) }}">
+                        @csrf
+                        <label>
+                            <span>Refund amount</span>
+                            <input type="number" name="amount" min="0.01" step="0.01" max="{{ number_format($order->price_cents / 100, 2, '.', '') }}" value="{{ number_format(max(0, ($order->price_cents - (int) $order->refund_amount_cents)) / 100, 2, '.', '') }}">
+                        </label>
+                        <label>
+                            <span>Refund reason</span>
+                            <textarea name="reason" rows="3" placeholder="Resolution decision and refund reason"></textarea>
+                        </label>
+                        <button class="is-danger" type="submit">Issue refund</button>
+                    </form>
+                @endcan
             @else
                 <p class="admin-empty-note">You can inspect this case but cannot change it.</p>
             @endcan

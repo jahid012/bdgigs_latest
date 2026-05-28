@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\ReviewsVisible;
 use App\Models\Gig;
 use App\Models\Order;
 use App\Models\OrderReview;
@@ -47,20 +48,25 @@ class OrderReviewService
                 $this->applyGigRating($order->gig, (int) $payload['rating']);
             }
 
-            $recipient = $role === 'buyer' ? $order->seller : $order->buyer;
+            if ($role === 'seller') {
+                $order->forceFill(['reviews_visible_at' => $order->reviews_visible_at ?: now()])->save();
+                DB::afterCommit(fn () => event(new ReviewsVisible($order->fresh(['buyer', 'seller', 'reviews']))));
+            }
+
+            $recipient = $role === 'buyer' ? $order->seller : null;
 
             if ($recipient) {
                 $this->events->send(
                     $recipient,
                     'order_review_submitted',
-                    $role === 'buyer' ? 'Buyer review submitted' : 'Reviews are now visible',
-                    $role === 'buyer'
-                        ? 'The buyer submitted a review for order #'.$order->code.'. Submit your review to unlock both reviews.'
-                        : 'Both reviews are complete for order #'.$order->code.'.',
-                    $role === 'buyer'
-                        ? '/dashboard/seller/orders/'.$order->code
-                        : '/dashboard/orders/'.$order->code,
-                    ['orderId' => $order->code],
+                    'Buyer review submitted',
+                    'The buyer submitted a review for order #'.$order->code.'. Submit your review to unlock both reviews.',
+                    '/dashboard/seller/orders/'.$order->code,
+                    [
+                        'orderId' => $order->code,
+                        'emailTemplate' => 'seller_review_request',
+                        'review_deadline' => $this->deadlineFor($order)->format('M j, Y'),
+                    ],
                 );
             }
 
@@ -70,6 +76,10 @@ class OrderReviewService
 
     public function deadlineFor(Order $order): Carbon
     {
+        if ($order->review_period_expires_at) {
+            return $order->review_period_expires_at->copy();
+        }
+
         return $this->completedAt($order)->copy()->addDays(self::DEADLINE_DAYS)->endOfDay();
     }
 

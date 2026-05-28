@@ -21,7 +21,7 @@ class DashboardController extends AdminController
         $lateOrders = Order::whereDate('due_date', '<', $today)
             ->whereNotIn('status', ['Delivered', 'Completed', 'Cancelled'])
             ->count();
-        $pendingGigs = Gig::whereNotIn('status', ['Live', 'Published'])->count();
+        $pendingGigs = Gig::whereNotIn('status', ['Live', 'Published', 'approved'])->count();
         $messageQueue = Conversation::where(function ($query) {
             $query
                 ->where('buyer_unread_count', '>', 0)
@@ -146,7 +146,7 @@ class DashboardController extends AdminController
             ? 100
             : max(0, 100 - (int) round((Conversation::where('seller_unread_count', '>', 0)->count() / Conversation::count()) * 100));
         $orderHealth = $openOrders === 0 ? 100 : max(0, 100 - (int) round(($lateOrders / $openOrders) * 100));
-        $publishedGigs = Gig::whereIn('status', ['Live', 'Published'])->count();
+        $publishedGigs = Gig::whereIn('status', ['Live', 'Published', 'approved'])->count();
         $totalGigs = max(1, Gig::count());
 
         return [

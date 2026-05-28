@@ -449,7 +449,7 @@ class DynamicDashboardApiTest extends TestCase
                 'document' => UploadedFile::fake()->image('passport.jpg', 640, 480),
             ], ['Accept' => 'application/json'])
             ->assertCreated()
-            ->assertJsonPath('data.status', 'review')
+            ->assertJsonPath('data.status', 'submitted')
             ->assertJsonPath(
                 'data.documentPath',
                 fn ($path) => str_starts_with(

@@ -32,7 +32,7 @@ class SettingController extends AdminController
                 ],
                 'reviewQueue' => [
                     ['label' => 'Seller documents', 'value' => \App\Models\User::where('verification_status', 'review')->count()],
-                    ['label' => 'Gig edits', 'value' => \App\Models\Gig::whereNotIn('status', ['Live', 'Published'])->count()],
+                    ['label' => 'Gig edits', 'value' => \App\Models\Gig::whereNotIn('status', ['Live', 'Published', 'approved'])->count()],
                     ['label' => 'Payout holds', 'value' => 'Part 3'],
                 ],
                 'checklist' => [

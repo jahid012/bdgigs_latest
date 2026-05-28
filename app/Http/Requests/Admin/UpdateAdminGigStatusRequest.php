@@ -8,7 +8,7 @@ class UpdateAdminGigStatusRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        $permission = in_array($this->input('action'), ['publish', 'pause'], true)
+        $permission = in_array($this->input('action'), ['publish', 'approve', 'pause', 'reactivate', 'deactivate'], true)
             ? 'gigs.publish'
             : 'gigs.review';
 
@@ -18,7 +18,8 @@ class UpdateAdminGigStatusRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'action' => ['required', 'string', 'in:publish,pause,reject,request_edits'],
+            'action' => ['required', 'string', 'in:publish,approve,pause,reject,request_edits,deactivate,reactivate'],
+            'reason' => ['nullable', 'string', 'max:1000', 'required_if:action,reject,request_edits,deactivate'],
         ];
     }
 }
