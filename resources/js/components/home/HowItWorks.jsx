@@ -7,6 +7,7 @@ import {
     creatorServiceCards,
     marketplaceBenefits,
 } from "../../data/homeData.js";
+const SlickSlider = Slider?.default || Slider;
 import { apiRequest } from "../../api/apiClient.js";
 import { BrandMark, Icon } from "../common/Icons.jsx";
 import { useTranslation } from "react-i18next";
@@ -101,9 +102,9 @@ function HowItWorks({ onNavigate }) {
                     <div
                         className={`creator-card-row creator-slick-slider${isCreatorLoading ? " is-loading" : ""}`}
                     >
-                        <Slider {...sliderSettings}>
-                        {sliderItems.map((card) => (
-                            <a
+                        <SlickSlider {...sliderSettings}>
+                            {sliderItems.map((card) => (
+                                <a
                                 className="creator-service-card"
                                 href={
                                     card.linkUrl ||
@@ -137,7 +138,7 @@ function HowItWorks({ onNavigate }) {
                                 </span>
                             </a>
                         ))}
-                        </Slider>
+                        </SlickSlider>
                     </div>
 
                     <div className="freelancer-benefit-header">

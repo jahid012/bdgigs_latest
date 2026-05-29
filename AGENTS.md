@@ -41,6 +41,13 @@ There is no dedicated JavaScript lint or test script at the moment. For frontend
 - `public/build/`, `public/hot`, `node_modules/`, `vendor/`, logs, and generated caches are build/runtime artifacts. Do not edit them for source changes.
 - `tests/` contains the default Laravel Feature and Unit tests.
 
+## Agent Quick Start
+- Treat `AGENTS.md` as the primary AI guide for coding tasks in this repository.
+- Prefer reading existing docs in `docs/` before adding new domain behavior.
+- Keep edits scoped to source folders: `resources/js`, `resources/css`, `app`, `routes`, `config`, `tests`, `database`, and `docs`.
+- Use `npm run build` after frontend/CSS changes and `php artisan test` after backend/API changes.
+- If you add or change SPA pages, read `resources/js/routes/routeConfig.js` and `resources/js/routes/AppRoutes.jsx` first.
+
 ## Admin, Access Control, And Settings
 
 - The admin panel is Blade-only and lives under the prefix from `config/admin.php` (`ADMIN_ROUTE_PREFIX`, default `/admin`). Keep admin routes in `routes/admin.php` and admin controllers in `app/Http/Controllers/Admin/`.

@@ -1754,8 +1754,7 @@
 
 .creator-slick-slider {
   display: block;
-  overflow: visible;
-  padding-bottom: 2.2rem;
+  padding-bottom: 4rem;
 }
 
 .creator-slick-slider .slick-list {
@@ -1768,7 +1767,7 @@
 }
 
 .creator-slick-slider .slick-dots {
-  bottom: -1.4rem;
+  bottom: -2.5rem;
 }
 
 .creator-slick-slider .slick-dots li button::before {
@@ -2369,7 +2368,7 @@
   }
 }
 
-@media (min-width: 992px) {
+/* @media (min-width: 992px) {
   .creator-card-row {
     grid-auto-columns: 1fr;
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -2379,7 +2378,7 @@
   .creator-service-card {
     min-height: 214px;
   }
-}
+} */
 
 @media (max-width: 767px) {
   .creator-marketplace-section {
