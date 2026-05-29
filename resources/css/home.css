@@ -1737,7 +1737,7 @@
 .creator-marketplace-section {
   position: relative;
   padding: 0.5rem 0 4.7rem;
-  overflow: hidden;
+  overflow: visible;
   scroll-margin-top: 86px;
 }
 
@@ -1746,7 +1746,6 @@
   grid-auto-flow: column;
   grid-auto-columns: minmax(156px, 1fr);
   gap: 1.1rem;
-  overflow-x: auto;
   padding: 0.1rem 0 1.2rem;
   scroll-snap-type: x proximity;
   scrollbar-width: none;
@@ -1759,11 +1758,13 @@
 
 .creator-slick-slider .slick-list {
   margin-inline: -0.55rem;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .creator-slick-slider .slick-slide {
   padding-inline: 0.55rem;
+  padding-top: 10px;
+  padding-bottom: 45px;
 }
 
 .creator-slick-slider .slick-dots {
@@ -1790,13 +1791,15 @@
   border-radius: 12px;
   background: #01451f;
   color: #ffffff;
-  box-shadow: 0 2px 0 #01451f;
-  transition: transform var(--transition), box-shadow var(--transition);
+  box-shadow: 0 4px 12px rgba(1, 69, 31, 0.16);
+  transition: transform 280ms ease, box-shadow 280ms ease;
+  will-change: transform, box-shadow;
 }
 
-.creator-service-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 20px rgba(1, 69, 31, 0.16);
+.creator-service-card:hover,
+.creator-service-card:focus-within {
+  transform: translateY(-8px);
+  box-shadow: 0 22px 40px rgba(1, 69, 31, 0.18);
 }
 
 .creator-service-card h3 {
@@ -1810,16 +1813,16 @@
 
 .creator-service-card p {
   min-height: 42px;
-  margin: -0.55rem 0 0;
+  margin: 0.55rem 0 0;
   color: rgba(255, 255, 255, 0.86);
   font-size: 0.78rem;
   font-weight: 650;
   line-height: 1.35;
+  padding-left: 0.25rem;
 }
 
 .creator-service-image {
   display: grid;
-  height: 98px;
   place-items: center;
   overflow: hidden;
   border-radius: 8px;
@@ -1839,34 +1842,36 @@
   position: absolute;
   z-index: 2;
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 42px !important;
+  height: 42px !important;
   place-items: center;
-  border: 1px solid #efeff0;
-  border-radius: 50%;
-  background: #ffffff;
-  color: #62646a;
+  padding: 0;
+  border: 1px solid #efeff0 !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  color: #62646a !important;
   cursor: pointer;
-  box-shadow: 0 3px 12px rgba(34, 35, 37, 0.12);
+  box-shadow: 0 3px 12px rgba(34, 35, 37, 0.12) !important;
 }
 
-.creator-carousel-button {
-  top: 88px;
-  right: max(1rem, calc((100vw - var(--container-width)) / 2));
+.creator-slick-slider .slick-arrow.creator-carousel-button {
+  top: 44%;
+  right: -1.9rem;
+  transform: translateY(-50%);
+  width: 46px !important;
+  height: 46px !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18) !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
 }
 
-.creator-slick-slider .creator-carousel-button {
-  top: 82px;
-  right: -0.85rem;
-}
-
-.creator-slick-slider .creator-carousel-button.prev {
+.creator-slick-slider .slick-arrow.creator-carousel-button.prev {
   right: auto;
-  left: -0.85rem;
-  transform: rotate(180deg);
+  left: -1.9rem;
+  transform: translateY(-50%) rotate(180deg);
 }
 
-.creator-slick-slider .creator-carousel-button::before {
+.creator-slick-slider .slick-arrow.creator-carousel-button::before {
   content: "";
 }
 
@@ -1879,6 +1884,19 @@
 .guide-carousel-button svg {
   width: 17px;
   height: 17px;
+  color: #1f2937;
+}
+
+.creator-card-link {
+  display: grid;
+  gap: 1rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.creator-card-link:hover h3,
+.creator-card-link:focus-visible h3 {
+  text-decoration: underline;
 }
 
 .freelancer-benefit-header {

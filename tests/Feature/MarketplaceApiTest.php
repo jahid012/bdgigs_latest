@@ -403,7 +403,7 @@ class MarketplaceApiTest extends TestCase
             ->assertJsonPath('data.platform', 'web');
 
         $this->actingAs($this->user)
-            ->postJson('/api/presence/heartbeat', [
+            ->postJson('/api/presence/join', [
                 'token' => 'browser-token-1',
             ])
             ->assertOk()
@@ -414,6 +414,37 @@ class MarketplaceApiTest extends TestCase
             'token' => 'browser-token-1',
             'revoked_at' => null,
         ]);
+        $this->assertNotNull($this->user->fresh()->last_seen_at);
+    }
+
+    public function test_pusher_webhook_member_removed_updates_last_seen_at(): void
+    {
+        config()->set('broadcasting.connections.pusher.key', 'test-key');
+        config()->set('broadcasting.connections.pusher.secret', 'test-secret');
+        config()->set('broadcasting.connections.pusher.app_id', '123');
+        config()->set('broadcasting.connections.pusher.options.cluster', 'mt1');
+
+        $payload = [
+            'time_ms' => now()->timestamp * 1000,
+            'events' => [
+                [
+                    'name' => 'member_removed',
+                    'channel' => 'presence-online',
+                    'user_id' => $this->user->id,
+                ],
+            ],
+        ];
+
+        $headers = [
+            'X-Pusher-Key' => 'test-key',
+            'X-Pusher-Signature' => hash_hmac('sha256', json_encode($payload), 'test-secret'),
+        ];
+
+        $this->withHeaders($headers)
+            ->postJson('/api/broadcasting/webhook', $payload)
+            ->assertOk()
+            ->assertJsonPath('status', 'ok');
+
         $this->assertNotNull($this->user->fresh()->last_seen_at);
     }
 

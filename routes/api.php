@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PageViewController;
 use App\Http\Controllers\Api\PresenceController;
+use App\Http\Controllers\Api\BroadcastWebhookController;
 use App\Http\Controllers\Api\PushSubscriptionController;
 use App\Http\Controllers\Api\SavedServiceController;
 use App\Http\Controllers\Api\SellerApplicationController;
@@ -31,6 +32,8 @@ Route::prefix('api')->name('api.')->group(function () {
     Route::post('/auth/register', [AuthController::class, 'register'])->name('auth.register');
     Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth')->name('auth.logout');
     Route::post('/analytics/page-view', [PageViewController::class, 'store'])->name('analytics.page-view');
+    Route::post('/broadcasting/webhook', [BroadcastWebhookController::class, 'handle'])
+        ->name('broadcasting.webhook');
     Route::get('/gigs', [GigController::class, 'index'])->name('gigs.index');
     Route::get('/gigs/{gig:slug}', [GigController::class, 'show'])->name('gigs.show');
     Route::get('/marketplace/categories', [MarketplaceContentController::class, 'categories'])->name('marketplace.categories');
@@ -123,7 +126,8 @@ Route::prefix('api')->name('api.')->group(function () {
         Route::patch('/conversations/{conversation}/read', [ConversationController::class, 'markRead'])->name('conversations.read');
         Route::post('/conversations/{conversation}/typing', [ConversationController::class, 'typing'])->name('conversations.typing');
 
-        Route::post('/presence/heartbeat', [PresenceController::class, 'heartbeat'])->name('presence.heartbeat');
+        Route::post('/presence/join', [PresenceController::class, 'join'])->name('presence.join');
+        Route::post('/presence/heartbeat', [PresenceController::class, 'join'])->name('presence.heartbeat');
         Route::post('/push-subscriptions', [PushSubscriptionController::class, 'store'])->name('push-subscriptions.store');
         Route::delete('/push-subscriptions/{token}', [PushSubscriptionController::class, 'destroy'])->name('push-subscriptions.destroy');
 

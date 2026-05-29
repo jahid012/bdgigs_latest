@@ -9,7 +9,6 @@ import {
     registerFirebaseMessaging,
 } from "./firebaseMessaging.js";
 
-const heartbeatIntervalMs = 45_000;
 const notificationSoundPath = "/assets/audio/notification.wav";
 
 export function useRealtimeMessaging() {
@@ -93,20 +92,25 @@ export function useRealtimeMessaging() {
 
                     fetchNotifications();
                 });
+
+            echo.join("presence.online")
+                .here(() => {})
+                .joining(() => {})
+                .leaving(() => {});
         }
 
-        const heartbeat = () =>
-            apiRequest("/api/presence/heartbeat", {
-                body: pushToken ? { token: pushToken } : {},
+        const markOnline = (token) =>
+            apiRequest("/api/presence/join", {
+                body: token ? { token } : {},
             }).catch(() => {});
 
         registerFirebaseMessaging()
             .then((token) => {
                 pushToken = token;
-                heartbeat();
+                markOnline(token);
             })
             .catch(() => {
-                heartbeat();
+                markOnline();
             });
 
         listenForForegroundPush((payload) => {
@@ -133,18 +137,13 @@ export function useRealtimeMessaging() {
             })
             .catch(() => {});
 
-        const heartbeatTimer = window.setInterval(
-            heartbeat,
-            heartbeatIntervalMs,
-        );
-
         return () => {
             isMounted = false;
-            window.clearInterval(heartbeatTimer);
             unsubscribePush();
 
             if (echo) {
                 echo.leave(channelName);
+                echo.leave("presence.online");
             }
         };
     }, [

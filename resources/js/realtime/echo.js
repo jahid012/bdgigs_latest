@@ -12,7 +12,7 @@ export function configureRealtime() {
     window.Echo = new Echo({
         broadcaster: "pusher",
         key,
-        cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER || "mt1",
+        cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER || "ap2",
         wsHost: import.meta.env.VITE_PUSHER_HOST || undefined,
         wsPort: Number(import.meta.env.VITE_PUSHER_PORT || 80),
         wssPort: Number(import.meta.env.VITE_PUSHER_PORT || 443),

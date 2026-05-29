@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 
 class PresenceController extends Controller
 {
-    public function heartbeat(Request $request): array
+    public function join(Request $request): array
     {
         $payload = $request->validate([
             'token' => ['nullable', 'string', 'max:4096'],
@@ -27,5 +27,10 @@ class PresenceController extends Controller
         }
 
         return ['data' => ['online' => true]];
+    }
+
+    public function heartbeat(Request $request): array
+    {
+        return $this->join($request);
     }
 }

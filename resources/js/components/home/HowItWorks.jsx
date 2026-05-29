@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Slider from "react-slick";
 import "slick-carousel/slick/slick-theme.css";
 import "slick-carousel/slick/slick.css";
@@ -45,10 +45,19 @@ function HowItWorks({ onNavigate }) {
                   })),
         [creatorItems],
     );
+    const dragState = useRef({ moved: false, startX: 0, startY: 0 });
+
     const sliderSettings = {
         arrows: true,
         dots: true,
         infinite: sliderItems.length > 4,
+        swipeToSlide: true,
+        draggable: true,
+        touchMove: true,
+        touchThreshold: 8,
+        cssEase: "ease-out",
+        useTransform: true,
+        pauseOnHover: false,
         nextArrow: <CreatorSliderArrow direction="next" />,
         prevArrow: <CreatorSliderArrow direction="prev" />,
         responsive: [
@@ -68,6 +77,34 @@ function HowItWorks({ onNavigate }) {
         slidesToScroll: 1,
         slidesToShow: Math.min(4, Math.max(1, sliderItems.length)),
         speed: 320,
+    };
+
+    const resetDrag = (event) => {
+        const x = event.touches ? event.touches[0].clientX : event.clientX;
+        const y = event.touches ? event.touches[0].clientY : event.clientY;
+        dragState.current = { moved: false, startX: x, startY: y };
+    };
+
+    const trackDrag = (event) => {
+        const state = dragState.current;
+        if (!state || state.moved) {
+            return;
+        }
+        const x = event.touches ? event.touches[0].clientX : event.clientX;
+        const y = event.touches ? event.touches[0].clientY : event.clientY;
+        if (Math.hypot(x - state.startX, y - state.startY) > 8) {
+            state.moved = true;
+        }
+    };
+
+    const handleCreatorLinkClick = (event, link) => {
+        if (dragState.current?.moved) {
+            event.preventDefault();
+            return;
+        }
+
+        event.preventDefault();
+        onNavigate(link);
     };
 
     useEffect(() => {
@@ -104,40 +141,48 @@ function HowItWorks({ onNavigate }) {
                     >
                         <SlickSlider {...sliderSettings}>
                             {sliderItems.map((card) => (
-                                <a
-                                className="creator-service-card"
-                                href={
-                                    card.linkUrl ||
-                                    creatorRoutes[card.title] ||
-                                    "/search/gigs?source=creator-card"
-                                }
-                                key={card.title}
-                                style={{
-                                    "--card-bg": card.color,
-                                }}
-                                onClick={(event) => {
-                                    event.preventDefault();
-                                    onNavigate(
-                                        card.linkUrl ||
+                                <article
+                                    className="creator-service-card"
+                                    key={card.title}
+                                    style={{
+                                        "--card-bg": card.color,
+                                    }}
+                                >
+                                    <a
+                                        className="creator-card-link"
+                                        href={
+                                            card.linkUrl ||
                                             creatorRoutes[card.title] ||
-                                            "/search/gigs?source=creator-card",
-                                    );
-                                }}
-                            >
-                                <h3>{card.title}</h3>
-                                {card.description ? (
-                                    <p>{card.description}</p>
-                                ) : null}
-                                <span className="creator-service-image">
-                                    <img
-                                        src={card.image}
-                                        alt=""
-                                        loading="eager"
-                                        decoding="async"
-                                    />
-                                </span>
-                            </a>
-                        ))}
+                                            "/search/gigs?source=creator-card"
+                                        }
+                                        onMouseDown={resetDrag}
+                                        onMouseMove={trackDrag}
+                                        onTouchStart={resetDrag}
+                                        onTouchMove={trackDrag}
+                                        onClick={(event) =>
+                                            handleCreatorLinkClick(
+                                                event,
+                                                card.linkUrl ||
+                                                    creatorRoutes[card.title] ||
+                                                    "/search/gigs?source=creator-card",
+                                            )
+                                        }
+                                    >
+                                        <h3>{card.title}</h3>
+                                        <span className="creator-service-image">
+                                            <img
+                                                src={card.image}
+                                                alt={card.title}
+                                                loading="eager"
+                                                decoding="async"
+                                            />
+                                        </span>
+                                    </a>
+                                    {card.description ? (
+                                        <p>{card.description}</p>
+                                    ) : null}
+                                </article>
+                            ))}
                         </SlickSlider>
                     </div>
 
