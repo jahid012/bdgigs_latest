@@ -9,6 +9,15 @@ export class ApiError extends Error {
 }
 
 let csrfToken = null;
+const pendingRequests = new Map();
+
+function requestKey(path, method, body) {
+    if (method === "GET") {
+        return `${method}:${path}`;
+    }
+
+    return `${method}:${path}:${JSON.stringify(body ?? null)}`;
+}
 
 export async function apiRequest(path, options = {}) {
     const {
@@ -18,36 +27,56 @@ export async function apiRequest(path, options = {}) {
         raw = false,
     } = options;
     const isFormData = body instanceof FormData;
-    const response = await fetch(path, {
-        method,
-        credentials: "same-origin",
-        headers: {
-            Accept: "application/json",
-            "X-Requested-With": "XMLHttpRequest",
-            ...csrfHeader(),
-            ...(body && !isFormData ? { "Content-Type": "application/json" } : {}),
-            ...headers,
-        },
-        body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
-    });
+    const requestId = requestKey(path, method, body);
 
-    if (response.status === 204) {
-        return null;
+    if (method === "GET" && pendingRequests.has(requestId)) {
+        return pendingRequests.get(requestId);
     }
 
-    const payload = await parseJson(response);
+    const requestPromise = (async () => {
+        const response = await fetch(path, {
+            method,
+            credentials: "same-origin",
+            headers: {
+                Accept: "application/json",
+                "X-Requested-With": "XMLHttpRequest",
+                ...csrfHeader(),
+                ...(body && !isFormData ? { "Content-Type": "application/json" } : {}),
+                ...headers,
+            },
+            body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
+        });
 
-    rememberCsrfToken(payload?.csrfToken || payload?.data?.csrfToken);
+        if (response.status === 204) {
+            return null;
+        }
 
-    if (!response.ok) {
-        throw new ApiError(
-            payload?.message || "Something went wrong.",
-            response,
-            payload,
-        );
+        const payload = await parseJson(response);
+
+        rememberCsrfToken(payload?.csrfToken || payload?.data?.csrfToken);
+
+        if (!response.ok) {
+            throw new ApiError(
+                payload?.message || "Something went wrong.",
+                response,
+                payload,
+            );
+        }
+
+        return raw ? payload : payload?.data ?? payload;
+    })();
+
+    if (method === "GET") {
+        pendingRequests.set(requestId, requestPromise);
     }
 
-    return raw ? payload : payload?.data ?? payload;
+    try {
+        return await requestPromise;
+    } finally {
+        if (method === "GET") {
+            pendingRequests.delete(requestId);
+        }
+    }
 }
 
 function csrfHeader() {

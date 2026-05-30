@@ -1,16 +1,23 @@
 import { create } from "zustand";
 import { apiRequest } from "../api/apiClient.js";
 
-export const useSessionStore = create((set) => ({
+export const useSessionStore = create((set, get) => ({
     currentUser: null,
     error: null,
     hasHydrated: false,
     isLoading: false,
+    sessionHydrating: false,
 
     setCurrentUser: (currentUser) => set({ currentUser }),
 
     hydrateSession: async () => {
-        set({ isLoading: true, error: null });
+        const state = get();
+
+        if (state.sessionHydrating || state.hasHydrated) {
+            return state.currentUser;
+        }
+
+        set({ sessionHydrating: true, isLoading: true, error: null });
 
         try {
             const user = await apiRequest("/api/me");
@@ -20,11 +27,17 @@ export const useSessionStore = create((set) => ({
                     currentUser: user,
                     hasHydrated: true,
                     isLoading: false,
+                    sessionHydrating: false,
                 });
                 return user;
             }
 
-            set({ currentUser: null, hasHydrated: true, isLoading: false });
+            set({
+                currentUser: null,
+                hasHydrated: true,
+                isLoading: false,
+                sessionHydrating: false,
+            });
             return null;
         } catch (error) {
             set({
@@ -32,6 +45,7 @@ export const useSessionStore = create((set) => ({
                 error: error.message,
                 hasHydrated: true,
                 isLoading: false,
+                sessionHydrating: false,
             });
             return null;
         }

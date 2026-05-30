@@ -821,15 +821,6 @@ function HeaderAccountActions({
                 <div
                     className={`header-account-dropdown profile${openMenu === "profile" ? " is-open" : ""}`}
                 >
-                    <div className="header-profile-summary">
-                        <HeaderUserAvatar currentUser={currentUser} large />
-                        <span>
-                            <strong>{currentUser.name}</strong>
-                            <small>
-                                {currentUser.online ? "Online" : "Offline"}
-                            </small>
-                        </span>
-                    </div>
                     <a
                         href="/dashboard/profile"
                         onClick={(event) => openPath(event, "/dashboard/profile")}

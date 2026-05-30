@@ -727,7 +727,7 @@ ol {
 .header-account-dropdown {
     position: absolute;
     top: calc(100% + 0.75rem);
-    right: 0;
+    left: 0;
     z-index: 75;
     display: grid;
     width: min(340px, calc(100vw - 1.5rem));
@@ -762,25 +762,7 @@ ol {
     gap: 0.18rem;
 }
 
-.header-profile-summary {
-    display: flex;
-    align-items: center;
-    gap: 0.62rem;
-    padding: 0.5rem 0.55rem 0.7rem;
-    border-bottom: 1px solid #eef2f7;
-    margin-bottom: 0.25rem;
-}
 
-.header-profile-summary span:last-child {
-    display: grid;
-    min-width: 0;
-}
-
-.header-profile-summary small {
-    color: #64748b;
-    font-size: 0.78rem;
-    font-weight: 800;
-}
 
 .header-user-avatar {
     position: relative;
