@@ -1,9 +1,34 @@
 import DashboardPageHeader from "../components/dashboard/DashboardPageHeader.jsx";
+import SellerDashboardChartJs from "../components/dashboard/SellerDashboardChartJs.jsx";
 import { Icon, Rating } from "../components/common/Icons.jsx";
 import { useTranslation } from "react-i18next";
 import { useDashboardStore } from "../stores/useDashboardStore.js";
 import { useEffect } from "react";
 import { useSessionStore } from "../stores/useSessionStore.js";
+
+function getProgressPercent(status) {
+    const s = String(status || "").toLowerCase();
+    switch (s) {
+        case "delivered": return 75;
+        case "completed": return 100;
+        case "cancelled": return 15;
+        default: return 40; // In Progress / Placed
+    }
+}
+
+function isStepActive(status, step) {
+    const s = String(status || "").toLowerCase();
+    if (s === "cancelled") return step === "placed";
+    
+    switch (step) {
+        case "placed": return true;
+        case "progress": return s === "in progress" || s === "delivered" || s === "completed" || s === "active";
+        case "delivered": return s === "delivered" || s === "completed";
+        case "completed": return s === "completed";
+        default: return false;
+    }
+}
+
 function StatsGrid() {
     const { t } = useTranslation();
     const stats = useDashboardStore((state) => state.stats);
@@ -20,13 +45,14 @@ function StatsGrid() {
                     <div>
                         <span>{stat.label}</span>
                         <strong>{stat.value}</strong>
+                        <span className="stat-trend">{stat.trend}</span>
                     </div>
-                    <span className="stat-trend">{stat.trend}</span>
                 </article>
             ))}
         </section>
     );
 }
+
 function RecentOrders({ onNavigate }) {
     const { t } = useTranslation();
     const orders = useDashboardStore((state) => state.orders);
@@ -75,12 +101,21 @@ function RecentOrders({ onNavigate }) {
                                 </td>
                                 <td data-label="Service">{order.service}</td>
                                 <td data-label="Seller">{order.seller}</td>
-                                <td data-label="Status">
-                                    <span
-                                        className={`status-badge ${order.statusClass}`}
-                                    >
-                                        {order.status}
-                                    </span>
+                                <td data-label="Status" className="order-progress-cell">
+                                    <div className="order-timeline-tracker">
+                                        <div className="order-timeline-steps">
+                                            <span className={`order-timeline-step ${isStepActive(order.status, 'placed') ? 'active' : ''}`}>Placed</span>
+                                            <span className={`order-timeline-step ${isStepActive(order.status, 'progress') ? 'active' : ''}`}>Active</span>
+                                            <span className={`order-timeline-step ${isStepActive(order.status, 'delivered') ? 'active' : ''}`}>Delivered</span>
+                                            <span className={`order-timeline-step ${isStepActive(order.status, 'completed') ? 'active' : ''}`}>Done</span>
+                                        </div>
+                                        <div className="order-timeline-bar-wrap">
+                                            <div 
+                                                className="order-timeline-bar-fill" 
+                                                style={{ width: `${getProgressPercent(order.status)}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td data-label="Due Date">{order.dueDate}</td>
                                 <td data-label="Price">{order.price}</td>
@@ -92,6 +127,7 @@ function RecentOrders({ onNavigate }) {
         </article>
     );
 }
+
 function ChartCard({ onNavigate }) {
     const { t } = useTranslation();
     const chartData = useDashboardStore((state) => state.chartData);
@@ -127,9 +163,24 @@ function ChartCard({ onNavigate }) {
                         : "No spend yet"}
                 </span>
             </div>
+            <div className="chart-note">
+                <span>Monthly Purchases Snapshot</span>
+                <strong>
+                    Peak: {
+                        chartData.length > 0
+                            ? [...chartData].sort((a, b) => b.value - a.value)[0]?.label
+                            : "None"
+                    }
+                </strong>
+            </div>
+            <SellerDashboardChartJs
+                ariaLabel="Monthly buyer purchases trend"
+                data={chartData}
+            />
         </article>
     );
 }
+
 function MessagesPreview({ onNavigate }) {
     const { t } = useTranslation();
     const messages = useDashboardStore((state) => state.messages);
@@ -165,14 +216,15 @@ function MessagesPreview({ onNavigate }) {
                         <div>
                             <h3>{message.name}</h3>
                             <p>{message.message}</p>
-                            <span className="message-time">{message.time}</span>
                         </div>
+                        <span className="message-time">{message.time}</span>
                     </article>
                 ))}
             </div>
         </article>
     );
 }
+
 function RecommendedServices({ onNavigate }) {
     const { t } = useTranslation();
     const recommendedServices = useDashboardStore(
@@ -227,8 +279,14 @@ function RecommendedServices({ onNavigate }) {
                             <span className="mini-delivery">
                                 {service.delivery}
                             </span>
-                            <a className="tag" href="#">
-                                {" "}
+                            <a 
+                                className="tag" 
+                                href="#"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                }}
+                            >
+                                <Icon name="heart" style={{ marginRight: "4px", width: "12px", height: "12px" }} />
                                 {t("pages.buyerdashboardpage.save")}{" "}
                             </a>
                         </div>
@@ -244,6 +302,7 @@ function RecommendedServices({ onNavigate }) {
         </article>
     );
 }
+
 function BuyerDashboardPage({ onNavigate }) {
     const { t } = useTranslation();
     const dashboardHighlights = useDashboardStore(
@@ -306,4 +365,6 @@ function BuyerDashboardPage({ onNavigate }) {
         </main>
     );
 }
+
 export default BuyerDashboardPage;
+
