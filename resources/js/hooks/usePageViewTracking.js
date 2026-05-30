@@ -11,7 +11,11 @@ export function usePageViewTracking() {
     useEffect(() => {
         const path = `${pathname}${search}`;
 
-        if (!path || path.startsWith("/admin")) {
+        if (
+            !path ||
+            path.startsWith("/admin") ||
+            path.startsWith("/dashboard")
+        ) {
             return undefined;
         }
 

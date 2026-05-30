@@ -392,7 +392,7 @@ class MarketplaceApiTest extends TestCase
         );
     }
 
-    public function test_presence_heartbeat_and_push_subscription_are_saved(): void
+    public function test_presence_join_and_push_subscription_are_saved(): void
     {
         $this->actingAs($this->user)
             ->postJson('/api/push-subscriptions', [

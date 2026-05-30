@@ -29,8 +29,4 @@ class PresenceController extends Controller
         return ['data' => ['online' => true]];
     }
 
-    public function heartbeat(Request $request): array
-    {
-        return $this->join($request);
-    }
 }

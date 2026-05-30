@@ -127,7 +127,6 @@ Route::prefix('api')->name('api.')->group(function () {
         Route::post('/conversations/{conversation}/typing', [ConversationController::class, 'typing'])->name('conversations.typing');
 
         Route::post('/presence/join', [PresenceController::class, 'join'])->name('presence.join');
-        Route::post('/presence/heartbeat', [PresenceController::class, 'join'])->name('presence.heartbeat');
         Route::post('/push-subscriptions', [PushSubscriptionController::class, 'store'])->name('push-subscriptions.store');
         Route::delete('/push-subscriptions/{token}', [PushSubscriptionController::class, 'destroy'])->name('push-subscriptions.destroy');
 
