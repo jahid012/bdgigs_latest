@@ -52,11 +52,52 @@
             <div class="admin-panel-head">
                 <div>
                     <h2>Case action</h2>
-                    <p>Resolution and assignment are audited.</p>
+                    <p>Open an action, review the impact, then confirm.</p>
                 </div>
             </div>
             @can('disputes.resolve')
-                <form class="admin-detail-form" method="POST" action="{{ route('admin.disputes.update', $dispute) }}">
+                <div class="admin-moderation-summary">
+                    <span><strong>{{ str($dispute->status)->replace('_', ' ')->title() }}</strong>Current status</span>
+                    <span><strong>{{ $dispute->assignedAdmin?->name ?? 'Unassigned' }}</strong>Case owner</span>
+                </div>
+                <div class="admin-moderation-action-list">
+                    <button class="admin-moderation-action-button is-positive" type="button" data-admin-modal-open="dispute-update-modal">
+                        <strong>Update case</strong>
+                        <span>Change status, priority, assignment, resolution, and internal note.</span>
+                    </button>
+                    <button class="admin-moderation-action-button is-positive" type="button" data-admin-modal-open="dispute-join-modal">
+                        <strong>Join case</strong>
+                        <span>Assign yourself and move the dispute into admin review.</span>
+                    </button>
+                    <button class="admin-moderation-action-button is-warning" type="button" data-admin-modal-open="dispute-evidence-modal">
+                        <strong>Request evidence</strong>
+                        <span>Ask the buyer, seller, or both parties for more context.</span>
+                    </button>
+                    @can('payments.release')
+                        <button class="admin-moderation-action-button is-danger" type="button" data-admin-modal-open="dispute-refund-modal">
+                            <strong>Issue refund</strong>
+                            <span>Resolve the dispute by refunding all or part of the linked order.</span>
+                        </button>
+                    @endcan
+                </div>
+            @else
+                <p class="admin-empty-note">You can inspect this case but cannot change it.</p>
+            @endcan
+        </aside>
+    </section>
+
+    @can('disputes.resolve')
+        <dialog class="admin-modal" id="dispute-update-modal" data-admin-modal>
+            <div class="admin-modal-panel">
+                <div class="admin-modal-head">
+                    <div>
+                        <p class="admin-eyebrow">Case update</p>
+                        <h2>Update {{ $dispute->case_code }}</h2>
+                        <span>Resolution is required when resolving, rejecting, or closing the case.</span>
+                    </div>
+                    <button type="button" data-admin-modal-close aria-label="Close dispute update modal">Close</button>
+                </div>
+                <form class="admin-detail-form admin-modal-form" method="POST" action="{{ route('admin.disputes.update', $dispute) }}">
                     @csrf
                     @method('PATCH')
                     <label>
@@ -86,23 +127,55 @@
                     </label>
                     <label>
                         <span>Resolution</span>
-                        <textarea name="resolution" rows="3" placeholder="Required when resolving or closing the case">{{ $dispute->resolution }}</textarea>
+                        <textarea name="resolution" rows="4" placeholder="Required when resolving or closing the case">{{ $dispute->resolution }}</textarea>
                     </label>
                     <label>
                         <span>Activity note</span>
                         <textarea name="note" rows="3" placeholder="Optional internal note for this update"></textarea>
                     </label>
-                    <button type="submit">Save case update</button>
+                    <div class="admin-modal-actions">
+                        <button type="button" class="admin-secondary-button" data-admin-modal-close>Cancel</button>
+                        <button type="submit">Save case update</button>
+                    </div>
                 </form>
-                <form class="admin-detail-form" method="POST" action="{{ route('admin.disputes.join', $dispute) }}">
+            </div>
+        </dialog>
+
+        <dialog class="admin-modal" id="dispute-join-modal" data-admin-modal>
+            <div class="admin-modal-panel">
+                <div class="admin-modal-head">
+                    <div>
+                        <p class="admin-eyebrow">Case ownership</p>
+                        <h2>Join {{ $dispute->case_code }}</h2>
+                        <span>This assigns the case if it is currently unassigned and records an activity entry.</span>
+                    </div>
+                    <button type="button" data-admin-modal-close aria-label="Close join modal">Close</button>
+                </div>
+                <form class="admin-detail-form admin-modal-form" method="POST" action="{{ route('admin.disputes.join', $dispute) }}">
                     @csrf
                     <label>
                         <span>Join note</span>
-                        <textarea name="note" rows="2" placeholder="Optional note for participants"></textarea>
+                        <textarea name="note" rows="4" placeholder="Optional note for participants"></textarea>
                     </label>
-                    <button type="submit">Join case</button>
+                    <div class="admin-modal-actions">
+                        <button type="button" class="admin-secondary-button" data-admin-modal-close>Cancel</button>
+                        <button type="submit">Join case</button>
+                    </div>
                 </form>
-                <form class="admin-detail-form" method="POST" action="{{ route('admin.disputes.evidence-request', $dispute) }}">
+            </div>
+        </dialog>
+
+        <dialog class="admin-modal" id="dispute-evidence-modal" data-admin-modal>
+            <div class="admin-modal-panel">
+                <div class="admin-modal-head">
+                    <div>
+                        <p class="admin-eyebrow">Evidence request</p>
+                        <h2>Request evidence</h2>
+                        <span>The case will move into evidence requested status.</span>
+                    </div>
+                    <button type="button" data-admin-modal-close aria-label="Close evidence modal">Close</button>
+                </div>
+                <form class="admin-detail-form admin-modal-form" method="POST" action="{{ route('admin.disputes.evidence-request', $dispute) }}">
                     @csrf
                     <label>
                         <span>Recipient</span>
@@ -118,12 +191,28 @@
                     </label>
                     <label>
                         <span>Evidence request</span>
-                        <textarea name="note" rows="3" required placeholder="Explain what evidence is needed"></textarea>
+                        <textarea name="note" rows="4" required placeholder="Explain what evidence is needed"></textarea>
                     </label>
-                    <button type="submit">Request evidence</button>
+                    <div class="admin-modal-actions">
+                        <button type="button" class="admin-secondary-button" data-admin-modal-close>Cancel</button>
+                        <button type="submit">Request evidence</button>
+                    </div>
                 </form>
-                @can('payments.release')
-                    <form class="admin-detail-form" method="POST" action="{{ route('admin.disputes.refund', $dispute) }}">
+            </div>
+        </dialog>
+
+        @can('payments.release')
+            <dialog class="admin-modal" id="dispute-refund-modal" data-admin-modal>
+                <div class="admin-modal-panel">
+                    <div class="admin-modal-head">
+                        <div>
+                            <p class="admin-eyebrow">Dispute refund</p>
+                            <h2>Issue refund</h2>
+                            <span>Refundable balance: ${{ number_format(max(0, ($order->price_cents - (int) $order->refund_amount_cents)) / 100, 2) }}.</span>
+                        </div>
+                        <button type="button" data-admin-modal-close aria-label="Close dispute refund modal">Close</button>
+                    </div>
+                    <form class="admin-detail-form admin-modal-form" method="POST" action="{{ route('admin.disputes.refund', $dispute) }}">
                         @csrf
                         <label>
                             <span>Refund amount</span>
@@ -131,16 +220,17 @@
                         </label>
                         <label>
                             <span>Refund reason</span>
-                            <textarea name="reason" rows="3" placeholder="Resolution decision and refund reason"></textarea>
+                            <textarea name="reason" rows="4" placeholder="Resolution decision and refund reason"></textarea>
                         </label>
-                        <button class="is-danger" type="submit">Issue refund</button>
+                        <div class="admin-modal-actions">
+                            <button type="button" class="admin-secondary-button" data-admin-modal-close>Cancel</button>
+                            <button class="is-danger" type="submit">Issue refund</button>
+                        </div>
                     </form>
-                @endcan
-            @else
-                <p class="admin-empty-note">You can inspect this case but cannot change it.</p>
-            @endcan
-        </aside>
-    </section>
+                </div>
+            </dialog>
+        @endcan
+    @endcan
 
     <section class="admin-detail-grid">
         <article class="admin-panel">
@@ -227,4 +317,5 @@
             </div>
         </article>
     </section>
+    @include('admin.partials.modal-scripts')
 @endsection

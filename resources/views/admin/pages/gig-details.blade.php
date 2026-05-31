@@ -13,6 +13,68 @@
         $sellerDetails = collect($gig->seller_details ?? [])->filter();
         $serviceOptions = collect($gig->service_options ?? [])->filter();
         $metadata = $gig->metadata ?? [];
+        $moderationActions = [
+            [
+                'action' => 'approve',
+                'label' => 'Approve',
+                'title' => 'Approve this gig',
+                'description' => 'Publish this gig and notify the seller that it is approved.',
+                'permission' => 'gigs.publish',
+                'requires_reason' => false,
+                'shows_reason' => false,
+                'tone' => 'positive',
+            ],
+            [
+                'action' => 'pause',
+                'label' => 'Pause',
+                'title' => 'Pause this gig',
+                'description' => 'Temporarily pause this gig while the listing is reviewed or corrected.',
+                'permission' => 'gigs.publish',
+                'requires_reason' => false,
+                'shows_reason' => true,
+                'tone' => 'neutral',
+            ],
+            [
+                'action' => 'deactivate',
+                'label' => 'Deactivate',
+                'title' => 'Deactivate this gig',
+                'description' => 'Remove this gig from active marketplace availability until it is reactivated.',
+                'permission' => 'gigs.publish',
+                'requires_reason' => true,
+                'shows_reason' => true,
+                'tone' => 'warning',
+            ],
+            [
+                'action' => 'reactivate',
+                'label' => 'Reactivate',
+                'title' => 'Reactivate this gig',
+                'description' => 'Return this gig to approved marketplace status.',
+                'permission' => 'gigs.publish',
+                'requires_reason' => false,
+                'shows_reason' => false,
+                'tone' => 'positive',
+            ],
+            [
+                'action' => 'request_edits',
+                'label' => 'Request edits',
+                'title' => 'Request seller edits',
+                'description' => 'Send this gig back to the seller with a clear note about what needs to change.',
+                'permission' => 'gigs.review',
+                'requires_reason' => true,
+                'shows_reason' => true,
+                'tone' => 'neutral',
+            ],
+            [
+                'action' => 'reject',
+                'label' => 'Reject',
+                'title' => 'Reject this gig',
+                'description' => 'Reject this gig and store the moderation reason for audit and seller guidance.',
+                'permission' => 'gigs.review',
+                'requires_reason' => true,
+                'shows_reason' => true,
+                'tone' => 'danger',
+            ],
+        ];
     @endphp
 
     <section class="admin-detail-layout">
@@ -25,7 +87,7 @@
                         <span>No image</span>
                     @endif
                 </div>
-                <div>
+                <div class="admin-detail-copy">
                     <div class="admin-detail-badges">
                         <span class="admin-status-badge {{ $gig->trashed() ? 'status-cancelled' : $gig->status_class }}">
                             {{ $gig->trashed() ? 'Deleted' : $gig->status }}
@@ -55,10 +117,18 @@
                 <a href="{{ route('admin.gigs') }}">Back to gigs</a>
                 @if (! $gig->trashed())
                     @can('gigs.publish')
-                        <form method="POST" action="{{ route('admin.gigs.featured', $gig) }}">
+                        <form class="admin-feature-toggle-form" method="POST" action="{{ route('admin.gigs.featured', $gig) }}">
                             @csrf
                             @method('PATCH')
-                            <button type="submit">{{ $gig->featured ? 'Remove featured' : 'Feature gig' }}</button>
+                            <button
+                                class="admin-toggle-button {{ $gig->featured ? 'is-on' : '' }}"
+                                type="submit"
+                                role="switch"
+                                aria-checked="{{ $gig->featured ? 'true' : 'false' }}"
+                            >
+                                <span aria-hidden="true"></span>
+                                <strong>{{ $gig->featured ? 'Featured on' : 'Featured off' }}</strong>
+                            </button>
                         </form>
                     @endcan
                 @endif
@@ -69,48 +139,83 @@
             <div class="admin-panel-head">
                 <div>
                     <h2>Moderation</h2>
-                    <p>Actions stay on the inspection page.</p>
+                    <p>Open an action, review the impact, then confirm.</p>
                 </div>
             </div>
 
             @if ($gig->trashed())
                 <p class="admin-empty-note">This gig was soft deleted by the seller. It stays visible here for admin review.</p>
             @else
-                <div class="admin-detail-action-list">
-                    @can('gigs.publish')
-                        @foreach (['approve' => 'Approve', 'pause' => 'Pause', 'deactivate' => 'Deactivate', 'reactivate' => 'Reactivate'] as $action => $label)
-                            <form method="POST" action="{{ route('admin.gigs.status', $gig) }}">
-                                @csrf
-                                @method('PATCH')
-                                <input type="hidden" name="action" value="{{ $action }}">
-                                @if (in_array($action, ['pause', 'deactivate'], true))
-                                    <label>
-                                        <span class="sr-only">{{ $label }} reason</span>
-                                        <textarea name="reason" rows="2" placeholder="{{ $label }} reason"></textarea>
-                                    </label>
-                                @endif
-                                <button type="submit">{{ $label }}</button>
-                            </form>
-                        @endforeach
-                    @endcan
-                    @can('gigs.review')
-                        @foreach (['request_edits' => 'Request edits', 'reject' => 'Reject'] as $action => $label)
-                            <form method="POST" action="{{ route('admin.gigs.status', $gig) }}">
-                                @csrf
-                                @method('PATCH')
-                                <input type="hidden" name="action" value="{{ $action }}">
-                                <label>
-                                    <span class="sr-only">{{ $label }} reason</span>
-                                    <textarea name="reason" rows="2" placeholder="{{ $label }} reason"></textarea>
-                                </label>
-                                <button class="{{ $action === 'reject' ? 'is-danger' : '' }}" type="submit">{{ $label }}</button>
-                            </form>
-                        @endforeach
-                    @endcan
+                <div class="admin-moderation-summary">
+                    <span><strong>{{ $gig->moderated_at?->diffForHumans() ?? 'Not moderated yet' }}</strong>Last decision</span>
+                    <span><strong>{{ $gig->moderation_reason ? 'Has note' : 'No note' }}</strong>Moderation reason</span>
+                </div>
+                <div class="admin-moderation-action-list">
+                    @foreach ($moderationActions as $moderationAction)
+                        @can($moderationAction['permission'])
+                            @php($modalId = 'gig-moderation-'.str_replace('_', '-', $moderationAction['action']))
+                            <button
+                                class="admin-moderation-action-button is-{{ $moderationAction['tone'] }}"
+                                type="button"
+                                data-admin-modal-open="{{ $modalId }}"
+                            >
+                                <strong>{{ $moderationAction['label'] }}</strong>
+                                <span>{{ $moderationAction['description'] }}</span>
+                            </button>
+                        @endcan
+                    @endforeach
                 </div>
             @endif
         </aside>
     </section>
+
+    @if (! $gig->trashed())
+        @foreach ($moderationActions as $moderationAction)
+            @can($moderationAction['permission'])
+                @php($modalId = 'gig-moderation-'.str_replace('_', '-', $moderationAction['action']))
+                <dialog class="admin-modal" id="{{ $modalId }}" data-admin-modal data-admin-moderation-modal>
+                    <div class="admin-modal-panel">
+                        <div class="admin-modal-head">
+                            <div>
+                                <p class="admin-eyebrow">Gig moderation</p>
+                                <h2>{{ $moderationAction['title'] }}</h2>
+                                <span>{{ $moderationAction['description'] }}</span>
+                            </div>
+                            <button type="button" data-admin-modal-close aria-label="Close {{ $moderationAction['label'] }} modal">Close</button>
+                        </div>
+                        <form class="admin-detail-form admin-modal-form" method="POST" action="{{ route('admin.gigs.status', $gig) }}">
+                            @csrf
+                            @method('PATCH')
+                            <input type="hidden" name="action" value="{{ $moderationAction['action'] }}">
+
+                            @if ($moderationAction['shows_reason'])
+                                <label>
+                                    <span>Moderation note{{ $moderationAction['requires_reason'] ? ' (required)' : ' (optional)' }}</span>
+                                    <textarea
+                                        name="reason"
+                                        rows="4"
+                                        placeholder="Add clear seller-facing context for this decision"
+                                        @if ($moderationAction['requires_reason']) required @endif
+                                    ></textarea>
+                                </label>
+                            @else
+                                <p class="admin-modal-note">This action does not require a note, but it will be saved in the moderation timeline.</p>
+                            @endif
+
+                            <div class="admin-modal-actions">
+                                <button type="button" class="admin-secondary-button" data-admin-modal-close>Cancel</button>
+                                <button class="{{ $moderationAction['tone'] === 'danger' ? 'is-danger' : '' }}" type="submit">
+                                    Confirm {{ strtolower($moderationAction['label']) }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </dialog>
+            @endcan
+        @endforeach
+
+        @include('admin.partials.modal-scripts')
+    @endif
 
     <section class="admin-detail-grid">
         <article class="admin-panel">

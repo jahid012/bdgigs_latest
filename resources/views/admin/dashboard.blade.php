@@ -64,7 +64,7 @@
             </div>
             <div class="admin-queue-list">
                 @foreach (($moderationQueue ?? []) as $item)
-                    <a href="{{ route($item['route']) }}">
+                    <a href="{{ route($item['route'], $item['params'] ?? []) }}">
                         <span>{{ $item['label'] }}</span>
                         <strong>{{ $item['value'] }}</strong>
                     </a>

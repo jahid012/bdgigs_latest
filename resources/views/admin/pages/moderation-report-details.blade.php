@@ -39,17 +39,42 @@
             <div class="admin-panel-head">
                 <div>
                     <h2>Report status</h2>
-                    <p>Status updates notify the reporter when appropriate.</p>
+                    <p>Open the decision modal before changing the report state.</p>
                 </div>
             </div>
             @can('reports.manage')
-                <form class="admin-detail-form" method="POST" action="{{ route('admin.moderation-reports.update', $report) }}">
+                <div class="admin-moderation-summary">
+                    <span><strong>{{ str($report->status)->title() }}</strong>Current status</span>
+                    <span><strong>{{ $report->assignedAdmin?->name ?? 'Unassigned' }}</strong>Assigned admin</span>
+                </div>
+                <button class="admin-moderation-action-button is-positive" type="button" data-admin-modal-open="report-status-modal">
+                    <strong>Update report</strong>
+                    <span>Change the report status and save the resolution note.</span>
+                </button>
+            @else
+                <p class="admin-empty-note">You can inspect reports but cannot update them.</p>
+            @endcan
+        </aside>
+    </section>
+
+    @can('reports.manage')
+        <dialog class="admin-modal" id="report-status-modal" data-admin-modal>
+            <div class="admin-modal-panel">
+                <div class="admin-modal-head">
+                    <div>
+                        <p class="admin-eyebrow">Moderation report</p>
+                        <h2>Update {{ $report->code }}</h2>
+                        <span>Status updates notify the reporter when appropriate.</span>
+                    </div>
+                    <button type="button" data-admin-modal-close aria-label="Close report status modal">Close</button>
+                </div>
+                <form class="admin-detail-form admin-modal-form" method="POST" action="{{ route('admin.moderation-reports.update', $report) }}">
                     @csrf
                     @method('PATCH')
                     <label>
                         <span>Status</span>
                         <select name="status">
-                            @foreach (\App\Models\ModerationReport::STATUSES as $status)
+                            @foreach ($statusOptions as $status)
                                 <option value="{{ $status }}" @selected($report->status === $status)>{{ str($status)->title() }}</option>
                             @endforeach
                         </select>
@@ -58,11 +83,13 @@
                         <span>Resolution note</span>
                         <textarea name="note" rows="4" placeholder="What action was taken?">{{ $report->resolution_note }}</textarea>
                     </label>
-                    <button type="submit">Update report</button>
+                    <div class="admin-modal-actions">
+                        <button type="button" class="admin-secondary-button" data-admin-modal-close>Cancel</button>
+                        <button type="submit">Update report</button>
+                    </div>
                 </form>
-            @else
-                <p class="admin-empty-note">You can inspect reports but cannot update them.</p>
-            @endcan
-        </aside>
-    </section>
+            </div>
+        </dialog>
+    @endcan
+    @include('admin.partials.modal-scripts')
 @endsection

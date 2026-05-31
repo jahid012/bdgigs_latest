@@ -3,6 +3,10 @@
 @section('title', 'Users')
 
 @section('panel')
+    @php
+        $canBulkManage = auth('admin')->user()?->can('users.verify') || auth('admin')->user()?->can('users.suspend');
+    @endphp
+
     @include('admin.partials.stats', ['stats' => $stats])
 
     <section class="admin-page-grid">
@@ -10,10 +14,11 @@
             <div class="admin-panel-head">
                 <div>
                     <h2>User directory</h2>
-                    <p>Review account health, profile type, verification, and region.</p>
+                    <p>Filter accounts, inspect lifecycle state, and apply controlled bulk actions.</p>
                 </div>
             </div>
-            <form class="admin-user-filter-form" method="GET" action="{{ route('admin.users') }}">
+
+            <form class="admin-user-filter-form admin-user-directory-filter-form" method="GET" action="{{ route('admin.users') }}">
                 <label>
                     <span>User search</span>
                     <input type="search" name="q" value="{{ $searchQuery }}" placeholder="Search name, username, email, or country">
@@ -32,95 +37,176 @@
                     <span>Account state</span>
                     <select name="status">
                         @foreach ($statusFilters as $filter)
-                            <option value="{{ $filter['value'] }}" @selected($currentStatus === $filter['value'])>
+                            <option value="{{ $filter['value'] }}" @selected($filterState['status'] === $filter['value'])>
                                 {{ $filter['label'] }}
                             </option>
                         @endforeach
                     </select>
                 </label>
+                <label>
+                    <span>Seller state</span>
+                    <select name="seller_status">
+                        @foreach ($sellerStatusFilters as $value => $label)
+                            <option value="{{ $value }}" @selected($filterState['seller_status'] === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </label>
+                <label>
+                    <span>Email state</span>
+                    <select name="email">
+                        @foreach ($emailFilters as $value => $label)
+                            <option value="{{ $value }}" @selected($filterState['email'] === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </label>
+                <label>
+                    <span>Country</span>
+                    <select name="country">
+                        <option value="">All countries</option>
+                        @foreach ($countryOptions as $country)
+                            <option value="{{ $country }}" @selected($filterState['country'] === $country)>{{ $country }}</option>
+                        @endforeach
+                    </select>
+                </label>
+                <label>
+                    <span>Activity</span>
+                    <select name="activity">
+                        @foreach ($activityFilters as $value => $label)
+                            <option value="{{ $value }}" @selected($filterState['activity'] === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </label>
+                <label>
+                    <span>Joined</span>
+                    <select name="joined">
+                        @foreach ($joinedFilters as $value => $label)
+                            <option value="{{ $value }}" @selected($filterState['joined'] === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </label>
+                <label>
+                    <span>Sort</span>
+                    <select name="sort">
+                        @foreach ($sortOptions as $value => $label)
+                            <option value="{{ $value }}" @selected($filterState['sort'] === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </label>
                 <div>
                     <button type="submit">Apply filters</button>
-                    @if ($searchQuery !== '' || $currentFilter !== 'all' || $currentStatus !== 'all')
-                    <a href="{{ route('admin.users') }}">Clear</a>
+                    @if ($hasActiveFilters)
+                        <a href="{{ route('admin.users') }}">Clear</a>
                     @endif
                 </div>
             </form>
+
+            <div class="admin-filter-row">
+                @foreach ($filters as $filter)
+                    <a
+                        class="{{ $currentFilter === $filter['value'] ? 'is-active' : '' }}"
+                        href="{{ request()->fullUrlWithQuery(['type' => $filter['value'], 'page' => 1]) }}"
+                    >
+                        {{ $filter['label'] }} <span>{{ number_format($filter['count']) }}</span>
+                    </a>
+                @endforeach
+            </div>
+
             <div class="admin-filter-summary">
                 <strong>{{ number_format($pagination['total']) }}</strong>
-                <span>users match the current search, profile, and account state.</span>
+                <span>users match the current search, profile, account, seller, email, country, and activity filters.</span>
             </div>
+
+            @if ($canBulkManage)
+                <form method="POST" action="{{ route('admin.users.bulk') }}" data-admin-user-bulk-form>
+                    @csrf
+                    <div class="admin-bulk-toolbar">
+                        <label>
+                            <span>Bulk actions</span>
+                            <select name="bulk_action" required>
+                                <option value="">Choose action</option>
+                                @can('users.verify')
+                                    <option value="verify">Verify users</option>
+                                @endcan
+                                @can('users.suspend')
+                                    <option value="suspend">Suspend users</option>
+                                    <option value="restore">Restore users</option>
+                                    <option value="deactivate">Deactivate users</option>
+                                @endcan
+                            </select>
+                        </label>
+                        <label>
+                            <span>Action reason</span>
+                            <input type="text" name="reason" value="{{ old('reason') }}" placeholder="Required for suspend and deactivate">
+                        </label>
+                        <button type="submit">Apply</button>
+                        <span data-admin-user-selected-count>0 selected</span>
+                    </div>
+            @endif
+
             <div class="admin-table-wrap">
-                <table>
+                <table class="admin-user-table">
                     <thead>
                         <tr>
-                            <th>Name</th>
+                            @if ($canBulkManage)
+                                <th class="admin-table-select-cell">
+                                    <input type="checkbox" data-admin-user-select-all aria-label="Select all users on this page">
+                                </th>
+                            @endif
+                            <th>User</th>
                             <th>Email</th>
-                            <th>Profile type</th>
-                            <th>Seller level</th>
-                            <th>Country</th>
+                            <th>Profile</th>
+                            <th>Seller status</th>
+                            <th>Verification</th>
                             <th>Status</th>
-                            <th>Joined</th>
-                            <th>Actions</th>
+                            <th>Country</th>
+                            <th>Activity</th>
+                            <th>Volume</th>
+                            <th>Details</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($users as $user)
                             <tr>
-                                <td><a class="admin-user-table-name" href="{{ route('admin.users.show', $user['id']) }}">{{ $user['name'] }}</a></td>
-                                <td>{{ $user['email'] }}</td>
-                                <td>{{ $user['profile_type'] }}</td>
-                                <td>{{ $user['seller_level'] }}</td>
-                                <td>{{ $user['country'] }}</td>
-                                <td><span class="admin-status-badge {{ $user['status_class'] }}">{{ $user['status'] }}</span></td>
-                                <td>{{ $user['joined'] }}</td>
+                                @if ($canBulkManage)
+                                    <td class="admin-table-select-cell">
+                                        <input type="checkbox" name="users[]" value="{{ $user['id'] }}" data-admin-user-row-check aria-label="Select {{ $user['name'] }}">
+                                    </td>
+                                @endif
                                 <td>
-                                    <details class="admin-action-menu">
-                                        <summary>Actions</summary>
-                                        <div>
-                                            <a href="{{ route('admin.users.show', $user['id']) }}">View details</a>
-                                            @if ($user['can_impersonate'])
-                                                <form method="POST" action="{{ route('admin.users.impersonate', $user['id']) }}">
-                                                    @csrf
-                                                    <button type="submit">Login as user</button>
-                                                </form>
-                                            @endif
-                                            @can('users.verify')
-                                                <form method="POST" action="{{ route('admin.users.verify', $user['id']) }}">
-                                                    @csrf
-                                                    <button type="submit">Verify account</button>
-                                                </form>
-                                            @endcan
-                                            @can('users.suspend')
-                                                @if ($user['can_restore'])
-                                                    <form method="POST" action="{{ route('admin.users.restore', $user['id']) }}">
-                                                        @csrf
-                                                        <button type="submit">Restore account</button>
-                                                    </form>
-                                                @elseif ($user['can_suspend'])
-                                                    <form method="POST" action="{{ route('admin.users.suspend', $user['id']) }}">
-                                                        @csrf
-                                                        <button class="is-danger" type="submit">Suspend account</button>
-                                                    </form>
-                                                @endif
-                                                @if ($user['can_deactivate'])
-                                                    <form method="POST" action="{{ route('admin.users.deactivate', $user['id']) }}">
-                                                        @csrf
-                                                        <button class="is-danger" type="submit">Deactivate account</button>
-                                                    </form>
-                                                @endif
-                                            @endcan
-                                        </div>
-                                    </details>
+                                    <a class="admin-user-table-name" href="{{ route('admin.users.show', $user['id']) }}">{{ $user['name'] }}</a>
+                                    <small>{{ $user['joined'] }}</small>
+                                </td>
+                                <td>
+                                    {{ $user['email'] }}
+                                    <small>{{ $user['email_verified'] ? 'Email verified' : 'Email unverified' }}</small>
+                                </td>
+                                <td>{{ $user['profile_type'] }}</td>
+                                <td>{{ $user['seller_status'] }}</td>
+                                <td>{{ $user['verification'] }}</td>
+                                <td><span class="admin-status-badge {{ $user['status_class'] }}">{{ $user['status'] }}</span></td>
+                                <td>{{ $user['country'] }}</td>
+                                <td>{{ $user['last_seen'] }}</td>
+                                <td>
+                                    <span>{{ number_format($user['metrics']['gigs']) }} gigs</span>
+                                    <small>{{ number_format($user['metrics']['buyer_orders']) }} buyer / {{ number_format($user['metrics']['seller_orders']) }} seller orders</small>
+                                </td>
+                                <td>
+                                    <a class="admin-panel-link" href="{{ route('admin.users.show', $user['id']) }}">View details</a>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8">No users matched your filters.</td>
+                                <td colspan="{{ $canBulkManage ? 11 : 10 }}">No users matched your filters.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
+
+            @if ($canBulkManage)
+                </form>
+            @endif
+
             @include('admin.partials.pagination', ['pagination' => $pagination, 'label' => 'Users pagination'])
         </article>
 
@@ -168,4 +254,57 @@
             </div>
         </article>
     </section>
+
+    @if ($canBulkManage)
+        <script>
+            document.addEventListener("DOMContentLoaded", () => {
+                const form = document.querySelector("[data-admin-user-bulk-form]");
+
+                if (! form) {
+                    return;
+                }
+
+                const selectAll = form.querySelector("[data-admin-user-select-all]");
+                const rowChecks = Array.from(form.querySelectorAll("[data-admin-user-row-check]"));
+                const selectedCount = form.querySelector("[data-admin-user-selected-count]");
+                const updateSelectionState = () => {
+                    const count = rowChecks.filter((checkbox) => checkbox.checked).length;
+
+                    if (selectedCount) {
+                        selectedCount.textContent = `${count} selected`;
+                    }
+
+                    if (selectAll) {
+                        selectAll.checked = count > 0 && count === rowChecks.length;
+                        selectAll.indeterminate = count > 0 && count < rowChecks.length;
+                    }
+                };
+
+                selectAll?.addEventListener("change", () => {
+                    rowChecks.forEach((checkbox) => {
+                        checkbox.checked = selectAll.checked;
+                    });
+                    updateSelectionState();
+                });
+
+                rowChecks.forEach((checkbox) => {
+                    checkbox.addEventListener("change", updateSelectionState);
+                });
+
+                form.addEventListener("submit", (event) => {
+                    if (rowChecks.length > 0 && ! rowChecks.some((checkbox) => checkbox.checked)) {
+                        event.preventDefault();
+
+                        if (window.notify?.error) {
+                            window.notify.error("Select at least one user before applying a bulk action.");
+                        } else {
+                            window.alert("Select at least one user before applying a bulk action.");
+                        }
+                    }
+                });
+
+                updateSelectionState();
+            });
+        </script>
+    @endif
 @endsection

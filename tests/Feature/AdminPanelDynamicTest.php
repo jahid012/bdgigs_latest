@@ -8,9 +8,11 @@ use App\Models\Dispute;
 use App\Models\Gig;
 use App\Models\ManualPaymentMethod;
 use App\Models\ManualPaymentSubmission;
+use App\Models\ModerationReport;
 use App\Models\Order;
 use App\Models\User;
 use App\Models\VisitorPageView;
+use App\Models\WithdrawalRequest;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
@@ -168,6 +170,63 @@ class AdminPanelDynamicTest extends TestCase
             ->assertSee('Delivered');
     }
 
+    public function test_admin_user_index_supports_extended_filters_and_bulk_actions(): void
+    {
+        $user = User::factory()->unverified()->create([
+            'name' => 'Bulk Managed Seller',
+            'email' => 'bulk-managed-seller@example.com',
+            'profile_type' => 'seller',
+            'seller_status' => 'pending',
+            'verification_status' => 'submitted',
+            'country' => 'Bangladesh',
+            'last_seen_at' => now(),
+            'created_at' => now()->subDays(2),
+        ]);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.users', [
+                'q' => 'bulk-managed',
+                'type' => 'sellers',
+                'status' => 'submitted',
+                'seller_status' => 'pending',
+                'email' => 'unverified',
+                'country' => 'Bangladesh',
+                'activity' => 'active_7d',
+                'joined' => '7d',
+                'sort' => 'name',
+            ]))
+            ->assertOk()
+            ->assertSee('admin-user-table', false)
+            ->assertSee('Bulk actions')
+            ->assertSee('Seller state')
+            ->assertSee($user->email);
+
+        $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.users.bulk'), [
+                'bulk_action' => 'verify',
+                'users' => [$user->id],
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('verified', $user->fresh()->verification_status);
+        $this->assertNotNull($user->fresh()->email_verified_at);
+
+        $this->actingAs($this->admin, 'admin')
+            ->post(route('admin.users.bulk'), [
+                'bulk_action' => 'suspend',
+                'users' => [$user->id],
+                'reason' => 'Bulk trust review.',
+            ])
+            ->assertRedirect();
+
+        $this->assertNotNull($user->fresh()->suspended_at);
+        $this->assertDatabaseHas('account_status_events', [
+            'user_id' => $user->id,
+            'actor_admin_id' => $this->admin->id,
+            'event_type' => 'account_suspended',
+        ]);
+    }
+
     public function test_admin_gig_index_uses_data_table_filters_and_bulk_actions(): void
     {
         $gig = Gig::where('slug', 'demo-gig-001')->firstOrFail();
@@ -211,6 +270,177 @@ class AdminPanelDynamicTest extends TestCase
         ]);
     }
 
+    public function test_admin_operational_queues_use_tables_filters_modals_and_bulk_actions(): void
+    {
+        $buyer = User::factory()->create(['name' => 'Bulk Queue Buyer']);
+        $seller = User::factory()->create([
+            'name' => 'Bulk Queue Seller',
+            'profile_type' => 'seller',
+            'seller_status' => 'pending',
+            'country' => 'Bangladesh',
+            'last_seen_at' => now(),
+        ]);
+        $order = Order::create([
+            'code' => 'BULK-ORDER-1',
+            'buyer_id' => $buyer->id,
+            'seller_id' => $seller->id,
+            'service' => 'Bulk queue order',
+            'buyer_name' => $buyer->name,
+            'seller_name' => $seller->name,
+            'status' => 'In Progress',
+            'status_class' => 'status-progress',
+            'payment_status' => 'pending',
+            'price_cents' => 12500,
+            'earnings_cents' => 10000,
+            'due_date' => now()->addDays(2),
+        ]);
+        $method = ManualPaymentMethod::query()->firstOrFail();
+        $submission = ManualPaymentSubmission::create([
+            'order_id' => $order->id,
+            'manual_payment_method_id' => $method->id,
+            'buyer_id' => $buyer->id,
+            'amount_cents' => 12500,
+            'currency' => 'USD',
+            'reference' => 'BULK-PAY-1',
+            'status' => 'pending',
+        ]);
+        $withdrawal = WithdrawalRequest::create([
+            'code' => 'BULK-WD-1',
+            'seller_id' => $seller->id,
+            'amount_cents' => 9000,
+            'currency' => 'USD',
+            'payout_snapshot' => [
+                'label' => 'Wallet',
+                'accountNumber' => 'WALLET-BULK-1',
+            ],
+            'status' => 'pending',
+        ]);
+        $dispute = Dispute::factory()->create([
+            'order_id' => $order->id,
+            'case_code' => 'DSP-BULK1',
+            'status' => 'open',
+            'priority' => 'normal',
+        ]);
+        $report = ModerationReport::create([
+            'code' => 'RPT-BULK1',
+            'reporter_id' => $buyer->id,
+            'reported_user_id' => $seller->id,
+            'type' => 'user',
+            'status' => 'pending',
+            'reason' => 'Bulk report review',
+            'description' => 'Needs a trust review.',
+        ]);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.orders', ['q' => 'BULK-ORDER-1', 'payment' => 'pending', 'amount' => '50_200']))
+            ->assertOk()
+            ->assertSee('admin-order-table', false)
+            ->assertSee('Bulk actions')
+            ->assertSee('BULK-ORDER-1');
+
+        $this->actingAs($this->admin, 'admin')
+            ->patch(route('admin.orders.bulk'), [
+                'orders' => [$order->code],
+                'status' => 'Delivered',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('Delivered', $order->fresh()->status);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.manual-payments', ['q' => 'BULK-PAY-1', 'method' => $method->id, 'amount' => '50_200']))
+            ->assertOk()
+            ->assertSee('admin-payment-table', false)
+            ->assertSee('data-admin-modal-open', false)
+            ->assertSee('BULK-PAY-1');
+
+        $this->actingAs($this->admin, 'admin')
+            ->patch(route('admin.manual-payments.bulk'), [
+                'bulk_action' => 'approve',
+                'submissions' => [$submission->id],
+                'note' => 'Bulk reference checked.',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('approved', $submission->fresh()->status);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.withdrawals', ['q' => 'BULK-WD-1', 'seller' => 'Bulk Queue Seller', 'amount' => '50_200']))
+            ->assertOk()
+            ->assertSee('admin-withdrawal-table', false)
+            ->assertSee('BULK-WD-1');
+
+        $this->actingAs($this->admin, 'admin')
+            ->patch(route('admin.withdrawals.bulk'), [
+                'bulk_action' => 'approve',
+                'withdrawals' => [$withdrawal->code],
+                'note' => 'Bulk payout details checked.',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('approved', $withdrawal->fresh()->status);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.disputes', ['q' => 'DSP-BULK1', 'assignee' => 'unassigned', 'age' => '7d']))
+            ->assertOk()
+            ->assertSee('admin-dispute-table', false)
+            ->assertSee('DSP-BULK1');
+
+        $this->actingAs($this->admin, 'admin')
+            ->patch(route('admin.disputes.bulk'), [
+                'bulk_action' => 'set_priority',
+                'disputes' => [$dispute->case_code],
+                'priority' => 'critical',
+                'note' => 'Escalated from bulk queue.',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('critical', $dispute->fresh()->priority);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.moderation-reports', ['q' => 'RPT-BULK1', 'assignee' => 'unassigned', 'age' => '7d']))
+            ->assertOk()
+            ->assertSee('admin-report-table', false)
+            ->assertSee('RPT-BULK1');
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.moderation-reports.show', $report))
+            ->assertOk()
+            ->assertSee('report-status-modal', false);
+
+        $this->actingAs($this->admin, 'admin')
+            ->patch(route('admin.moderation-reports.bulk'), [
+                'reports' => [$report->code],
+                'status' => 'reviewing',
+                'note' => 'Bulk trust review started.',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('reviewing', $report->fresh()->status);
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.seller-applications', ['q' => 'Bulk Queue Seller', 'country' => 'Bangladesh', 'activity' => '7d']))
+            ->assertOk()
+            ->assertSee('admin-seller-table', false)
+            ->assertSee('Bulk Queue Seller');
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.seller-applications.show', $seller))
+            ->assertOk()
+            ->assertSee('seller-approve-modal', false)
+            ->assertSee('seller-reject-modal', false);
+
+        $this->actingAs($this->admin, 'admin')
+            ->patch(route('admin.seller-applications.bulk'), [
+                'bulk_action' => 'approve',
+                'sellers' => [$seller->id],
+                'reason' => 'Bulk application approved.',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('approved', $seller->fresh()->seller_status);
+    }
+
     public function test_admin_can_view_user_details_and_impersonate_a_marketplace_user(): void
     {
         $user = User::factory()->create([
@@ -221,7 +451,9 @@ class AdminPanelDynamicTest extends TestCase
             ->get(route('admin.users.show', $user))
             ->assertOk()
             ->assertSee('Impersonated Buyer')
-            ->assertSee('Login as this user');
+            ->assertSee('Login as this user')
+            ->assertSee('data-admin-user-action-modal', false)
+            ->assertSee('Open an action, review the impact, then confirm.');
 
         $this->actingAs($this->admin, 'admin')
             ->post(route('admin.users.impersonate', $user))
@@ -273,7 +505,10 @@ class AdminPanelDynamicTest extends TestCase
             ->get(route('admin.gigs.show', $gig))
             ->assertOk()
             ->assertSee($gig->title)
-            ->assertSee('Moderation');
+            ->assertSee('Moderation')
+            ->assertSee('admin-toggle-button', false)
+            ->assertSee('data-admin-moderation-modal', false)
+            ->assertSee('Open an action, review the impact, then confirm.');
 
         $this->actingAs($this->admin, 'admin')
             ->patch(route('admin.gigs.status', $gig), [

@@ -1370,6 +1370,22 @@ button {
   min-width: 1080px;
 }
 
+.admin-user-table {
+  min-width: 1180px;
+}
+
+.admin-order-table,
+.admin-dispute-table,
+.admin-report-table,
+.admin-seller-table {
+  min-width: 1180px;
+}
+
+.admin-payment-table,
+.admin-withdrawal-table {
+  min-width: 1120px;
+}
+
 .admin-table-wrap .admin-table-select-cell {
   width: 42px;
   color: var(--admin-muted);
@@ -1396,6 +1412,26 @@ button {
 
 .admin-user-table-name:hover {
   text-decoration-color: var(--admin-ink);
+}
+
+.admin-inline-action-button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.68rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--admin-text);
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.admin-inline-action-button:hover {
+  border-color: var(--admin-ink);
+  background: #f8fafc;
 }
 
 .admin-action-menu {
@@ -1718,7 +1754,7 @@ button {
 .admin-detail-head {
   display: grid;
   gap: 0.9rem;
-  align-items: center;
+  align-items: start;
 }
 
 .admin-detail-head h2,
@@ -1732,6 +1768,7 @@ button {
   color: var(--admin-text);
   font-size: 1.22rem;
   line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .admin-detail-head p {
@@ -1747,9 +1784,15 @@ button {
   gap: 0.38rem;
 }
 
+.admin-detail-copy {
+  min-width: 0;
+  max-width: 720px;
+}
+
 .admin-detail-media {
   display: grid;
-  width: min(100%, 220px);
+  width: 100%;
+  max-width: 300px;
   aspect-ratio: 16 / 10;
   place-items: center;
   overflow: hidden;
@@ -1770,6 +1813,138 @@ button {
 
 .admin-detail-list dd {
   overflow-wrap: anywhere;
+}
+
+.admin-feature-toggle-form {
+  margin: 0;
+}
+
+.admin-user-detail-actions .admin-toggle-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 0.52rem;
+  padding: 0 0.78rem 0 0.42rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--admin-text);
+}
+
+.admin-user-detail-actions .admin-toggle-button span {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.admin-user-detail-actions .admin-toggle-button span::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.18);
+  content: "";
+  transition: transform 160ms ease;
+}
+
+.admin-user-detail-actions .admin-toggle-button.is-on {
+  border-color: rgba(4, 120, 87, 0.28);
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.admin-user-detail-actions .admin-toggle-button.is-on span {
+  background: #059669;
+}
+
+.admin-user-detail-actions .admin-toggle-button.is-on span::after {
+  transform: translateX(16px);
+}
+
+.admin-user-detail-actions .admin-toggle-button:hover {
+  background: #f8fafc;
+}
+
+.admin-user-detail-actions .admin-toggle-button.is-on:hover {
+  background: #d1fae5;
+}
+
+.admin-moderation-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.admin-moderation-summary span {
+  display: grid;
+  gap: 0.16rem;
+  min-height: 64px;
+  align-content: center;
+  padding: 0.68rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: #fafafa;
+  color: var(--admin-muted);
+  font-size: 0.72rem;
+  font-weight: 780;
+}
+
+.admin-moderation-summary strong {
+  color: var(--admin-text);
+  font-size: 0.86rem;
+}
+
+.admin-moderation-action-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.admin-moderation-action-button {
+  display: grid;
+  width: 100%;
+  gap: 0.24rem;
+  padding: 0.76rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--admin-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.admin-moderation-action-button:hover {
+  border-color: var(--admin-ink);
+  background: #fafafa;
+}
+
+.admin-moderation-action-button strong {
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.admin-moderation-action-button span {
+  color: var(--admin-muted);
+  font-size: 0.72rem;
+  font-weight: 720;
+  line-height: 1.42;
+}
+
+.admin-moderation-action-button.is-positive {
+  border-color: rgba(4, 120, 87, 0.22);
+}
+
+.admin-moderation-action-button.is-warning {
+  border-color: rgba(217, 119, 6, 0.28);
+}
+
+.admin-moderation-action-button.is-danger {
+  border-color: rgba(220, 38, 38, 0.32);
+  color: #991b1b;
 }
 
 .admin-detail-action-list {
@@ -1861,6 +2036,106 @@ button {
 .admin-detail-form .admin-check-row input[type="checkbox"] {
   width: auto;
   min-height: auto;
+}
+
+.admin-modal {
+  width: min(94vw, 560px);
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--admin-text);
+}
+
+.admin-modal::backdrop {
+  background: rgba(15, 23, 42, 0.48);
+}
+
+.admin-modal-panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 22px 70px rgba(15, 23, 42, 0.24);
+}
+
+.admin-modal-head {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.admin-modal-head h2,
+.admin-modal-head p,
+.admin-modal-head span {
+  margin: 0;
+}
+
+.admin-modal-head h2 {
+  margin-top: 0.18rem;
+  font-size: 1.12rem;
+  line-height: 1.28;
+}
+
+.admin-modal-head span,
+.admin-modal-note {
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+  font-weight: 720;
+  line-height: 1.55;
+}
+
+.admin-modal-head button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 0.7rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--admin-muted);
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.admin-modal-head button:hover {
+  border-color: var(--admin-ink);
+  color: var(--admin-text);
+}
+
+.admin-modal-form {
+  gap: 0.82rem;
+}
+
+.admin-modal-note {
+  padding: 0.78rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.admin-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.admin-detail-form .admin-modal-actions button {
+  width: auto;
+}
+
+.admin-detail-form .admin-modal-actions .admin-secondary-button {
+  border-color: var(--admin-border);
+  background: #ffffff;
+  color: var(--admin-text);
+}
+
+.admin-detail-form .admin-modal-actions .admin-secondary-button:hover {
+  background: #f8fafc;
 }
 
 .admin-email-template-form {
@@ -3178,6 +3453,14 @@ button {
     grid-template-columns: minmax(220px, 1.25fr) repeat(2, minmax(150px, 0.72fr)) auto;
   }
 
+  .admin-user-directory-filter-form {
+    grid-template-columns: minmax(220px, 1.25fr) repeat(4, minmax(135px, 0.72fr));
+  }
+
+  .admin-user-directory-filter-form > div {
+    grid-column: 1 / -1;
+  }
+
   .admin-user-detail-grid {
     grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.78fr);
   }
@@ -3187,7 +3470,8 @@ button {
   }
 
   .admin-detail-layout {
-    grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.62fr);
+    grid-template-columns: 1fr;
+    align-items: start;
   }
 
   .admin-detail-grid {
@@ -3195,7 +3479,7 @@ button {
   }
 
   .admin-detail-head {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: minmax(210px, 300px) minmax(0, 1fr);
   }
 
   .admin-order-detail-head {
@@ -3204,6 +3488,12 @@ button {
 
   .admin-detail-columns {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1180px) {
+  .admin-detail-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
   }
 }
 

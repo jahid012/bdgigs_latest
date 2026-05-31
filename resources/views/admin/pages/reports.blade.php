@@ -5,6 +5,25 @@
 @section('panel')
     @include('admin.partials.stats', ['stats' => $stats])
 
+    <section class="admin-workflow-grid">
+        <article class="admin-panel">
+            <div class="admin-panel-head">
+                <div>
+                    <h2>Operational queues</h2>
+                    <p>Jump from analytics to the filtered queues that need action.</p>
+                </div>
+            </div>
+            <div class="admin-queue-list">
+                <a href="{{ route('admin.orders', ['status' => 'late']) }}"><span>Late-risk orders</span><strong>Orders</strong></a>
+                <a href="{{ route('admin.manual-payments', ['status' => 'pending']) }}"><span>Payment reviews</span><strong>Finance</strong></a>
+                <a href="{{ route('admin.withdrawals', ['status' => 'pending']) }}"><span>Payout reviews</span><strong>Finance</strong></a>
+                <a href="{{ route('admin.disputes', ['status' => 'open']) }}"><span>Open disputes</span><strong>Trust</strong></a>
+                <a href="{{ route('admin.moderation-reports', ['status' => 'pending']) }}"><span>Moderation reports</span><strong>Trust</strong></a>
+                <a href="{{ route('admin.seller-applications', ['status' => 'pending']) }}"><span>Seller applications</span><strong>Growth</strong></a>
+            </div>
+        </article>
+    </section>
+
     <section class="admin-reports-overview-grid">
         @include('admin.partials.line-chart', ['chart' => $marketplaceGrowth])
 

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -55,10 +56,14 @@ class CountryDetectorService
             return null;
         }
 
-        $response = Http::withToken($token)
-            ->acceptJson()
-            ->timeout(2)
-            ->get(rtrim(config('services.ipinfo.endpoint'), '/')."/{$ip}");
+        try {
+            $response = Http::withToken($token)
+                ->acceptJson()
+                ->timeout(2)
+                ->get(rtrim(config('services.ipinfo.endpoint'), '/')."/{$ip}");
+        } catch (ConnectionException) {
+            return null;
+        }
 
         if (! $response->successful()) {
             return null;

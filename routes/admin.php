@@ -38,6 +38,7 @@ Route::prefix(config('admin.route_prefix', 'admin'))
             Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
             Route::get('/users', [UserController::class, 'index'])->middleware('permission:users.view,admin')->name('users');
+            Route::post('/users/bulk', [UserController::class, 'bulkAction'])->middleware('permission:users.verify|users.suspend,admin')->name('users.bulk');
             Route::get('/users/{user}', [UserController::class, 'show'])->middleware('permission:users.view,admin')->name('users.show');
             Route::post('/users/{user}/impersonate', [UserController::class, 'impersonate'])->middleware('permission:users.impersonate,admin')->name('users.impersonate');
             Route::post('/users/{user}/verify', [UserController::class, 'verify'])->middleware('permission:users.verify,admin')->name('users.verify');
@@ -47,6 +48,7 @@ Route::prefix(config('admin.route_prefix', 'admin'))
             Route::patch('/users/{user}/identity/{submission}', [UserController::class, 'reviewIdentity'])->middleware('permission:users.verify,admin')->name('users.identity.review');
 
             Route::get('/seller-applications', [SellerApplicationController::class, 'index'])->middleware('permission:users.verify,admin')->name('seller-applications');
+            Route::patch('/seller-applications/bulk', [SellerApplicationController::class, 'bulkAction'])->middleware('permission:users.verify,admin')->name('seller-applications.bulk');
             Route::get('/seller-applications/{user}', [SellerApplicationController::class, 'show'])->middleware('permission:users.verify,admin')->name('seller-applications.show');
             Route::post('/seller-applications/{user}/approve', [SellerApplicationController::class, 'approve'])->middleware('permission:users.verify,admin')->name('seller-applications.approve');
             Route::post('/seller-applications/{user}/reject', [SellerApplicationController::class, 'reject'])->middleware('permission:users.verify,admin')->name('seller-applications.reject');
@@ -66,6 +68,7 @@ Route::prefix(config('admin.route_prefix', 'admin'))
             Route::delete('/creator-marketplace/{item}', [CreatorMarketplaceItemController::class, 'destroy'])->middleware('permission:content.manage,admin')->name('creator-marketplace.destroy');
 
             Route::get('/orders', [OrderController::class, 'index'])->middleware('permission:orders.view,admin')->name('orders');
+            Route::patch('/orders/bulk', [OrderController::class, 'bulkAction'])->middleware('permission:orders.manage,admin')->name('orders.bulk');
             Route::get('/orders/{order:code}', [OrderController::class, 'show'])->middleware('permission:orders.view,admin')->name('orders.show');
             Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->middleware('permission:orders.manage,admin')->name('orders.status');
             Route::post('/orders/{order}/refund', [OrderController::class, 'refund'])->middleware('permission:payments.release|orders.manage,admin')->name('orders.refund');
@@ -74,10 +77,13 @@ Route::prefix(config('admin.route_prefix', 'admin'))
 
             Route::get('/payments', [PaymentController::class, 'index'])->middleware('permission:payments.view,admin')->name('payments');
             Route::get('/manual-payments', [ManualPaymentController::class, 'index'])->middleware('permission:manual-payments.view,admin')->name('manual-payments');
+            Route::patch('/manual-payments/bulk', [ManualPaymentController::class, 'bulkAction'])->middleware('permission:manual-payments.approve,admin')->name('manual-payments.bulk');
             Route::patch('/manual-payments/{submission}/review', [ManualPaymentController::class, 'review'])->middleware('permission:manual-payments.approve,admin')->name('manual-payments.review');
             Route::get('/withdrawals', [WithdrawalController::class, 'index'])->middleware('permission:withdrawals.view,admin')->name('withdrawals');
+            Route::patch('/withdrawals/bulk', [WithdrawalController::class, 'bulkAction'])->middleware('permission:withdrawals.review,admin')->name('withdrawals.bulk');
             Route::patch('/withdrawals/{withdrawal}/review', [WithdrawalController::class, 'review'])->middleware('permission:withdrawals.review|withdrawals.pay,admin')->name('withdrawals.review');
             Route::get('/disputes', [DisputeController::class, 'index'])->middleware('permission:disputes.view,admin')->name('disputes');
+            Route::patch('/disputes/bulk', [DisputeController::class, 'bulkAction'])->middleware('permission:disputes.resolve,admin')->name('disputes.bulk');
             Route::get('/disputes/{dispute:case_code}', [DisputeController::class, 'show'])->middleware('permission:disputes.view,admin')->name('disputes.show');
             Route::patch('/disputes/{dispute:case_code}', [DisputeController::class, 'update'])->middleware('permission:disputes.resolve,admin')->name('disputes.update');
             Route::post('/disputes/{dispute:case_code}/join', [DisputeController::class, 'join'])->middleware('permission:disputes.resolve,admin')->name('disputes.join');
@@ -85,6 +91,7 @@ Route::prefix(config('admin.route_prefix', 'admin'))
             Route::post('/disputes/{dispute:case_code}/refund', [DisputeController::class, 'refund'])->middleware('permission:payments.release|disputes.resolve,admin')->name('disputes.refund');
             Route::get('/reports', [ReportController::class, 'index'])->middleware('permission:reports.view,admin')->name('reports');
             Route::get('/moderation-reports', [ModerationReportController::class, 'index'])->middleware('permission:reports.view,admin')->name('moderation-reports');
+            Route::patch('/moderation-reports/bulk', [ModerationReportController::class, 'bulkAction'])->middleware('permission:reports.manage,admin')->name('moderation-reports.bulk');
             Route::get('/moderation-reports/{report:code}', [ModerationReportController::class, 'show'])->middleware('permission:reports.view,admin')->name('moderation-reports.show');
             Route::patch('/moderation-reports/{report:code}', [ModerationReportController::class, 'update'])->middleware('permission:reports.manage,admin')->name('moderation-reports.update');
             Route::get('/suspicious-activities', [SuspiciousActivityController::class, 'index'])->middleware('permission:security.view,admin')->name('suspicious-activities');

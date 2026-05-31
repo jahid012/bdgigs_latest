@@ -33,31 +33,79 @@
             <div class="admin-panel-head">
                 <div>
                     <h2>Review action</h2>
-                    <p>Approval lets the seller submit and publish gigs.</p>
+                    <p>Open an action, review the impact, then confirm.</p>
                 </div>
             </div>
             @can('users.verify')
-                <form class="admin-detail-form" method="POST" action="{{ route('admin.seller-applications.approve', $seller) }}">
-                    @csrf
-                    <label>
-                        <span>Approval note</span>
-                        <textarea name="reason" rows="3" placeholder="Optional approval note"></textarea>
-                    </label>
-                    <button type="submit">Approve seller</button>
-                </form>
-                <form class="admin-detail-form" method="POST" action="{{ route('admin.seller-applications.reject', $seller) }}">
-                    @csrf
-                    <label>
-                        <span>Rejection reason</span>
-                        <textarea name="reason" rows="3" required placeholder="Tell the seller what to fix"></textarea>
-                    </label>
-                    <button class="is-danger" type="submit">Reject seller</button>
-                </form>
+                <div class="admin-moderation-summary">
+                    <span><strong>{{ str($seller->seller_status ?: 'not_applied')->replace('_', ' ')->title() }}</strong>Seller state</span>
+                    <span><strong>{{ $seller->seller_status_reviewed_at?->diffForHumans() ?? 'Not reviewed' }}</strong>Last review</span>
+                </div>
+                <div class="admin-moderation-action-list">
+                    <button class="admin-moderation-action-button is-positive" type="button" data-admin-modal-open="seller-approve-modal">
+                        <strong>Approve seller</strong>
+                        <span>Allow this seller to submit and publish marketplace gigs.</span>
+                    </button>
+                    <button class="admin-moderation-action-button is-danger" type="button" data-admin-modal-open="seller-reject-modal">
+                        <strong>Reject seller</strong>
+                        <span>Return the application with a reason the seller can act on.</span>
+                    </button>
+                </div>
             @else
                 <p class="admin-empty-note">You can inspect this seller but cannot review applications.</p>
             @endcan
         </aside>
     </section>
+
+    @can('users.verify')
+        <dialog class="admin-modal" id="seller-approve-modal" data-admin-modal>
+            <div class="admin-modal-panel">
+                <div class="admin-modal-head">
+                    <div>
+                        <p class="admin-eyebrow">Seller application</p>
+                        <h2>Approve {{ $seller->name ?: $seller->email }}</h2>
+                        <span>Approval lets the seller submit and publish gigs.</span>
+                    </div>
+                    <button type="button" data-admin-modal-close aria-label="Close seller approve modal">Close</button>
+                </div>
+                <form class="admin-detail-form admin-modal-form" method="POST" action="{{ route('admin.seller-applications.approve', $seller) }}">
+                    @csrf
+                    <label>
+                        <span>Approval note</span>
+                        <textarea name="reason" rows="4" placeholder="Optional approval note"></textarea>
+                    </label>
+                    <div class="admin-modal-actions">
+                        <button type="button" class="admin-secondary-button" data-admin-modal-close>Cancel</button>
+                        <button type="submit">Approve seller</button>
+                    </div>
+                </form>
+            </div>
+        </dialog>
+
+        <dialog class="admin-modal" id="seller-reject-modal" data-admin-modal>
+            <div class="admin-modal-panel">
+                <div class="admin-modal-head">
+                    <div>
+                        <p class="admin-eyebrow">Seller application</p>
+                        <h2>Reject {{ $seller->name ?: $seller->email }}</h2>
+                        <span>The rejection reason is stored in the seller application history.</span>
+                    </div>
+                    <button type="button" data-admin-modal-close aria-label="Close seller reject modal">Close</button>
+                </div>
+                <form class="admin-detail-form admin-modal-form" method="POST" action="{{ route('admin.seller-applications.reject', $seller) }}">
+                    @csrf
+                    <label>
+                        <span>Rejection reason</span>
+                        <textarea name="reason" rows="4" required placeholder="Tell the seller what to fix"></textarea>
+                    </label>
+                    <div class="admin-modal-actions">
+                        <button type="button" class="admin-secondary-button" data-admin-modal-close>Cancel</button>
+                        <button class="is-danger" type="submit">Reject seller</button>
+                    </div>
+                </form>
+            </div>
+        </dialog>
+    @endcan
 
     <section class="admin-detail-grid">
         <article class="admin-panel">
@@ -104,4 +152,5 @@
             </div>
         </article>
     </section>
+    @include('admin.partials.modal-scripts')
 @endsection

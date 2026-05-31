@@ -57,11 +57,56 @@
             <div class="admin-panel-head">
                 <div>
                     <h2>Order action</h2>
-                    <p>Status changes are recorded in the activity log.</p>
+                    <p>Open an action, review the impact, then confirm.</p>
                 </div>
             </div>
+            <div class="admin-moderation-summary">
+                <span><strong>{{ $order->status }}</strong>Current status</span>
+                <span><strong>{{ str($order->payment_status ?: 'unpaid')->replace('_', ' ')->title() }}</strong>Payment state</span>
+            </div>
+            <div class="admin-moderation-action-list">
             @can('orders.manage')
-                <form class="admin-detail-form" method="POST" action="{{ route('admin.orders.status', $order) }}">
+                <button class="admin-moderation-action-button is-positive" type="button" data-admin-modal-open="order-status-modal">
+                    <strong>Update status</strong>
+                    <span>Move the order through delivery, revision, completion, or cancellation states.</span>
+                </button>
+            @else
+                <p class="admin-empty-note">You can inspect this order but cannot change its status.</p>
+            @endcan
+
+            @if (in_array($order->payment_status, ['paid', 'partially_refunded'], true))
+                @canany(['payments.release', 'orders.manage'])
+                    <button class="admin-moderation-action-button is-warning" type="button" data-admin-modal-open="order-refund-modal">
+                        <strong>Refund order</strong>
+                        <span>Issue a partial or full refund and record the reason in payment history.</span>
+                    </button>
+                @endcanany
+            @endif
+
+            @can('orders.manage')
+                @if (! in_array($order->status, ['Completed', 'Cancelled', 'Canceled'], true))
+                    <button class="admin-moderation-action-button is-danger" type="button" data-admin-modal-open="order-cancel-modal">
+                        <strong>Cancel order</strong>
+                        <span>Cancel the order through support and keep the reason visible to the audit trail.</span>
+                    </button>
+                @endif
+            @endcan
+            </div>
+        </aside>
+    </section>
+
+    @can('orders.manage')
+        <dialog class="admin-modal" id="order-status-modal" data-admin-modal>
+            <div class="admin-modal-panel">
+                <div class="admin-modal-head">
+                    <div>
+                        <p class="admin-eyebrow">Order status</p>
+                        <h2>Update order status</h2>
+                        <span>Status changes are recorded in the order activity log.</span>
+                    </div>
+                    <button type="button" data-admin-modal-close aria-label="Close status modal">Close</button>
+                </div>
+                <form class="admin-detail-form admin-modal-form" method="POST" action="{{ route('admin.orders.status', $order) }}">
                     @csrf
                     @method('PATCH')
                     <label>
@@ -72,15 +117,54 @@
                             @endforeach
                         </select>
                     </label>
-                    <button type="submit">Save order status</button>
+                    <div class="admin-modal-actions">
+                        <button type="button" class="admin-secondary-button" data-admin-modal-close>Cancel</button>
+                        <button type="submit">Save order status</button>
+                    </div>
                 </form>
-            @else
-                <p class="admin-empty-note">You can inspect this order but cannot change its status.</p>
-            @endcan
+            </div>
+        </dialog>
 
-            @if (in_array($order->payment_status, ['paid', 'partially_refunded'], true))
-                @canany(['payments.release', 'orders.manage'])
-                    <form class="admin-detail-form" method="POST" action="{{ route('admin.orders.refund', $order) }}">
+        @if (! in_array($order->status, ['Completed', 'Cancelled', 'Canceled'], true))
+            <dialog class="admin-modal" id="order-cancel-modal" data-admin-modal>
+                <div class="admin-modal-panel">
+                    <div class="admin-modal-head">
+                        <div>
+                            <p class="admin-eyebrow">Order cancellation</p>
+                            <h2>Cancel this order</h2>
+                            <span>Use this only when support has enough context to close the delivery workflow.</span>
+                        </div>
+                        <button type="button" data-admin-modal-close aria-label="Close cancellation modal">Close</button>
+                    </div>
+                    <form class="admin-detail-form admin-modal-form" method="POST" action="{{ route('admin.orders.cancel', $order) }}">
+                        @csrf
+                        <label>
+                            <span>Admin cancellation reason</span>
+                            <textarea name="reason" rows="4" required minlength="10" placeholder="Explain why support is cancelling this order"></textarea>
+                        </label>
+                        <div class="admin-modal-actions">
+                            <button type="button" class="admin-secondary-button" data-admin-modal-close>Cancel</button>
+                            <button class="is-danger" type="submit">Cancel order</button>
+                        </div>
+                    </form>
+                </div>
+            </dialog>
+        @endif
+    @endcan
+
+    @if (in_array($order->payment_status, ['paid', 'partially_refunded'], true))
+        @canany(['payments.release', 'orders.manage'])
+            <dialog class="admin-modal" id="order-refund-modal" data-admin-modal>
+                <div class="admin-modal-panel">
+                    <div class="admin-modal-head">
+                        <div>
+                            <p class="admin-eyebrow">Payment refund</p>
+                            <h2>Refund order #{{ $order->code }}</h2>
+                            <span>Refundable balance: ${{ number_format(max(0, ($order->price_cents - $order->refund_amount_cents) / 100), 2) }}.</span>
+                        </div>
+                        <button type="button" data-admin-modal-close aria-label="Close refund modal">Close</button>
+                    </div>
+                    <form class="admin-detail-form admin-modal-form" method="POST" action="{{ route('admin.orders.refund', $order) }}">
                         @csrf
                         <label>
                             <span>Refund amount</span>
@@ -88,27 +172,17 @@
                         </label>
                         <label>
                             <span>Refund reason</span>
-                            <textarea name="reason" rows="3" placeholder="Cancelled order, dispute resolution, or admin adjustment"></textarea>
+                            <textarea name="reason" rows="4" placeholder="Cancelled order, dispute resolution, or admin adjustment"></textarea>
                         </label>
-                        <button class="is-danger" type="submit">Refund order</button>
+                        <div class="admin-modal-actions">
+                            <button type="button" class="admin-secondary-button" data-admin-modal-close>Cancel</button>
+                            <button class="is-danger" type="submit">Refund order</button>
+                        </div>
                     </form>
-                @endcanany
-            @endif
-
-            @can('orders.manage')
-                @if (! in_array($order->status, ['Completed', 'Cancelled', 'Canceled'], true))
-                    <form class="admin-detail-form" method="POST" action="{{ route('admin.orders.cancel', $order) }}">
-                        @csrf
-                        <label>
-                            <span>Admin cancellation reason</span>
-                            <textarea name="reason" rows="3" required minlength="10" placeholder="Explain why support is cancelling this order"></textarea>
-                        </label>
-                        <button class="is-danger" type="submit">Cancel and refund order</button>
-                    </form>
-                @endif
-            @endcan
-        </aside>
-    </section>
+                </div>
+            </dialog>
+        @endcanany
+    @endif
 
     <section class="admin-detail-grid">
         <article class="admin-panel">
@@ -171,18 +245,9 @@
                 </dl>
                 @if ($payment->status === 'pending')
                     @can('manual-payments.approve')
-                        <form class="admin-detail-form admin-detail-review-form" method="POST" action="{{ route('admin.manual-payments.review', $payment) }}">
-                            @csrf
-                            @method('PATCH')
-                            <label>
-                                <span>Review note</span>
-                                <textarea name="note" rows="3" placeholder="Optional payment review note"></textarea>
-                            </label>
-                            <div>
-                                <button type="submit" name="decision" value="approve">Approve payment</button>
-                                <button class="is-danger" type="submit" name="decision" value="reject">Reject payment</button>
-                            </div>
-                        </form>
+                        <button class="admin-inline-action-button" type="button" data-admin-modal-open="order-payment-review-modal">
+                            Review payment
+                        </button>
                     @endcan
                 @endif
             @else
@@ -211,6 +276,36 @@
             </div>
         </article>
     </section>
+
+    @if ($payment && $payment->status === 'pending')
+        @can('manual-payments.approve')
+            <dialog class="admin-modal" id="order-payment-review-modal" data-admin-modal>
+                <div class="admin-modal-panel">
+                    <div class="admin-modal-head">
+                        <div>
+                            <p class="admin-eyebrow">Manual payment</p>
+                            <h2>Review {{ $payment->reference }}</h2>
+                            <span>This decision updates the order payment lifecycle and notifies the buyer and seller.</span>
+                        </div>
+                        <button type="button" data-admin-modal-close aria-label="Close payment review modal">Close</button>
+                    </div>
+                    <form class="admin-detail-form admin-modal-form" method="POST" action="{{ route('admin.manual-payments.review', $payment) }}">
+                        @csrf
+                        @method('PATCH')
+                        <label>
+                            <span>Review note</span>
+                            <textarea name="note" rows="4" placeholder="Optional payment review note"></textarea>
+                        </label>
+                        <div class="admin-modal-actions">
+                            <button type="button" class="admin-secondary-button" data-admin-modal-close>Cancel</button>
+                            <button type="submit" name="decision" value="approve">Approve payment</button>
+                            <button class="is-danger" type="submit" name="decision" value="reject">Reject payment</button>
+                        </div>
+                    </form>
+                </div>
+            </dialog>
+        @endcan
+    @endif
 
     <section class="admin-detail-grid">
         <article class="admin-panel">
@@ -243,7 +338,27 @@
                 </div>
             </div>
             @can('disputes.resolve')
-                <form class="admin-detail-form" method="POST" action="{{ route('admin.orders.disputes.store', $order) }}">
+                <button class="admin-inline-action-button" type="button" data-admin-modal-open="order-dispute-modal">
+                    Open dispute case
+                </button>
+            @else
+                <p class="admin-empty-note">You can inspect existing cases but cannot open a dispute.</p>
+            @endcan
+        </article>
+    </section>
+
+    @can('disputes.resolve')
+        <dialog class="admin-modal" id="order-dispute-modal" data-admin-modal>
+            <div class="admin-modal-panel">
+                <div class="admin-modal-head">
+                    <div>
+                        <p class="admin-eyebrow">Resolution center</p>
+                        <h2>Open a dispute case</h2>
+                        <span>Create a persisted case attached to order #{{ $order->code }}.</span>
+                    </div>
+                    <button type="button" data-admin-modal-close aria-label="Close dispute modal">Close</button>
+                </div>
+                <form class="admin-detail-form admin-modal-form" method="POST" action="{{ route('admin.orders.disputes.store', $order) }}">
                     @csrf
                     <label>
                         <span>Reason</span>
@@ -259,15 +374,16 @@
                     </label>
                     <label>
                         <span>Description</span>
-                        <textarea name="description" rows="3" maxlength="3000" placeholder="Internal case context and first evidence note"></textarea>
+                        <textarea name="description" rows="4" maxlength="3000" placeholder="Internal case context and first evidence note"></textarea>
                     </label>
-                    <button type="submit">Open dispute case</button>
+                    <div class="admin-modal-actions">
+                        <button type="button" class="admin-secondary-button" data-admin-modal-close>Cancel</button>
+                        <button type="submit">Open dispute case</button>
+                    </div>
                 </form>
-            @else
-                <p class="admin-empty-note">You can inspect existing cases but cannot open a dispute.</p>
-            @endcan
-        </article>
-    </section>
+            </div>
+        </dialog>
+    @endcan
 
     <section class="admin-detail-grid">
         <article class="admin-panel">
@@ -315,4 +431,6 @@
             </div>
         </article>
     </section>
+
+    @include('admin.partials.modal-scripts')
 @endsection

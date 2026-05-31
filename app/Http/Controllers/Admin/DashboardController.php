@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\Conversation;
+use App\Models\Dispute;
 use App\Models\Gig;
 use App\Models\AdminNotification;
+use App\Models\ManualPaymentSubmission;
+use App\Models\ModerationReport;
 use App\Models\Order;
 use App\Models\User;
 use App\Models\UserNotification;
+use App\Models\WithdrawalRequest;
 
 class DashboardController extends AdminController
 {
@@ -30,6 +34,11 @@ class DashboardController extends AdminController
                 ->orWhereNotNull('priority');
         })->count();
         $suspendedUsers = User::whereNotNull('suspended_at')->count();
+        $pendingManualPayments = ManualPaymentSubmission::where('status', 'pending')->count();
+        $pendingWithdrawals = WithdrawalRequest::whereIn('status', ['pending', 'under_review'])->count();
+        $openDisputes = Dispute::whereNotIn('status', ['resolved', 'rejected', 'closed'])->count();
+        $pendingReports = ModerationReport::where('status', 'pending')->count();
+        $pendingSellers = User::where('seller_status', 'pending')->count();
 
         $recentOrders = Order::with(['buyer', 'seller'])
             ->latest()
@@ -49,7 +58,7 @@ class DashboardController extends AdminController
                 ['label' => 'SLA health', 'value' => $lateOrders > 0 ? 'Needs attention' : 'Healthy', 'meta' => number_format($lateOrders).' late-risk orders'],
             ],
             'health' => [
-                ['label' => 'Payments', 'value' => 'Part 3 pending', 'tone' => 'warn'],
+                ['label' => 'Payments', 'value' => $pendingManualPayments > 0 ? 'Review queue' : 'Clear', 'tone' => $pendingManualPayments > 0 ? 'warn' : 'good'],
                 ['label' => 'Messaging', 'value' => $messageQueue > 0 ? 'Needs replies' : 'Healthy', 'tone' => $messageQueue > 0 ? 'warn' : 'good'],
                 ['label' => 'Moderation', 'value' => $pendingGigs > 0 ? 'Backlog' : 'Clear', 'tone' => $pendingGigs > 0 ? 'warn' : 'good'],
                 ['label' => 'Orders', 'value' => $lateOrders > 0 ? 'Late risk' : 'On track', 'tone' => $lateOrders > 0 ? 'warn' : 'good'],
@@ -65,15 +74,18 @@ class DashboardController extends AdminController
             'activities' => $this->activities(),
             'revenueTrend' => $this->weeklyRevenueTrend(),
             'moderationQueue' => [
-                ['label' => 'Gig approvals', 'value' => number_format($pendingGigs), 'route' => 'admin.gigs'],
-                ['label' => 'User verification', 'value' => number_format(User::where('verification_status', 'review')->count()), 'route' => 'admin.users'],
-                ['label' => 'Priority messages', 'value' => number_format($messageQueue), 'route' => 'admin.disputes'],
+                ['label' => 'Gig approvals', 'value' => number_format($pendingGigs), 'route' => 'admin.gigs', 'params' => ['status' => 'review']],
+                ['label' => 'Seller applications', 'value' => number_format($pendingSellers), 'route' => 'admin.seller-applications', 'params' => ['status' => 'pending']],
+                ['label' => 'Manual payments', 'value' => number_format($pendingManualPayments), 'route' => 'admin.manual-payments', 'params' => ['status' => 'pending']],
+                ['label' => 'Withdrawal reviews', 'value' => number_format($pendingWithdrawals), 'route' => 'admin.withdrawals', 'params' => ['status' => 'pending']],
+                ['label' => 'Open disputes', 'value' => number_format($openDisputes), 'route' => 'admin.disputes', 'params' => ['status' => 'open']],
+                ['label' => 'Moderation reports', 'value' => number_format($pendingReports), 'route' => 'admin.moderation-reports', 'params' => ['status' => 'pending']],
             ],
             'priorityWorkflow' => [
                 ['step' => '1', 'label' => 'Review late orders', 'meta' => number_format($lateOrders).' at risk'],
-                ['step' => '2', 'label' => 'Clear gig backlog', 'meta' => number_format($pendingGigs).' waiting'],
-                ['step' => '3', 'label' => 'Verify users', 'meta' => number_format(User::where('verification_status', 'review')->count()).' in review'],
-                ['step' => '4', 'label' => 'Prepare finance tables', 'meta' => 'Part 3'],
+                ['step' => '2', 'label' => 'Clear payment reviews', 'meta' => number_format($pendingManualPayments).' pending'],
+                ['step' => '3', 'label' => 'Release payout queue', 'meta' => number_format($pendingWithdrawals).' waiting'],
+                ['step' => '4', 'label' => 'Triage trust queues', 'meta' => number_format($openDisputes + $pendingReports).' cases'],
             ],
             'qualityBars' => $this->qualityBars($openOrders, $lateOrders),
         ]);

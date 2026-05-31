@@ -9,48 +9,41 @@ use App\Models\Dispute;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\AdminDisputeService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class DisputeController extends AdminController
 {
+    private const ASSIGNEE_FILTERS = [
+        'all' => 'Any assignee',
+        'unassigned' => 'Unassigned',
+        'mine' => 'Assigned to me',
+    ];
+
+    private const AGE_FILTERS = [
+        'all' => 'Any age',
+        'today' => 'Opened today',
+        '7d' => 'Opened in 7 days',
+        'older_7d' => 'Older than 7 days',
+    ];
+
+    private const SORT_OPTIONS = [
+        'latest' => 'Newest first',
+        'oldest' => 'Oldest first',
+        'priority' => 'Priority first',
+        'updated' => 'Recently updated',
+    ];
+
     public function index(Request $request)
     {
-        $search = trim((string) $request->query('q', ''));
-        $status = trim((string) $request->query('status', 'open'));
-        $priority = trim((string) $request->query('priority', 'all'));
-        $status = in_array($status, ['all', ...Dispute::STATUSES], true) ? $status : 'open';
-        $priority = in_array($priority, ['all', ...Dispute::PRIORITIES], true) ? $priority : 'all';
+        $filterState = $this->filterState($request);
 
         $disputesQuery = Dispute::query()
-            ->with(['order.buyer', 'order.seller', 'assignedTo', 'assignedAdmin'])
-            ->latest();
+            ->with(['order.buyer', 'order.seller', 'assignedTo', 'assignedAdmin']);
 
-        if ($status !== 'all') {
-            $disputesQuery->where('status', $status);
-        }
-
-        if ($priority !== 'all') {
-            $disputesQuery->where('priority', $priority);
-        }
-
-        if ($search !== '') {
-            $disputesQuery->where(function ($query) use ($search) {
-                $query
-                    ->where('case_code', 'like', "%{$search}%")
-                    ->orWhere('reason', 'like', "%{$search}%")
-                    ->orWhereHas('order', function ($orders) use ($search) {
-                        $orders
-                            ->where('code', 'like', "%{$search}%")
-                            ->orWhere('service', 'like', "%{$search}%")
-                            ->orWhereHas('buyer', fn ($buyers) => $buyers
-                                ->where('name', 'like', "%{$search}%")
-                                ->orWhere('email', 'like', "%{$search}%"))
-                            ->orWhereHas('seller', fn ($sellers) => $sellers
-                                ->where('name', 'like', "%{$search}%")
-                                ->orWhere('email', 'like', "%{$search}%"));
-                    });
-            });
-        }
+        $this->applyFilters($disputesQuery, $filterState, $request->user('admin'));
+        $this->applySort($disputesQuery, $filterState['sort']);
 
         $perPage = 8;
         $total = (clone $disputesQuery)->count();
@@ -86,9 +79,18 @@ class DisputeController extends AdminController
                 'label' => str($filter)->title()->toString(),
                 'value' => $filter,
             ])->all(),
-            'currentStatus' => $status,
-            'currentPriority' => $priority,
-            'searchQuery' => $search,
+            'currentStatus' => $filterState['status'],
+            'currentPriority' => $filterState['priority'],
+            'searchQuery' => $filterState['q'],
+            'filterState' => $filterState,
+            'assigneeFilters' => self::ASSIGNEE_FILTERS,
+            'ageFilters' => self::AGE_FILTERS,
+            'sortOptions' => self::SORT_OPTIONS,
+            'assignees' => Admin::permission('admin.access')->orderBy('name')->get(),
+            'statusOptions' => Dispute::STATUSES,
+            'priorityOptions' => Dispute::PRIORITIES,
+            'hasActiveFilters' => $this->hasActiveFilters($filterState),
+            'canBulkResolve' => $request->user('admin')?->can('disputes.resolve') ?? false,
         ]);
     }
 
@@ -148,6 +150,50 @@ class DisputeController extends AdminController
         return back()->withNotify('success', 'Dispute '.$dispute->case_code.' was updated.', 'Dispute updated');
     }
 
+    public function bulkAction(
+        Request $request,
+        AdminDisputeService $disputes
+    ) {
+        abort_unless($request->user('admin')?->can('disputes.resolve'), 403);
+
+        $payload = $request->validate([
+            'bulk_action' => ['required', 'string', Rule::in(['set_status', 'set_priority', 'assign'])],
+            'disputes' => ['required', 'array', 'min:1'],
+            'disputes.*' => ['required', 'string', 'distinct', 'exists:disputes,case_code'],
+            'status' => ['nullable', 'string', 'required_if:bulk_action,set_status', Rule::in(Dispute::STATUSES)],
+            'priority' => ['nullable', 'string', 'required_if:bulk_action,set_priority', Rule::in(Dispute::PRIORITIES)],
+            'assigned_to_id' => ['nullable', 'integer', 'exists:admins,id'],
+            'resolution' => ['nullable', 'string', 'max:3000', 'required_if:status,resolved,rejected,closed'],
+            'note' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $query = Dispute::query()->whereIn('case_code', $payload['disputes']);
+
+        if ($payload['bulk_action'] !== 'set_status') {
+            $query->whereNotIn('status', ['resolved', 'rejected', 'closed']);
+        }
+
+        $selectedDisputes = $query->get();
+        $updated = 0;
+
+        foreach ($selectedDisputes as $dispute) {
+            $disputes->update($dispute, $request->user('admin'), [
+                'status' => $payload['bulk_action'] === 'set_status' ? $payload['status'] : $dispute->status,
+                'priority' => $payload['bulk_action'] === 'set_priority' ? $payload['priority'] : $dispute->priority,
+                'assigned_to_id' => $payload['bulk_action'] === 'assign' ? ($payload['assigned_to_id'] ?? null) : $dispute->assigned_to_admin_id,
+                'resolution' => $payload['resolution'] ?? $dispute->resolution,
+                'note' => $payload['note'] ?? 'Bulk dispute action applied from the admin queue.',
+            ]);
+            $updated++;
+        }
+
+        if ($updated === 0) {
+            return back()->withNotify('warning', 'No eligible dispute cases changed.', 'Bulk action skipped');
+        }
+
+        return back()->withNotify('success', number_format($updated).' dispute '.($updated === 1 ? 'case' : 'cases').' updated.', 'Bulk action applied');
+    }
+
     public function join(Request $request, Dispute $dispute, AdminDisputeService $disputes)
     {
         $payload = $request->validate([
@@ -189,5 +235,99 @@ class DisputeController extends AdminController
         );
 
         return back()->withNotify('success', 'Dispute refund processed.', 'Refund issued');
+    }
+
+    private function filterState(Request $request): array
+    {
+        $assignee = trim((string) $request->query('assignee', 'all'));
+
+        if (! in_array($assignee, array_keys(self::ASSIGNEE_FILTERS), true) && ! Admin::whereKey($assignee)->exists()) {
+            $assignee = 'all';
+        }
+
+        return [
+            'q' => trim((string) $request->query('q', '')),
+            'status' => $this->validatedOption($request->query('status', 'open'), ['all', ...Dispute::STATUSES], 'open'),
+            'priority' => $this->validatedOption($request->query('priority', 'all'), ['all', ...Dispute::PRIORITIES], 'all'),
+            'assignee' => $assignee,
+            'age' => $this->validatedOption($request->query('age', 'all'), array_keys(self::AGE_FILTERS), 'all'),
+            'sort' => $this->validatedOption($request->query('sort', 'latest'), array_keys(self::SORT_OPTIONS), 'latest'),
+        ];
+    }
+
+    private function applyFilters(Builder $query, array $filters, ?Admin $admin): void
+    {
+        if ($filters['status'] !== 'all') {
+            $query->where('status', $filters['status']);
+        }
+
+        if ($filters['priority'] !== 'all') {
+            $query->where('priority', $filters['priority']);
+        }
+
+        if ($filters['q'] !== '') {
+            $search = $filters['q'];
+
+            $query->where(function (Builder $query) use ($search) {
+                $query
+                    ->where('case_code', 'like', "%{$search}%")
+                    ->orWhere('reason', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhereHas('order', function (Builder $orders) use ($search) {
+                        $orders
+                            ->where('code', 'like', "%{$search}%")
+                            ->orWhere('service', 'like', "%{$search}%")
+                            ->orWhereHas('buyer', fn (Builder $buyers) => $buyers
+                                ->where('name', 'like', "%{$search}%")
+                                ->orWhere('email', 'like', "%{$search}%"))
+                            ->orWhereHas('seller', fn (Builder $sellers) => $sellers
+                                ->where('name', 'like', "%{$search}%")
+                                ->orWhere('email', 'like', "%{$search}%"));
+                    });
+            });
+        }
+
+        match ($filters['assignee']) {
+            'unassigned' => $query->whereNull('assigned_to_admin_id')->whereNull('assigned_to_id'),
+            'mine' => $admin ? $query->where('assigned_to_admin_id', $admin->id) : null,
+            'all' => null,
+            default => $query->where('assigned_to_admin_id', (int) $filters['assignee']),
+        };
+
+        match ($filters['age']) {
+            'today' => $query->whereDate('created_at', now()->toDateString()),
+            '7d' => $query->where('created_at', '>=', now()->subDays(7)),
+            'older_7d' => $query->where('created_at', '<', now()->subDays(7)),
+            default => null,
+        };
+    }
+
+    private function applySort(Builder $query, string $sort): void
+    {
+        match ($sort) {
+            'oldest' => $query->oldest(),
+            'priority' => $query
+                ->orderByRaw("case when priority = 'critical' then 0 when priority = 'high' then 1 else 2 end")
+                ->latest(),
+            'updated' => $query->orderByDesc('updated_at'),
+            default => $query->latest(),
+        };
+    }
+
+    private function hasActiveFilters(array $filters): bool
+    {
+        return $filters['q'] !== ''
+            || $filters['status'] !== 'open'
+            || $filters['priority'] !== 'all'
+            || $filters['assignee'] !== 'all'
+            || $filters['age'] !== 'all'
+            || $filters['sort'] !== 'latest';
+    }
+
+    private function validatedOption(mixed $value, array $allowed, string $fallback): string
+    {
+        $value = trim((string) $value);
+
+        return in_array($value, $allowed, true) ? $value : $fallback;
     }
 }
