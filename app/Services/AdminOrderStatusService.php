@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Events\OrderStatusUpdated;
+use App\Models\Admin;
 use App\Models\Order;
-use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class AdminOrderStatusService
@@ -13,7 +13,7 @@ class AdminOrderStatusService
     {
     }
 
-    public function update(Order $order, User $actor, string $status): Order
+    public function update(Order $order, Admin $actor, string $status): Order
     {
         return DB::transaction(function () use ($order, $actor, $status) {
             $previousStatus = $order->status;
@@ -24,7 +24,7 @@ class AdminOrderStatusService
             ])->save();
 
             $order->activities()->create([
-                'actor_id' => $actor->id,
+                'actor_admin_id' => $actor->id,
                 'type' => 'admin_status_update',
                 'title' => 'Order status updated',
                 'detail' => 'Admin changed status from '.$previousStatus.' to '.$status.'.',
@@ -40,7 +40,7 @@ class AdminOrderStatusService
 
             $this->notifyParticipants($order->fresh(['buyer', 'seller']), $status);
 
-            return $order->fresh(['buyer', 'seller', 'gig', 'activities.actor']);
+            return $order->fresh(['buyer', 'seller', 'gig', 'activities.actor', 'activities.adminActor']);
         });
     }
 

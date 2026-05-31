@@ -14,6 +14,7 @@ export const useMarketplaceStore = create((set, get) => ({
     isLoading: false,
     deliveryOptions: deepClone(deliveryOptions),
     listingFilterGroups: deepClone(listingFilterGroups),
+    homeGigs: [],
     listingGigs: [],
     gigsById: {},
     listingSortOptions: deepClone(listingSortOptions),
@@ -35,6 +36,16 @@ export const useMarketplaceStore = create((set, get) => ({
             set({ error: error.message, isLoading: false });
             return get().listingGigs;
         }
+    },
+
+    hydrateHomeGigs: (gigs = []) => {
+        set((state) => ({
+            homeGigs: gigs,
+            gigsById: {
+                ...state.gigsById,
+                ...indexById(gigs),
+            },
+        }));
     },
 
     fetchGig: async (id) => {
@@ -148,15 +159,18 @@ function upsertById(items, item) {
 
 function updateSavedGigState(state, gigIds, saved) {
     const ids = new Set(gigIds);
+    const homeGigs = state.homeGigs.map((gig) =>
+        ids.has(gig.id) ? { ...gig, saved } : gig,
+    );
     const listingGigs = state.listingGigs.map((gig) =>
         ids.has(gig.id) ? { ...gig, saved } : gig,
     );
     const gigsById = Object.fromEntries(
         Object.entries(state.gigsById).map(([id, gig]) => [
             id,
-            ids.has(id) ? { ...gig, saved } : gig,
+            ids.has(gig.id) ? { ...gig, saved } : gig,
         ]),
     );
 
-    return { listingGigs, gigsById };
+    return { homeGigs, listingGigs, gigsById };
 }

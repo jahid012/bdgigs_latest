@@ -1298,6 +1298,95 @@ button {
   font-size: 0.92rem;
 }
 
+.admin-bulk-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.62rem;
+  align-items: end;
+  margin: 0 0 0.82rem;
+  padding: 0.75rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.admin-bulk-toolbar label {
+  display: grid;
+  min-width: 190px;
+  gap: 0.34rem;
+  color: var(--admin-text);
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.admin-bulk-toolbar label:nth-child(2) {
+  flex: 1 1 280px;
+}
+
+.admin-bulk-toolbar select,
+.admin-bulk-toolbar input {
+  min-height: 38px;
+  padding: 0 0.68rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--admin-text);
+  font: inherit;
+  outline: none;
+}
+
+.admin-bulk-toolbar select:focus,
+.admin-bulk-toolbar input:focus {
+  border-color: var(--admin-ink);
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08);
+}
+
+.admin-bulk-toolbar button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.85rem;
+  border: 1px solid var(--admin-ink);
+  border-radius: 6px;
+  background: var(--admin-ink);
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 850;
+}
+
+.admin-bulk-toolbar button:hover {
+  background: #050505;
+}
+
+.admin-bulk-toolbar > span {
+  margin-left: auto;
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+  font-weight: 820;
+}
+
+.admin-gig-table {
+  min-width: 1080px;
+}
+
+.admin-table-wrap .admin-table-select-cell {
+  width: 42px;
+  color: var(--admin-muted);
+  text-align: center;
+}
+
+.admin-table-wrap td.admin-table-select-cell:first-child {
+  color: var(--admin-muted);
+  font-weight: 650;
+}
+
+.admin-table-select-cell input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--admin-ink);
+}
+
 .admin-user-table-name {
   color: var(--admin-text);
   text-decoration: underline;

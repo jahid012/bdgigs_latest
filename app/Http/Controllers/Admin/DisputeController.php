@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Requests\Admin\StoreAdminDisputeRequest;
 use App\Http\Requests\Admin\UpdateAdminDisputeRequest;
+use App\Models\Admin;
 use App\Models\Dispute;
 use App\Models\Order;
 use App\Models\User;
@@ -21,7 +22,7 @@ class DisputeController extends AdminController
         $priority = in_array($priority, ['all', ...Dispute::PRIORITIES], true) ? $priority : 'all';
 
         $disputesQuery = Dispute::query()
-            ->with(['order.buyer', 'order.seller', 'assignedTo'])
+            ->with(['order.buyer', 'order.seller', 'assignedTo', 'assignedAdmin'])
             ->latest();
 
         if ($status !== 'all') {
@@ -99,9 +100,12 @@ class DisputeController extends AdminController
             'order.gig',
             'conversation.messages.sender',
             'openedBy',
+            'openedByAdmin',
             'assignedTo',
+            'assignedAdmin',
             'resolvedBy',
-            'activities' => fn ($activities) => $activities->with('actor')->latest(),
+            'resolvedByAdmin',
+            'activities' => fn ($activities) => $activities->with(['actor', 'adminActor'])->latest(),
         ]);
 
         return $this->panelView('admin.pages.dispute-details', [
@@ -110,7 +114,7 @@ class DisputeController extends AdminController
             'pageDescription' => 'Review linked order context, conversation evidence, assignment, and resolution history.',
             'searchPlaceholder' => 'Search disputes, orders, users',
             'dispute' => $dispute,
-            'assignees' => User::permission('admin.access')->orderBy('name')->get(),
+            'assignees' => Admin::permission('admin.access')->orderBy('name')->get(),
             'statusOptions' => Dispute::STATUSES,
             'priorityOptions' => Dispute::PRIORITIES,
             'stats' => [
@@ -127,7 +131,7 @@ class DisputeController extends AdminController
         Order $order,
         AdminDisputeService $disputes
     ) {
-        $dispute = $disputes->openForOrder($order, $request->user(), $request->validated());
+        $dispute = $disputes->openForOrder($order, $request->user('admin'), $request->validated());
 
         return redirect()
             ->route('admin.disputes.show', $dispute)
@@ -139,7 +143,7 @@ class DisputeController extends AdminController
         Dispute $dispute,
         AdminDisputeService $disputes
     ) {
-        $disputes->update($dispute, $request->user(), $request->validated());
+        $disputes->update($dispute, $request->user('admin'), $request->validated());
 
         return back()->withNotify('success', 'Dispute '.$dispute->case_code.' was updated.', 'Dispute updated');
     }
@@ -150,7 +154,7 @@ class DisputeController extends AdminController
             'note' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $disputes->join($dispute->loadMissing('order'), $request->user(), $payload['note'] ?? null);
+        $disputes->join($dispute->loadMissing('order'), $request->user('admin'), $payload['note'] ?? null);
 
         return back()->withNotify('success', 'You joined dispute '.$dispute->case_code.'.', 'Admin joined');
     }
@@ -163,14 +167,14 @@ class DisputeController extends AdminController
         ]);
 
         $recipient = isset($payload['recipient_id']) ? User::find($payload['recipient_id']) : null;
-        $disputes->requestEvidence($dispute->loadMissing('order.buyer', 'order.seller'), $request->user(), $recipient, $payload['note']);
+        $disputes->requestEvidence($dispute->loadMissing('order.buyer', 'order.seller'), $request->user('admin'), $recipient, $payload['note']);
 
         return back()->withNotify('success', 'Evidence request sent.', 'Evidence requested');
     }
 
     public function refund(Request $request, Dispute $dispute, AdminDisputeService $disputes)
     {
-        abort_unless($request->user()->can('payments.release'), 403);
+        abort_unless($request->user('admin')?->can('payments.release'), 403);
 
         $payload = $request->validate([
             'amount' => ['required', 'numeric', 'min:0.01'],
@@ -179,7 +183,7 @@ class DisputeController extends AdminController
 
         $disputes->issueRefund(
             $dispute->loadMissing('order.buyer', 'order.seller', 'order.gig'),
-            $request->user(),
+            $request->user('admin'),
             (int) round(((float) $payload['amount']) * 100),
             $payload['reason'] ?? null,
         );

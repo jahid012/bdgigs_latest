@@ -47,7 +47,7 @@
                                             value="1"
                                             type="checkbox"
                                             @checked($setting['value'] ?? false)
-                                            @disabled(! auth()->user()?->can('settings.update'))
+                                            @disabled(! auth('admin')->user()?->can('settings.update'))
                                         >
                                         <i></i>
                                     </span>
@@ -60,7 +60,7 @@
                                     </span>
                                     <span class="admin-setting-control">
                                         @if ($type === 'select')
-                                            <select id="{{ $fieldId }}" name="settings[{{ $setting['name'] }}]" @disabled(! auth()->user()?->can('settings.update'))>
+                                            <select id="{{ $fieldId }}" name="settings[{{ $setting['name'] }}]" @disabled(! auth('admin')->user()?->can('settings.update'))>
                                                 @foreach (($setting['options'] ?? []) as $option)
                                                     <option value="{{ $option }}" @selected(($setting['value'] ?? '') === $option)>{{ $option }}</option>
                                                 @endforeach
@@ -70,7 +70,7 @@
                                                 id="{{ $fieldId }}"
                                                 name="settings[{{ $setting['name'] }}]"
                                                 rows="3"
-                                                @disabled(! auth()->user()?->can('settings.update'))
+                                                @disabled(! auth('admin')->user()?->can('settings.update'))
                                             >{{ $setting['value'] ?? '' }}</textarea>
                                         @else
                                             <span class="admin-input-shell">
@@ -82,7 +82,7 @@
                                                     name="settings[{{ $setting['name'] }}]"
                                                     type="{{ $type === 'number' ? 'number' : 'text' }}"
                                                     value="{{ $setting['value'] ?? '' }}"
-                                                    @disabled(! auth()->user()?->can('settings.update'))
+                                                    @disabled(! auth('admin')->user()?->can('settings.update'))
                                                 >
                                                 @isset($setting['suffix'])
                                                     <em>{{ $setting['suffix'] }}</em>
@@ -148,7 +148,7 @@
                     </div>
                     <div class="admin-access-shortcut-actions">
                         <a class="admin-panel-link" href="{{ route('admin.roles') }}">Open role manager</a>
-                        <a class="admin-panel-link" href="{{ route('admin.roles.users') }}">Find users</a>
+                        <a class="admin-panel-link" href="{{ route('admin.roles.users') }}">Find admins</a>
                     </div>
                 </article>
             @endcan

@@ -188,7 +188,16 @@ class EmailService
             return ['subject' => '', 'html' => '', 'text' => ''];
         }
 
-        $payload = $this->payloadForUser(auth()->user() ?: new User(['name' => 'Admin', 'email' => config('mail.from.address')]), $data, []);
+        $viewer = auth('web')->user();
+        $admin = auth('admin')->user();
+        $previewUser = $viewer instanceof User
+            ? $viewer
+            : new User([
+                'name' => $admin?->name ?: 'Admin',
+                'email' => $admin?->email ?: config('mail.from.address'),
+            ]);
+
+        $payload = $this->payloadForUser($previewUser, $data, []);
         $body = $this->renderTemplate($template->html_body, $payload);
         $text = $this->renderTemplate($template->text_body ?: $this->plainText($body), $payload, false);
 

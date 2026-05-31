@@ -13,11 +13,11 @@ abstract class AdminController extends Controller
 {
     protected function panelView(string $view, array $data = [])
     {
-        if (! auth()->check()) {
+        if (! auth('admin')->check()) {
             return redirect()->route('admin.login');
         }
 
-        if (! auth()->user()->can('admin.access')) {
+        if (! auth('admin')->user()->can('admin.access')) {
             abort(403);
         }
 

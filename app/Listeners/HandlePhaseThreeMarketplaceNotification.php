@@ -50,6 +50,8 @@ use App\Events\WithdrawalFailed;
 use App\Events\WithdrawalPaid;
 use App\Events\WithdrawalRejected;
 use App\Events\WithdrawalRequested;
+use App\Models\Admin;
+use App\Models\AdminNotification;
 use App\Models\Dispute;
 use App\Models\Gig;
 use App\Models\ModerationReport;
@@ -357,12 +359,24 @@ class HandlePhaseThreeMarketplaceNotification
 
     private function notifyAdmins(string $permission, string $template, string $title, string $detail, string $url, array $data = []): void
     {
-        if (! Permission::where('name', $permission)->where('guard_name', 'web')->exists()) {
+        if (! Permission::where('name', $permission)->where('guard_name', 'admin')->exists()) {
             return;
         }
 
-        User::permission($permission)
+        Admin::permission($permission)
             ->get()
-            ->each(fn (User $admin) => $this->notifyUser($admin, $template, $title, $detail, $url, $data));
+            ->each(fn (Admin $admin) => $this->notifyAdmin($admin, $template, $title, $detail, $url, $data));
+    }
+
+    private function notifyAdmin(Admin $admin, string $template, string $title, string $detail, string $url, array $data = []): void
+    {
+        AdminNotification::create([
+            'admin_id' => $admin->id,
+            'type' => $template,
+            'title' => $title,
+            'detail' => $detail,
+            'action_url' => $url,
+            'metadata' => $data,
+        ]);
     }
 }

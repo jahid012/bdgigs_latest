@@ -70,7 +70,7 @@ class SellerApplicationController extends AdminController
     {
         $user->load([
             'sellerProfile',
-            'sellerStatusEvents' => fn ($events) => $events->with('actor')->latest(),
+            'sellerStatusEvents' => fn ($events) => $events->with(['actor', 'adminActor'])->latest(),
             'gigs' => fn ($gigs) => $gigs->latest()->take(8),
         ]);
 
@@ -92,7 +92,7 @@ class SellerApplicationController extends AdminController
     public function approve(Request $request, User $user, SellerApplicationService $applications)
     {
         $payload = $request->validate(['reason' => ['nullable', 'string', 'max:1000']]);
-        $applications->approve($user, $request->user(), $payload['reason'] ?? null);
+        $applications->approve($user, $request->user('admin'), $payload['reason'] ?? null);
 
         return back()->withNotify('success', 'Seller application approved.', 'Seller approved');
     }
@@ -100,7 +100,7 @@ class SellerApplicationController extends AdminController
     public function reject(Request $request, User $user, SellerApplicationService $applications)
     {
         $payload = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
-        $applications->reject($user, $request->user(), $payload['reason']);
+        $applications->reject($user, $request->user('admin'), $payload['reason']);
 
         return back()->withNotify('success', 'Seller application rejected.', 'Seller rejected');
     }

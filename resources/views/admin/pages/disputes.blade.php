@@ -82,7 +82,7 @@
                                 <td>{{ $dispute->reason }}</td>
                                 <td><span class="admin-status-badge {{ $priorityClass }}">{{ str($dispute->priority)->title() }}</span></td>
                                 <td><span class="admin-status-badge {{ $statusClass }}">{{ str($dispute->status)->replace('_', ' ')->title() }}</span></td>
-                                <td>{{ $dispute->assignedTo?->name ?? 'Unassigned' }}</td>
+                                <td>{{ $dispute->assignedAdmin?->name ?? $dispute->assignedTo?->name ?? 'Unassigned' }}</td>
                                 <td><a class="admin-panel-link" href="{{ route('admin.disputes.show', $dispute) }}">View details</a></td>
                             </tr>
                         @empty

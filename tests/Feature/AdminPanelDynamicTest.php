@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Events\OrderStatusUpdated;
+use App\Models\Admin;
 use App\Models\Dispute;
 use App\Models\Gig;
 use App\Models\ManualPaymentMethod;
@@ -21,7 +22,7 @@ class AdminPanelDynamicTest extends TestCase
 {
     use RefreshDatabase;
 
-    private User $admin;
+    private Admin $admin;
 
     protected function setUp(): void
     {
@@ -30,7 +31,21 @@ class AdminPanelDynamicTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $this->admin = User::where('email', config('admin.email'))->firstOrFail();
+        $this->admin = Admin::where('email', config('admin.email'))->firstOrFail();
+    }
+
+    public function test_admin_login_ignores_marketplace_device_security_listener(): void
+    {
+        $this->withHeader('User-Agent', 'Mozilla/5.0 AdminPanelLogin')
+            ->post(route('admin.login.submit'), [
+                'email' => $this->admin->email,
+                'password' => config('admin.password'),
+                'remember' => true,
+            ])
+            ->assertRedirect(route('admin.dashboard'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertAuthenticatedAs($this->admin, 'admin');
     }
 
     public function test_guest_is_redirected_and_non_admin_is_forbidden(): void
@@ -46,29 +61,40 @@ class AdminPanelDynamicTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('admin.dashboard'))
+            ->assertRedirect(route('admin.login'));
+
+        $adminWithoutAccess = Admin::create([
+            'name' => 'No Access Admin',
+            'email' => 'no-access-admin@example.com',
+            'password' => Hash::make('password'),
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($adminWithoutAccess, 'admin')
+            ->get(route('admin.dashboard'))
             ->assertForbidden();
     }
 
     public function test_dynamic_admin_pages_render_database_records(): void
     {
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.users', ['q' => 'test@example.com']))
             ->assertOk()
             ->assertSee('test@example.com');
 
         $gigTitle = Gig::where('slug', 'demo-gig-001')->firstOrFail()->title;
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.gigs', ['q' => $gigTitle]))
             ->assertOk()
             ->assertSee($gigTitle);
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.orders', ['q' => 'BO-001']))
             ->assertOk()
             ->assertSee('#BO-001');
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.disputes'))
             ->assertOk()
             ->assertSee('DSP-0001');
@@ -76,13 +102,13 @@ class AdminPanelDynamicTest extends TestCase
 
     public function test_admin_dashboard_uses_chart_js_data_and_quick_actions_are_removed(): void
     {
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.dashboard'))
             ->assertOk()
             ->assertSee('data-admin-line-chart', false)
             ->assertDontSee('Quick actions');
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.settings'))
             ->assertOk()
             ->assertSee('admin-settings-actions', false)
@@ -100,7 +126,7 @@ class AdminPanelDynamicTest extends TestCase
             'visited_at' => now(),
         ]);
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.reports', ['visitor_day' => now()->toDateString()]))
             ->assertOk()
             ->assertSee('Hourly visitors')
@@ -110,20 +136,20 @@ class AdminPanelDynamicTest extends TestCase
 
     public function test_admin_pages_respect_page_permissions(): void
     {
-        $support = User::where('email', 'support@bdgigs.test')->firstOrFail();
+        $support = Admin::where('email', 'support@bdgigs.test')->firstOrFail();
 
-        $this->actingAs($support)
+        $this->actingAs($support, 'admin')
             ->get(route('admin.users'))
             ->assertOk();
 
-        $this->actingAs($support)
+        $this->actingAs($support, 'admin')
             ->get(route('admin.gigs'))
             ->assertForbidden();
     }
 
     public function test_admin_lists_support_search_and_filters(): void
     {
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.users', ['q' => 'demo-seller-02', 'type' => 'sellers']))
             ->assertOk()
             ->assertSee('demo-seller-02@bdgigs.test')
@@ -131,15 +157,58 @@ class AdminPanelDynamicTest extends TestCase
 
         $gig = Gig::where('slug', 'demo-gig-002')->firstOrFail();
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.gigs', ['q' => $gig->title]))
             ->assertOk()
             ->assertSee($gig->title);
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.orders', ['status' => 'delivered']))
             ->assertOk()
             ->assertSee('Delivered');
+    }
+
+    public function test_admin_gig_index_uses_data_table_filters_and_bulk_actions(): void
+    {
+        $gig = Gig::where('slug', 'demo-gig-001')->firstOrFail();
+        $gig->forceFill([
+            'featured' => false,
+            'price_cents' => 12000,
+            'delivery_days' => 5,
+            'status' => 'Published',
+            'status_class' => 'status-completed',
+        ])->save();
+
+        $this->actingAs($this->admin, 'admin')
+            ->get(route('admin.gigs', [
+                'status' => 'published',
+                'category' => $gig->category_label,
+                'seller' => $gig->seller_name,
+                'featured' => 'not_featured',
+                'price' => '50_150',
+                'delivery' => 'standard',
+                'sort' => 'price_high',
+            ]))
+            ->assertOk()
+            ->assertSee('admin-gig-table', false)
+            ->assertSee('Bulk actions')
+            ->assertSee('Moderation note')
+            ->assertSee($gig->title)
+            ->assertDontSee('Review checklist');
+
+        $this->actingAs($this->admin, 'admin')
+            ->patch(route('admin.gigs.bulk'), [
+                'bulk_action' => 'feature',
+                'gigs' => [$gig->slug],
+            ])
+            ->assertRedirect();
+
+        $this->assertTrue($gig->fresh()->featured);
+        $this->assertDatabaseHas('gig_moderation_events', [
+            'gig_id' => $gig->id,
+            'actor_admin_id' => $this->admin->id,
+            'event_type' => 'gig_featured',
+        ]);
     }
 
     public function test_admin_can_view_user_details_and_impersonate_a_marketplace_user(): void
@@ -148,22 +217,23 @@ class AdminPanelDynamicTest extends TestCase
             'name' => 'Impersonated Buyer',
         ]);
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.users.show', $user))
             ->assertOk()
             ->assertSee('Impersonated Buyer')
             ->assertSee('Login as this user');
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->post(route('admin.users.impersonate', $user))
             ->assertRedirect('/dashboard');
 
-        $this->assertAuthenticatedAs($user);
+        $this->assertAuthenticatedAs($user, 'web');
 
         $this->post(route('admin.impersonation.stop'))
             ->assertRedirect(route('admin.users.show', $user));
 
-        $this->assertAuthenticatedAs($this->admin);
+        $this->assertAuthenticatedAs($this->admin, 'admin');
+        $this->assertGuest('web');
     }
 
     public function test_admin_can_verify_suspend_and_restore_users(): void
@@ -176,19 +246,19 @@ class AdminPanelDynamicTest extends TestCase
             'verification_status' => 'review',
         ]);
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->post(route('admin.users.verify', $user))
             ->assertRedirect();
 
         $this->assertSame('verified', $user->fresh()->verification_status);
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->post(route('admin.users.suspend', $user))
             ->assertRedirect();
 
         $this->assertNotNull($user->fresh()->suspended_at);
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->post(route('admin.users.restore', $user))
             ->assertRedirect();
 
@@ -199,13 +269,13 @@ class AdminPanelDynamicTest extends TestCase
     {
         $gig = Gig::where('slug', 'demo-gig-001')->firstOrFail();
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.gigs.show', $gig))
             ->assertOk()
             ->assertSee($gig->title)
             ->assertSee('Moderation');
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->patch(route('admin.gigs.status', $gig), [
                 'action' => 'reject',
                 'reason' => 'The service needs clearer scope before approval.',
@@ -227,18 +297,18 @@ class AdminPanelDynamicTest extends TestCase
         ]);
         $gig->delete();
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.gigs'))
             ->assertOk()
             ->assertDontSee($gig->title);
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.gigs', ['status' => 'deleted']))
             ->assertOk()
             ->assertSee($gig->title)
             ->assertSee('Deleted');
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.gigs.show', $gig->slug))
             ->assertOk()
             ->assertSee('soft deleted');
@@ -272,13 +342,13 @@ class AdminPanelDynamicTest extends TestCase
             'earnings_cents' => 8000,
         ]);
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.orders.show', $order->code))
             ->assertOk()
             ->assertSee('Order #'.$order->code)
             ->assertSee('Order action');
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->patch(route('admin.orders.status', $order), [
                 'status' => 'Delivered',
             ])
@@ -298,12 +368,12 @@ class AdminPanelDynamicTest extends TestCase
 
         Dispute::factory()->count(9)->create();
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.disputes', ['status' => 'all']))
             ->assertOk()
             ->assertSee('Disputes pagination');
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->post(route('admin.orders.disputes.store', $order), [
                 'reason' => 'Admin delivery review',
                 'description' => 'The buyer asked for a scope decision.',
@@ -315,13 +385,13 @@ class AdminPanelDynamicTest extends TestCase
             ->where('reason', 'Admin delivery review')
             ->firstOrFail();
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.disputes.show', $dispute))
             ->assertOk()
             ->assertSee($dispute->case_code)
             ->assertSee('Case action');
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->patch(route('admin.disputes.update', $dispute), [
                 'status' => 'resolved',
                 'priority' => 'high',
@@ -335,8 +405,8 @@ class AdminPanelDynamicTest extends TestCase
             'id' => $dispute->id,
             'status' => 'resolved',
             'priority' => 'high',
-            'assigned_to_id' => $this->admin->id,
-            'resolved_by_id' => $this->admin->id,
+            'assigned_to_admin_id' => $this->admin->id,
+            'resolved_by_admin_id' => $this->admin->id,
         ]);
         $this->assertDatabaseHas('dispute_activities', [
             'dispute_id' => $dispute->id,
@@ -366,7 +436,7 @@ class AdminPanelDynamicTest extends TestCase
             ->whereHas('order', fn ($orders) => $orders->where('code', $orderCode))
             ->firstOrFail();
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->patch(route('admin.manual-payments.review', $submission), [
                 'decision' => 'approve',
                 'note' => 'Reference checked.',
@@ -413,12 +483,12 @@ class AdminPanelDynamicTest extends TestCase
 
         $withdrawal = \App\Models\WithdrawalRequest::where('code', $withdrawalCode)->firstOrFail();
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.withdrawals'))
             ->assertOk()
             ->assertSee($withdrawalCode);
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->patch(route('admin.withdrawals.review', $withdrawal), [
                 'action' => 'approve',
                 'note' => 'Seller payout details checked.',
@@ -427,7 +497,7 @@ class AdminPanelDynamicTest extends TestCase
 
         $this->assertSame('approved', $withdrawal->fresh()->status);
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->patch(route('admin.withdrawals.review', $withdrawal), [
                 'action' => 'mark_paid',
                 'payment_reference' => 'PAYOUT-TX-100',

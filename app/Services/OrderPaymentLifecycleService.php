@@ -6,6 +6,7 @@ use App\Events\OrderPaymentFailed;
 use App\Events\OrderPaymentSuccessful;
 use App\Events\OrderPlaced;
 use App\Events\OrderRefunded;
+use App\Models\Admin;
 use App\Models\Gig;
 use App\Models\Order;
 use App\Models\User;
@@ -60,7 +61,7 @@ class OrderPaymentLifecycleService
         Order $order,
         string $method = 'manual_payment',
         ?string $transactionId = null,
-        ?User $actor = null,
+        User|Admin|null $actor = null,
         ?WalletTransaction $buyerTransaction = null
     ): Order {
         return DB::transaction(function () use ($order, $method, $transactionId, $actor, $buyerTransaction) {
@@ -121,7 +122,7 @@ class OrderPaymentLifecycleService
         });
     }
 
-    public function markFailed(Order $order, string $reason, string $method = 'manual_payment', ?User $actor = null): Order
+    public function markFailed(Order $order, string $reason, string $method = 'manual_payment', User|Admin|null $actor = null): Order
     {
         return DB::transaction(function () use ($order, $reason, $method) {
             $order = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
@@ -161,7 +162,7 @@ class OrderPaymentLifecycleService
         });
     }
 
-    public function refund(Order $order, ?User $actor, ?int $amountCents = null, ?string $reason = null): Order
+    public function refund(Order $order, User|Admin|null $actor, ?int $amountCents = null, ?string $reason = null): Order
     {
         return DB::transaction(function () use ($order, $actor, $amountCents, $reason) {
             $order = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
@@ -210,7 +211,8 @@ class OrderPaymentLifecycleService
                 'transaction_id' => $transaction->code,
                 'amount_cents' => $refundCents,
                 'reason' => $reason,
-                'actor_id' => $actor?->id,
+                'actor_id' => $actor instanceof User ? $actor->id : null,
+                'actor_admin_id' => $actor instanceof Admin ? $actor->id : null,
                 'refunded_at' => now()->toISOString(),
             ];
 

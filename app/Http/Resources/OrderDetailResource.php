@@ -146,9 +146,9 @@ class OrderDetailResource extends JsonResource
                     'title' => $activity->title,
                     'detail' => $activity->detail,
                     'time' => $activity->created_at?->format('M j, Y g:i A'),
-                    'actorName' => $activity->actor?->name ?? 'BDGigs',
-                    'actorInitials' => initialsFromOrderName($activity->actor?->name ?? 'BDGigs'),
-                    'actorAvatar' => $this->assetPath($activity->actor?->avatar),
+                    'actorName' => $activity->adminActor?->name ?? $activity->actor?->name ?? 'BDGigs',
+                    'actorInitials' => initialsFromOrderName($activity->adminActor?->name ?? $activity->actor?->name ?? 'BDGigs'),
+                    'actorAvatar' => $this->assetPath($activity->adminActor?->avatar ?? $activity->actor?->avatar),
                     'icon' => $this->activityIcon($activity->type),
                     'color' => $this->activityColor($activity->type),
                 ])
@@ -425,7 +425,7 @@ class OrderDetailResource extends JsonResource
                     'status' => $dispute->status,
                     'statusLabel' => str($dispute->status)->replace('_', ' ')->title()->toString(),
                     'isTerminal' => $dispute->isTerminal(),
-                    'openedByName' => $dispute->openedBy?->name ?? 'System',
+                    'openedByName' => $dispute->openedByAdmin?->name ?? $dispute->openedBy?->name ?? 'System',
                     'openedAt' => $dispute->created_at?->format('M j, Y g:i A'),
                     'attachments' => array_values($dispute->metadata['attachments'] ?? []),
                     'messages' => $dispute->activities
@@ -435,9 +435,9 @@ class OrderDetailResource extends JsonResource
                             'type' => $activity->type,
                             'title' => $activity->title,
                             'body' => $activity->detail,
-                            'actorName' => $activity->actor?->name ?? 'System',
-                            'actorInitials' => initialsFromOrderName($activity->actor?->name ?? 'System'),
-                            'actorAvatar' => $this->assetPath($activity->actor?->avatar),
+                            'actorName' => $activity->adminActor?->name ?? $activity->actor?->name ?? 'System',
+                            'actorInitials' => initialsFromOrderName($activity->adminActor?->name ?? $activity->actor?->name ?? 'System'),
+                            'actorAvatar' => $this->assetPath($activity->adminActor?->avatar ?? $activity->actor?->avatar),
                             'time' => $activity->created_at?->format('M j, Y g:i A'),
                         ])
                         ->values()

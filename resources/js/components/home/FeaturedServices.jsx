@@ -13,11 +13,10 @@ import {
     subscribeToRecentlyViewedGigs,
 } from "../../utils/recentlyViewedGigs.js";
 
-function FeaturedServices({ onNavigate }) {
+function FeaturedServices({ onNavigate, services = [] }) {
     const { t } = useTranslation();
     const currentUser = useSessionStore((state) => state.currentUser);
-    const listingGigs = useMarketplaceStore((state) => state.listingGigs);
-    const fetchGigs = useMarketplaceStore((state) => state.fetchGigs);
+    const homeGigs = useMarketplaceStore((state) => state.homeGigs);
     const toggleSavedService = useMarketplaceStore(
         (state) => state.toggleSavedService,
     );
@@ -25,19 +24,17 @@ function FeaturedServices({ onNavigate }) {
         readRecentlyViewedGigs(),
     );
     const visibleServices = useMemo(() => {
-        const featured = listingGigs.filter((service) => service.featured);
-        const indexedGigs = new Map(listingGigs.map((gig) => [gig.id, gig]));
+        const sourceGigs = services.length ? services : homeGigs;
+        const featured = sourceGigs.filter((service) => service.featured);
+        const servicePool = featured.length ? featured : sourceGigs;
+        const indexedGigs = new Map(sourceGigs.map((gig) => [gig.id, gig]));
         const hydratedRecent = recentlyViewed.map((gig) => ({
             ...gig,
             ...(indexedGigs.get(gig.id) || {}),
         }));
 
-        return uniqueById([...hydratedRecent, ...featured]).slice(0, 5);
-    }, [listingGigs, recentlyViewed]);
-
-    useEffect(() => {
-        fetchGigs();
-    }, [fetchGigs]);
+        return uniqueById([...hydratedRecent, ...servicePool]).slice(0, 5);
+    }, [homeGigs, recentlyViewed, services]);
 
     useEffect(
         () => subscribeToRecentlyViewedGigs(setRecentlyViewed),

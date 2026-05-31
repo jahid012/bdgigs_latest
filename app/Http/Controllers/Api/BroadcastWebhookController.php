@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\WebhookStatusResource;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
 use Pusher\Pusher;
 
 class BroadcastWebhookController extends Controller
 {
-    public function handle(Request $request): JsonResponse
+    public function handle(Request $request): WebhookStatusResource
     {
         $pusher = new Pusher(
             config('broadcasting.connections.pusher.key'),
@@ -51,6 +51,6 @@ class BroadcastWebhookController extends Controller
             }
         }
 
-        return response()->json(['status' => 'ok']);
+        return WebhookStatusResource::make(['status' => 'ok']);
     }
 }

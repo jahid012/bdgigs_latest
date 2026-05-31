@@ -6,7 +6,7 @@ use App\Events\WithdrawalApproved;
 use App\Events\WithdrawalFailed;
 use App\Events\WithdrawalPaid;
 use App\Events\WithdrawalRejected;
-use App\Models\User;
+use App\Models\Admin;
 use App\Models\WithdrawalRequest;
 use Illuminate\Support\Facades\DB;
 
@@ -14,7 +14,7 @@ class ManualWithdrawalReviewService
 {
     public function decide(
         WithdrawalRequest $withdrawal,
-        User $admin,
+        Admin $admin,
         string $action,
         ?string $note,
         ?string $paymentReference = null,
@@ -29,7 +29,7 @@ class ManualWithdrawalReviewService
         });
     }
 
-    private function approve(WithdrawalRequest $withdrawal, User $admin, ?string $note): WithdrawalRequest
+    private function approve(WithdrawalRequest $withdrawal, Admin $admin, ?string $note): WithdrawalRequest
     {
         abort_unless(in_array($withdrawal->status, ['pending', 'under_review'], true), 422, 'Only pending withdrawals can be approved.');
 
@@ -37,7 +37,8 @@ class ManualWithdrawalReviewService
             'status' => 'approved',
             'approved_amount_cents' => $withdrawal->amount_cents,
             'review_note' => $note,
-            'reviewed_by' => $admin->id,
+            'reviewed_by' => null,
+            'reviewed_by_admin_id' => $admin->id,
             'reviewed_at' => now(),
         ])->save();
 
@@ -50,14 +51,15 @@ class ManualWithdrawalReviewService
         );
     }
 
-    private function reject(WithdrawalRequest $withdrawal, User $admin, ?string $note): WithdrawalRequest
+    private function reject(WithdrawalRequest $withdrawal, Admin $admin, ?string $note): WithdrawalRequest
     {
         abort_unless(in_array($withdrawal->status, ['pending', 'under_review', 'approved'], true), 422, 'This withdrawal cannot be rejected.');
 
         $withdrawal->forceFill([
             'status' => 'rejected',
             'review_note' => $note,
-            'reviewed_by' => $admin->id,
+            'reviewed_by' => null,
+            'reviewed_by_admin_id' => $admin->id,
             'reviewed_at' => now(),
         ])->save();
 
@@ -72,7 +74,7 @@ class ManualWithdrawalReviewService
 
     private function markPaid(
         WithdrawalRequest $withdrawal,
-        User $admin,
+        Admin $admin,
         ?string $note,
         ?string $paymentReference
     ): WithdrawalRequest {
@@ -83,7 +85,8 @@ class ManualWithdrawalReviewService
             'status' => 'paid',
             'payment_reference' => $paymentReference,
             'review_note' => $note ?: $withdrawal->review_note,
-            'paid_by' => $admin->id,
+            'paid_by' => null,
+            'paid_by_admin_id' => $admin->id,
             'paid_at' => now(),
         ])->save();
 
@@ -96,14 +99,15 @@ class ManualWithdrawalReviewService
         );
     }
 
-    private function markFailed(WithdrawalRequest $withdrawal, User $admin, ?string $note): WithdrawalRequest
+    private function markFailed(WithdrawalRequest $withdrawal, Admin $admin, ?string $note): WithdrawalRequest
     {
         abort_unless(in_array($withdrawal->status, ['approved', 'paid'], true), 422, 'Only approved or paid withdrawals can be marked failed.');
 
         $withdrawal->forceFill([
             'status' => 'failed',
             'review_note' => $note ?: $withdrawal->review_note,
-            'reviewed_by' => $admin->id,
+            'reviewed_by' => null,
+            'reviewed_by_admin_id' => $admin->id,
             'reviewed_at' => now(),
         ])->save();
 
@@ -118,20 +122,20 @@ class ManualWithdrawalReviewService
 
     private function record(
         WithdrawalRequest $withdrawal,
-        User $admin,
+        Admin $admin,
         string $type,
         string $title,
         string $detail,
     ): WithdrawalRequest {
         $withdrawal->activities()->create([
-            'actor_id' => $admin->id,
+            'actor_admin_id' => $admin->id,
             'type' => $type,
             'title' => $title,
             'detail' => $detail,
         ]);
 
         DB::afterCommit(function () use ($withdrawal, $admin) {
-            $fresh = $withdrawal->fresh(['seller', 'payoutMethod', 'reviewer', 'payer', 'activities']);
+            $fresh = $withdrawal->fresh(['seller', 'payoutMethod', 'reviewer', 'adminReviewer', 'payer', 'adminPayer', 'activities.adminActor']);
 
             match ($fresh->status) {
                 'approved' => event(new WithdrawalApproved($fresh, $admin)),
@@ -142,6 +146,6 @@ class ManualWithdrawalReviewService
             };
         });
 
-        return $withdrawal->refresh(['seller', 'payoutMethod', 'reviewer', 'payer', 'activities']);
+        return $withdrawal->refresh(['seller', 'payoutMethod', 'reviewer', 'adminReviewer', 'payer', 'adminPayer', 'activities.adminActor']);
     }
 }

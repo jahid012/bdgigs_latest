@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\Models\Admin;
 use App\Models\Order;
 use App\Models\User;
 use App\Models\WalletTransaction;
@@ -16,7 +17,7 @@ class OrderRefunded
         public Order $order,
         public WalletTransaction $transaction,
         public int $amountCents,
-        public ?User $actor = null,
+        public User|Admin|null $actor = null,
         public ?string $reason = null,
     ) {
     }

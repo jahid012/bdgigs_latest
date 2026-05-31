@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\Models\Admin;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -13,7 +14,7 @@ class OrderCancelled
 
     public function __construct(
         public Order $order,
-        public ?User $actor = null,
+        public User|Admin|null $actor = null,
         public ?string $reason = null,
     ) {
     }

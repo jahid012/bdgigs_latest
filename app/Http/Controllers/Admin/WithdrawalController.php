@@ -15,7 +15,7 @@ class WithdrawalController extends AdminController
         $status = in_array($status, $allowedStatuses, true) ? $status : 'pending';
         $search = trim((string) $request->query('q', ''));
         $query = WithdrawalRequest::query()
-            ->with(['seller', 'payoutMethod', 'reviewer', 'payer'])
+            ->with(['seller', 'payoutMethod', 'reviewer', 'adminReviewer', 'payer', 'adminPayer'])
             ->latest();
 
         if ($status !== 'all') {
@@ -78,14 +78,14 @@ class WithdrawalController extends AdminController
         ]);
 
         if ($payload['action'] === 'mark_paid') {
-            abort_unless($request->user()->can('withdrawals.pay'), 403);
+            abort_unless($request->user('admin')?->can('withdrawals.pay'), 403);
         } else {
-            abort_unless($request->user()->can('withdrawals.review'), 403);
+            abort_unless($request->user('admin')?->can('withdrawals.review'), 403);
         }
 
         $reviews->decide(
             $withdrawal->loadMissing('seller'),
-            $request->user(),
+            $request->user('admin'),
             $payload['action'],
             $payload['note'] ?? null,
             $payload['payment_reference'] ?? null,

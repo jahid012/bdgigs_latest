@@ -21,8 +21,8 @@
             <dl class="admin-user-detail-list admin-detail-list">
                 <div><dt>Reporter</dt><dd>{{ $report->reporter?->name ?? 'Unknown' }}</dd></div>
                 <div><dt>Reported user</dt><dd>{{ $report->reportedUser?->name ?? 'None' }}</dd></div>
-                <div><dt>Assigned to</dt><dd>{{ $report->assignedTo?->name ?? 'Unassigned' }}</dd></div>
-                <div><dt>Resolved by</dt><dd>{{ $report->resolvedBy?->name ?? 'Not resolved' }}</dd></div>
+                <div><dt>Assigned to</dt><dd>{{ $report->assignedAdmin?->name ?? $report->assignedTo?->name ?? 'Unassigned' }}</dd></div>
+                <div><dt>Resolved by</dt><dd>{{ $report->resolvedByAdmin?->name ?? $report->resolvedBy?->name ?? 'Not resolved' }}</dd></div>
                 <div><dt>Resolution</dt><dd>{{ $report->resolution_note ?: 'No resolution note yet.' }}</dd></div>
                 <div><dt>Created</dt><dd>{{ $report->created_at?->format('M j, Y g:i A') }}</dd></div>
             </dl>

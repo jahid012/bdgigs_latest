@@ -11,6 +11,9 @@ use App\Events\MessageRead;
 use App\Events\UserTyping;
 use App\Jobs\SendUnreadMessageReminder;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\StoreConversationMessageRequest;
+use App\Http\Requests\Api\StoreConversationRequest;
+use App\Http\Resources\ActionResource;
 use App\Http\Resources\ConversationResource;
 use App\Http\Resources\MessageResource;
 use App\Models\Conversation;
@@ -27,7 +30,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class ConversationController extends Controller
 {
@@ -65,19 +67,11 @@ class ConversationController extends Controller
     }
 
     public function store(
-        Request $request,
+        StoreConversationRequest $request,
         MarketplaceNotifier $notifier,
         OfflinePushNotifier $pushNotifier
     ): ConversationResource {
-        $payload = $request->validate([
-            'targetUserId' => ['nullable', 'integer', 'exists:users,id'],
-            'targetName' => ['nullable', 'string', 'max:120'],
-            'targetSlug' => ['nullable', 'string', 'max:160'],
-            'contextType' => ['required', 'string', Rule::in(['profile', 'gig', 'order'])],
-            'contextId' => ['nullable', 'string', 'max:160'],
-            'message' => ['nullable', 'string', 'max:4000'],
-            'clientId' => ['nullable', 'string', 'max:120'],
-        ]);
+        $payload = $request->validated();
 
         [$targetUser, $context] = $this->resolveConversationTarget($request->user(), $payload);
 
@@ -145,20 +139,13 @@ class ConversationController extends Controller
     }
 
     public function storeMessage(
-        Request $request,
+        StoreConversationMessageRequest $request,
         Conversation $conversation,
         MarketplaceNotifier $notifier,
         OfflinePushNotifier $pushNotifier,
         MessageAutomationService $messageAutomation
     ): MessageResource {
-        $this->authorizeParticipant($request, $conversation);
-
-        $payload = $request->validate([
-            'text' => ['nullable', 'required_without:attachments', 'string', 'max:4000'],
-            'attachments' => ['nullable', 'array'],
-            'attachments.*' => ['nullable', 'file', 'max:51200'],
-            'clientId' => ['nullable', 'string', 'max:120'],
-        ]);
+        $payload = $request->validated();
 
         $message = $this->createMessage(
             $request,
@@ -238,7 +225,7 @@ class ConversationController extends Controller
         ]));
     }
 
-    public function typing(Request $request, Conversation $conversation): array
+    public function typing(Request $request, Conversation $conversation): ActionResource
     {
         $this->authorizeParticipant($request, $conversation);
 
@@ -260,7 +247,7 @@ class ConversationController extends Controller
                 $recipientId,
             )));
 
-        return ['data' => ['typing' => true]];
+        return ActionResource::make(['typing' => true]);
     }
 
     private function authorizeParticipant(Request $request, Conversation $conversation): void

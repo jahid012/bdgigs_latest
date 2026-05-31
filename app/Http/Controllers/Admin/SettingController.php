@@ -55,7 +55,7 @@ class SettingController extends AdminController
                 ->withInput();
         }
 
-        PlatformSettings::setMany($values);
+        PlatformSettings::setMany($values, $request->user('admin')?->id);
 
         return back()->withNotify('success', 'Platform settings were saved and the settings cache was refreshed.', 'Settings saved');
     }

@@ -15,14 +15,13 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
-use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable(['name', 'username', 'email', 'password', 'email_verified_at', 'profile_type', 'seller_status', 'seller_status_reason', 'seller_status_reviewed_by', 'seller_status_reviewed_at', 'country', 'avatar', 'verification_status', 'suspended_at', 'suspension_reason', 'suspended_by', 'deactivated_at', 'deactivation_reason', 'deactivated_by', 'reactivated_at', 'last_seen_at', 'profile_completion_reminded_at', 'marketing_unsubscribed_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmailContract
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, MustVerifyEmail, Notifiable, TwoFactorAuthenticatable {
+    use HasFactory, MustVerifyEmail, Notifiable, TwoFactorAuthenticatable {
         MustVerifyEmail::sendEmailVerificationNotification as protected sendDefaultEmailVerificationNotification;
     }
 

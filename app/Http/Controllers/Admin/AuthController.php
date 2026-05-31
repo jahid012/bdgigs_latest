@@ -11,7 +11,7 @@ class AuthController extends Controller
 {
     public function showLogin()
     {
-        if (Auth::check() && Auth::user()->can('admin.access')) {
+        if (Auth::guard('admin')->check() && Auth::guard('admin')->user()->can('admin.access')) {
             return redirect()->route('admin.dashboard');
         }
 
@@ -31,14 +31,16 @@ class AuthController extends Controller
             'password' => $credentials['password'],
         ];
 
-        if (! Auth::attempt($credentials, $remember)) {
+        if (! Auth::guard('admin')->attempt($credentials, $remember)) {
             throw ValidationException::withMessages([
                 'email' => 'These admin credentials do not match our records.',
             ]);
         }
 
-        if (! Auth::user()->can('admin.access')) {
-            Auth::logout();
+        $admin = Auth::guard('admin')->user();
+
+        if (! $admin->isActive() || ! $admin->can('admin.access')) {
+            Auth::guard('admin')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
@@ -46,6 +48,11 @@ class AuthController extends Controller
                 'email' => 'This account does not have admin panel access.',
             ]);
         }
+
+        $admin->forceFill([
+            'last_login_at' => now(),
+            'last_seen_at' => now(),
+        ])->save();
 
         $request->session()->regenerate();
 
@@ -56,7 +63,7 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        Auth::logout();
+        Auth::guard('admin')->logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

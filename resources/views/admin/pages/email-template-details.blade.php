@@ -61,7 +61,7 @@
                 @csrf
                 <label>
                     <span>Send test to</span>
-                    <input type="email" name="email" value="{{ auth()->user()->email }}" required>
+                    <input type="email" name="email" value="{{ auth('admin')->user()->email }}" required>
                 </label>
                 <button type="submit">Send test email</button>
             </form>

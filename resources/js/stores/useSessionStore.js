@@ -9,6 +9,19 @@ export const useSessionStore = create((set, get) => ({
     sessionHydrating: false,
 
     setCurrentUser: (currentUser) => set({ currentUser }),
+    hydrateFromBootstrap: (session) => {
+        const currentUser = session?.authenticated ? session : null;
+
+        set({
+            currentUser,
+            error: null,
+            hasHydrated: true,
+            isLoading: false,
+            sessionHydrating: false,
+        });
+
+        return currentUser;
+    },
 
     hydrateSession: async () => {
         const state = get();

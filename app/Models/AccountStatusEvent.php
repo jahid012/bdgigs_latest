@@ -13,6 +13,7 @@ class AccountStatusEvent extends Model
     protected $fillable = [
         'user_id',
         'actor_id',
+        'actor_admin_id',
         'event_type',
         'status',
         'reason',
@@ -34,5 +35,10 @@ class AccountStatusEvent extends Model
     public function actor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'actor_id');
+    }
+
+    public function adminActor(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'actor_admin_id');
     }
 }

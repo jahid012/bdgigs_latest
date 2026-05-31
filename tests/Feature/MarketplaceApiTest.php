@@ -61,6 +61,47 @@ class MarketplaceApiTest extends TestCase
             ->assertJsonPath('data.authenticated', true);
     }
 
+    public function test_home_bootstrap_combines_home_page_data(): void
+    {
+        $this->getJson('/api/home/bootstrap')
+            ->assertOk()
+            ->assertJsonPath('data.session.authenticated', false)
+            ->assertJsonStructure([
+                'data' => [
+                    'session' => ['authenticated', 'csrfToken'],
+                    'marketplaceCategories' => [
+                        ['id', 'label', 'slug', 'path', 'children'],
+                    ],
+                    'creatorMarketplace' => [
+                        ['id', 'title', 'description', 'image', 'linkUrl'],
+                    ],
+                    'featuredGigs' => [
+                        ['id', 'title', 'seller', 'price', 'saved'],
+                    ],
+                    'csrfToken',
+                ],
+            ]);
+
+        $gig = Gig::query()
+            ->where('seller_id', '!=', $this->user->id)
+            ->firstOrFail();
+
+        $this->actingAs($this->user)
+            ->postJson("/api/saved-services/{$gig->slug}")
+            ->assertOk();
+
+        $response = $this->actingAs($this->user)
+            ->getJson('/api/home/bootstrap?recentGigs[]='.$gig->slug)
+            ->assertOk()
+            ->assertJsonPath('data.session.authenticated', true);
+
+        $this->assertTrue(
+            collect($response->json('data.featuredGigs'))->contains(
+                fn (array $item) => $item['id'] === $gig->slug && $item['saved'] === true
+            )
+        );
+    }
+
     public function test_human_page_views_are_tracked_and_bots_are_ignored(): void
     {
         $this->withHeader('User-Agent', 'Mozilla/5.0 AppleWebKit/537.36 Chrome/125 Safari/537.36')

@@ -13,6 +13,7 @@ class GigModerationEvent extends Model
     protected $fillable = [
         'gig_id',
         'actor_id',
+        'actor_admin_id',
         'event_type',
         'from_status',
         'to_status',
@@ -35,5 +36,10 @@ class GigModerationEvent extends Model
     public function actor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'actor_id');
+    }
+
+    public function adminActor(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'actor_admin_id');
     }
 }

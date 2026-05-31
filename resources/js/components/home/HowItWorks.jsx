@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 import Slider from "react-slick";
 import "slick-carousel/slick/slick-theme.css";
 import "slick-carousel/slick/slick.css";
@@ -8,7 +8,6 @@ import {
     marketplaceBenefits,
 } from "../../data/homeData.js";
 const SlickSlider = Slider?.default || Slider;
-import { apiRequest } from "../../api/apiClient.js";
 import { BrandMark, Icon } from "../common/Icons.jsx";
 import { useTranslation } from "react-i18next";
 const creatorRoutes = {
@@ -21,10 +20,8 @@ const creatorRoutes = {
     "Architecture & Interior Design":
         "/search/gigs?query=architecture%20interior%20design&source=creator-card",
 };
-function HowItWorks({ onNavigate }) {
+function HowItWorks({ creatorItems = [], onNavigate }) {
     const { t } = useTranslation();
-    const [creatorItems, setCreatorItems] = useState([]);
-    const [isCreatorLoading, setIsCreatorLoading] = useState(true);
     const sliderItems = useMemo(
         () =>
             creatorItems.length
@@ -107,38 +104,11 @@ function HowItWorks({ onNavigate }) {
         onNavigate(link);
     };
 
-    useEffect(() => {
-        let active = true;
-
-        apiRequest("/api/home/creator-marketplace")
-            .then((items) => {
-                if (active) {
-                    setCreatorItems(items || []);
-                }
-            })
-            .catch(() => {
-                if (active) {
-                    setCreatorItems([]);
-                }
-            })
-            .finally(() => {
-                if (active) {
-                    setIsCreatorLoading(false);
-                }
-            });
-
-        return () => {
-            active = false;
-        };
-    }, []);
-
     return (
         <>
             <section className="creator-marketplace-section" id="how-it-works">
                 <div className="container">
-                    <div
-                        className={`creator-card-row creator-slick-slider${isCreatorLoading ? " is-loading" : ""}`}
-                    >
+                    <div className="creator-card-row creator-slick-slider">
                         <SlickSlider {...sliderSettings}>
                             {sliderItems.map((card) => (
                                 <article

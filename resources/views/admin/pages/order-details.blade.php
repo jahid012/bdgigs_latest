@@ -166,7 +166,7 @@
                     <div><dt>Reference</dt><dd>{{ $payment->reference }}</dd></div>
                     <div><dt>Proof</dt><dd>{{ $payment->proof_reference ?: 'No proof reference' }}</dd></div>
                     <div><dt>Amount</dt><dd>${{ number_format($payment->amount_cents / 100, 0) }} {{ $payment->currency }}</dd></div>
-                    <div><dt>Reviewed by</dt><dd>{{ $payment->reviewer?->name ?? 'Pending review' }}</dd></div>
+                    <div><dt>Reviewed by</dt><dd>{{ $payment->adminReviewer?->name ?? $payment->reviewer?->name ?? 'Pending review' }}</dd></div>
                     <div><dt>Review note</dt><dd>{{ $payment->review_note ?: 'No review note' }}</dd></div>
                 </dl>
                 @if ($payment->status === 'pending')
@@ -225,7 +225,7 @@
                     <article class="admin-mini-card">
                         <div>
                             <strong>{{ $dispute->case_code }} - {{ $dispute->reason }}</strong>
-                            <p>{{ str($dispute->status)->replace('_', ' ')->title() }} - {{ $dispute->assignedTo?->name ?? 'Unassigned' }}</p>
+                            <p>{{ str($dispute->status)->replace('_', ' ')->title() }} - {{ $dispute->assignedAdmin?->name ?? $dispute->assignedTo?->name ?? 'Unassigned' }}</p>
                         </div>
                         <a class="admin-panel-link" href="{{ route('admin.disputes.show', $dispute) }}">View case</a>
                     </article>
@@ -282,7 +282,7 @@
                     <li>
                         <strong>{{ $activity->title }}</strong>
                         {{ $activity->detail ? ' - '.$activity->detail : '' }}
-                        <small>{{ $activity->actor?->name ?? 'System' }} - {{ $activity->created_at?->format('M j, Y g:i A') }}</small>
+                        <small>{{ $activity->adminActor?->name ?? $activity->actor?->name ?? 'System' }} - {{ $activity->created_at?->format('M j, Y g:i A') }}</small>
                     </li>
                 @empty
                     <li>No activity entries have been recorded for this order yet.</li>

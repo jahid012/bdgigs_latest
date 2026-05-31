@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
+use App\Models\Admin;
 use App\Support\PlatformSettings;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -37,13 +37,13 @@ class AccessControlAdminSeeder extends Seeder
 
         $permissions->each(fn (string $permission) => Permission::firstOrCreate([
             'name' => $permission,
-            'guard_name' => 'web',
+            'guard_name' => 'admin',
         ]));
 
         foreach ($this->rolePermissions($permissions->all()) as $roleName => $permissionNames) {
             Role::firstOrCreate([
                 'name' => $roleName,
-                'guard_name' => 'web',
+                'guard_name' => 'admin',
             ])->syncPermissions($permissionNames);
         }
 
@@ -113,15 +113,14 @@ class AccessControlAdminSeeder extends Seeder
 
     private function staffUser(string $email, string $name, string $role): void
     {
-        User::updateOrCreate(
+        Admin::updateOrCreate(
             ['email' => $email],
             [
                 'name' => $name,
                 'password' => Hash::make(config('admin.password')),
                 'email_verified_at' => now(),
-                'profile_type' => 'staff',
-                'country' => 'Bangladesh',
-                'verification_status' => 'verified',
+                'department' => str($role)->before('_')->replace('_', ' ')->title()->toString(),
+                'status' => 'active',
             ],
         )->syncRoles([$role]);
     }

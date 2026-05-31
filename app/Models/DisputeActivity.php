@@ -13,6 +13,7 @@ class DisputeActivity extends Model
     protected $fillable = [
         'dispute_id',
         'actor_id',
+        'actor_admin_id',
         'type',
         'title',
         'detail',
@@ -34,5 +35,10 @@ class DisputeActivity extends Model
     public function actor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'actor_id');
+    }
+
+    public function adminActor(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'actor_admin_id');
     }
 }

@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\CustomOfferController;
 use App\Http\Controllers\Api\GigController;
+use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\ManualCheckoutController;
 use App\Http\Controllers\Api\MarketplaceContentController;
 use App\Http\Controllers\Api\MessageSaveController;
@@ -34,6 +35,7 @@ Route::prefix('api')->name('api.')->group(function () {
     Route::post('/analytics/page-view', [PageViewController::class, 'store'])->name('analytics.page-view');
     Route::post('/broadcasting/webhook', [BroadcastWebhookController::class, 'handle'])
         ->name('broadcasting.webhook');
+    Route::get('/home/bootstrap', [HomeController::class, 'bootstrap'])->name('home.bootstrap');
     Route::get('/gigs', [GigController::class, 'index'])->name('gigs.index');
     Route::get('/gigs/{gig:slug}', [GigController::class, 'show'])->name('gigs.show');
     Route::get('/marketplace/categories', [MarketplaceContentController::class, 'categories'])->name('marketplace.categories');

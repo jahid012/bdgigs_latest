@@ -4,7 +4,7 @@
 
 @section('content')
     @php
-        $adminUser = auth()->user();
+        $adminUser = auth('admin')->user();
         $navItems = [
             ['label' => 'Overview', 'route' => 'admin.dashboard', 'permission' => 'admin.access'],
             ['label' => 'Users', 'route' => 'admin.users', 'permission' => 'users.view'],

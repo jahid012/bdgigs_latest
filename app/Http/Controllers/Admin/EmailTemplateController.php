@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreEmailTemplateRequest;
 use App\Models\EmailLog;
 use App\Models\EmailTemplate;
+use App\Models\User;
 use App\Services\EmailService;
 use App\Support\EmailTemplateDefaults;
 use Illuminate\Http\Request;
@@ -118,15 +119,15 @@ class EmailTemplateController extends Controller
             'email' => ['required', 'email', 'max:255'],
         ]);
 
-        $admin = $request->user()->replicate();
-        $admin->id = $request->user()->id;
-        $admin->name = $request->user()->name ?: 'Admin';
-        $admin->email = $payload['email'];
-        $admin->exists = true;
+        $admin = $request->user('admin');
+        $recipient = new User([
+            'name' => $admin?->name ?: 'Admin',
+            'email' => $payload['email'],
+        ]);
 
-        $sent = $emails->sendTemplateEmail($emailTemplate->key, $admin, [
+        $sent = $emails->sendTemplateEmail($emailTemplate->key, $recipient, [
             ...$this->demoPayload(),
-            'user_name' => $admin->name,
+            'user_name' => $recipient->name,
         ], [
             'force' => true,
         ]);

@@ -1,0 +1,21 @@
+<?php
+
+namespace App\Http\Requests\Api;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class StoreWalletCheckoutRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'packageId' => ['required', 'string', 'max:80'],
+            'note' => ['nullable', 'string', 'max:1000'],
+        ];
+    }
+}

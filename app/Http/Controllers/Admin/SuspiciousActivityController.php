@@ -15,7 +15,7 @@ class SuspiciousActivityController extends AdminController
         $search = trim((string) $request->query('q', ''));
         $severity = in_array($severity, ['all', ...SuspiciousActivityLog::SEVERITIES], true) ? $severity : 'all';
         $query = SuspiciousActivityLog::query()
-            ->with(['user', 'reviewer'])
+            ->with(['user', 'reviewer', 'adminReviewer'])
             ->latest();
 
         if ($severity !== 'all') {
@@ -75,7 +75,7 @@ class SuspiciousActivityController extends AdminController
 
     public function show(SuspiciousActivityLog $activity)
     {
-        $activity->load(['user', 'reviewer']);
+        $activity->load(['user', 'reviewer', 'adminReviewer']);
 
         return $this->panelView('admin.pages.suspicious-activity-details', [
             'pageTitle' => str($activity->type)->replace('_', ' ')->title()->toString(),
@@ -102,7 +102,8 @@ class SuspiciousActivityController extends AdminController
         $activity->forceFill([
             'severity' => $payload['severity'] ?? $activity->severity,
             'description' => $payload['description'] ?: $activity->description,
-            'reviewed_by' => $request->user()->id,
+            'reviewed_by' => null,
+            'reviewed_by_admin_id' => $request->user('admin')?->id,
             'reviewed_at' => now(),
         ])->save();
 

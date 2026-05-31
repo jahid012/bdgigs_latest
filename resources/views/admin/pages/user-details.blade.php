@@ -79,18 +79,15 @@
             <div class="admin-panel-head">
                 <div>
                     <h2>Access and profiles</h2>
-                    <p>Roles and persisted account records.</p>
+                    <p>Marketplace profile state and persisted account records.</p>
                 </div>
             </div>
             <div class="admin-user-detail-meta">
                 <section>
-                    <h3>Roles</h3>
+                    <h3>Marketplace access</h3>
                     <p>
-                        @forelse ($targetUser->roles as $role)
-                            <span>{{ str($role->name)->replace('_', ' ')->title() }}</span>
-                        @empty
-                            <em>No admin roles</em>
-                        @endforelse
+                        <span>{{ $targetUser->profile_type ? str($targetUser->profile_type)->title() : 'Buyer' }}</span>
+                        <span>{{ $targetUser->seller_status ? str($targetUser->seller_status)->replace('_', ' ')->title() : 'Not applied' }}</span>
                     </p>
                 </section>
                 <section>
@@ -120,7 +117,7 @@
                             <strong>{{ str($event->event_type)->replace('_', ' ')->title() }}</strong>
                             <p>{{ $event->reason ?: 'No reason recorded.' }} - {{ $event->created_at?->format('M j, Y g:i A') }}</p>
                         </div>
-                        <span>{{ $event->actor?->name ?? 'System' }}</span>
+                        <span>{{ $event->adminActor?->name ?? $event->actor?->name ?? 'System' }}</span>
                     </article>
                 @empty
                     <p class="admin-empty-note">No account status changes are recorded yet.</p>

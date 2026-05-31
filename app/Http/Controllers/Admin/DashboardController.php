@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\Conversation;
 use App\Models\Gig;
+use App\Models\AdminNotification;
 use App\Models\Order;
 use App\Models\User;
 use App\Models\UserNotification;
@@ -81,6 +82,11 @@ class DashboardController extends AdminController
     private function activities(): array
     {
         $activities = collect();
+
+        AdminNotification::latest()
+            ->take(2)
+            ->get()
+            ->each(fn (AdminNotification $notification) => $activities->push($notification->title.': '.$notification->detail));
 
         UserNotification::latest()
             ->take(2)

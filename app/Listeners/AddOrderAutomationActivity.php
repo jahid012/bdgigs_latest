@@ -11,7 +11,9 @@ use App\Events\OrderOverdueAlert;
 use App\Events\OrderRequirementsPendingReminder;
 use App\Events\RevisionDelivered;
 use App\Events\SellerStartedWorking;
+use App\Models\Admin;
 use App\Models\Order;
+use App\Models\User;
 
 class AddOrderAutomationActivity
 {
@@ -23,10 +25,11 @@ class AddOrderAutomationActivity
             return;
         }
 
-        [$order, $type, $title, $detail, $actorId, $metadata] = $payload;
+        [$order, $type, $title, $detail, $actorId, $metadata, $actorAdminId] = array_pad($payload, 7, null);
 
         $order->activities()->create([
             'actor_id' => $actorId,
+            'actor_admin_id' => $actorAdminId,
             'type' => $type,
             'title' => $title,
             'detail' => $detail,
@@ -131,13 +134,16 @@ class AddOrderAutomationActivity
         }
 
         if ($event instanceof OrderCancelled) {
+            $actor = $event->actor;
+
             return [
                 $event->order instanceof Order ? $event->order : $event->order->fresh(),
                 'order_cancelled',
                 'Order cancelled',
                 $event->reason ?: 'The order was cancelled and refund rules were applied.',
-                $event->actor?->id,
+                $actor instanceof User ? $actor->id : null,
                 [],
+                $actor instanceof Admin ? $actor->id : null,
             ];
         }
 

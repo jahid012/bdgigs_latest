@@ -22,7 +22,7 @@
                 <div><dt>Email</dt><dd>{{ $activity->user?->email ?? 'No user email' }}</dd></div>
                 <div><dt>IP address</dt><dd>{{ $activity->ip_address ?: 'Unknown' }}</dd></div>
                 <div><dt>User agent</dt><dd>{{ $activity->user_agent ?: 'Unknown' }}</dd></div>
-                <div><dt>Reviewed by</dt><dd>{{ $activity->reviewer?->name ?? 'Not reviewed' }}</dd></div>
+                <div><dt>Reviewed by</dt><dd>{{ $activity->adminReviewer?->name ?? $activity->reviewer?->name ?? 'Not reviewed' }}</dd></div>
                 <div><dt>Created</dt><dd>{{ $activity->created_at?->format('M j, Y g:i A') }}</dd></div>
             </dl>
             <div class="admin-user-detail-actions">

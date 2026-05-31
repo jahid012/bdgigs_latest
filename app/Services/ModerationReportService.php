@@ -7,6 +7,7 @@ use App\Events\MessageReported;
 use App\Events\OrderReported;
 use App\Events\ReportStatusUpdated;
 use App\Events\UserReported;
+use App\Models\Admin;
 use App\Models\Gig;
 use App\Models\Message;
 use App\Models\ModerationReport;
@@ -47,21 +48,23 @@ class ModerationReportService
         });
     }
 
-    public function updateStatus(ModerationReport $report, User $admin, string $status, ?string $note = null): ModerationReport
+    public function updateStatus(ModerationReport $report, Admin $admin, string $status, ?string $note = null): ModerationReport
     {
         $previous = $report->status;
 
         $report->forceFill([
             'status' => $status,
-            'assigned_to_id' => $report->assigned_to_id ?: $admin->id,
-            'resolved_by_id' => in_array($status, ['resolved', 'rejected'], true) ? $admin->id : null,
+            'assigned_to_id' => null,
+            'assigned_to_admin_id' => $report->assigned_to_admin_id ?: $admin->id,
+            'resolved_by_id' => null,
+            'resolved_by_admin_id' => in_array($status, ['resolved', 'rejected'], true) ? $admin->id : null,
             'resolution_note' => $note,
             'resolved_at' => in_array($status, ['resolved', 'rejected'], true) ? now() : null,
         ])->save();
 
-        event(new ReportStatusUpdated($report->fresh(['reporter', 'reportedUser', 'resolvedBy']), $admin, $previous));
+        event(new ReportStatusUpdated($report->fresh(['reporter', 'reportedUser', 'resolvedBy', 'resolvedByAdmin']), $admin, $previous));
 
-        return $report->fresh(['reporter', 'reportedUser', 'resolvedBy']);
+        return $report->fresh(['reporter', 'reportedUser', 'assignedAdmin', 'resolvedBy', 'resolvedByAdmin']);
     }
 
     private function target(string $type, int|string $targetId): Model

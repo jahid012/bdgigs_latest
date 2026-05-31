@@ -5,12 +5,13 @@ namespace App\Services;
 use App\Events\AccountDeactivated;
 use App\Events\AccountReactivated;
 use App\Events\AccountSuspended;
+use App\Models\Admin;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class AccountStatusService
 {
-    public function suspend(User $user, ?User $actor, ?string $reason = null): User
+    public function suspend(User $user, User|Admin|null $actor, ?string $reason = null): User
     {
         return DB::transaction(function () use ($user, $actor, $reason) {
             $previousSellerStatus = $user->seller_status;
@@ -19,7 +20,8 @@ class AccountStatusService
                 'seller_status' => $user->seller_status === 'not_applied' ? 'not_applied' : 'suspended',
                 'suspended_at' => now(),
                 'suspension_reason' => $reason,
-                'suspended_by' => $actor?->id,
+                'suspended_by' => $actor instanceof User ? $actor->id : null,
+                'suspended_by_admin_id' => $actor instanceof Admin ? $actor->id : null,
             ])->save();
 
             $this->record($user, $actor, 'account_suspended', 'suspended', $reason);
@@ -32,7 +34,7 @@ class AccountStatusService
         });
     }
 
-    public function reactivate(User $user, ?User $actor, ?string $reason = null): User
+    public function reactivate(User $user, User|Admin|null $actor, ?string $reason = null): User
     {
         return DB::transaction(function () use ($user, $actor, $reason) {
             $previousSellerStatus = $user->seller_status;
@@ -42,9 +44,11 @@ class AccountStatusService
                 'suspended_at' => null,
                 'suspension_reason' => null,
                 'suspended_by' => null,
+                'suspended_by_admin_id' => null,
                 'deactivated_at' => null,
                 'deactivation_reason' => null,
                 'deactivated_by' => null,
+                'deactivated_by_admin_id' => null,
                 'reactivated_at' => now(),
             ])->save();
 
@@ -57,14 +61,15 @@ class AccountStatusService
         });
     }
 
-    public function deactivate(User $user, ?User $actor, ?string $reason = null): User
+    public function deactivate(User $user, User|Admin|null $actor, ?string $reason = null): User
     {
         return DB::transaction(function () use ($user, $actor, $reason) {
             $user->forceFill([
                 'verification_status' => 'deactivated',
                 'deactivated_at' => now(),
                 'deactivation_reason' => $reason,
-                'deactivated_by' => $actor?->id,
+                'deactivated_by' => $actor instanceof User ? $actor->id : null,
+                'deactivated_by_admin_id' => $actor instanceof Admin ? $actor->id : null,
             ])->save();
 
             $this->record($user, $actor, 'account_deactivated', 'deactivated', $reason);
@@ -76,10 +81,11 @@ class AccountStatusService
         });
     }
 
-    private function record(User $user, ?User $actor, string $eventType, string $status, ?string $reason): void
+    private function record(User $user, User|Admin|null $actor, string $eventType, string $status, ?string $reason): void
     {
         $user->accountStatusEvents()->create([
-            'actor_id' => $actor?->id,
+            'actor_id' => $actor instanceof User ? $actor->id : null,
+            'actor_admin_id' => $actor instanceof Admin ? $actor->id : null,
             'event_type' => $eventType,
             'status' => $status,
             'reason' => $reason,
@@ -89,14 +95,15 @@ class AccountStatusService
         ]);
     }
 
-    private function recordSellerStatus(User $user, ?User $actor, ?string $from, ?string $to, ?string $reason): void
+    private function recordSellerStatus(User $user, User|Admin|null $actor, ?string $from, ?string $to, ?string $reason): void
     {
         if ($from === $to || ! $to) {
             return;
         }
 
         $user->sellerStatusEvents()->create([
-            'actor_id' => $actor?->id,
+            'actor_id' => $actor instanceof User ? $actor->id : null,
+            'actor_admin_id' => $actor instanceof Admin ? $actor->id : null,
             'from_status' => $from,
             'to_status' => $to,
             'reason' => $reason,

@@ -18,6 +18,7 @@ class IdentityVerificationSubmission extends Model
         'submitted_at',
         'reviewed_at',
         'reviewed_by',
+        'reviewed_by_admin_id',
         'review_note',
         'additional_document_requested_at',
         'additional_document_note',
@@ -43,5 +44,10 @@ class IdentityVerificationSubmission extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function adminReviewer(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'reviewed_by_admin_id');
     }
 }

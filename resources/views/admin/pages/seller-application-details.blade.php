@@ -74,7 +74,7 @@
                             <strong>{{ str($event->from_status ?: 'start')->replace('_', ' ')->title() }} to {{ str($event->to_status)->replace('_', ' ')->title() }}</strong>
                             <p>{{ $event->reason ?: 'No reason recorded.' }} - {{ $event->created_at?->format('M j, Y g:i A') }}</p>
                         </div>
-                        <span>{{ $event->actor?->name ?? 'System' }}</span>
+                        <span>{{ $event->adminActor?->name ?? $event->actor?->name ?? 'System' }}</span>
                     </article>
                 @empty
                     <p class="admin-empty-note">No seller status history is recorded.</p>

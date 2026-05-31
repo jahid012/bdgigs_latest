@@ -24,7 +24,9 @@ class WithdrawalRequest extends Model
         'review_note',
         'payment_reference',
         'reviewed_by',
+        'reviewed_by_admin_id',
         'paid_by',
+        'paid_by_admin_id',
         'reviewed_at',
         'paid_at',
         'cancelled_at',
@@ -62,9 +64,19 @@ class WithdrawalRequest extends Model
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
+    public function adminReviewer(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'reviewed_by_admin_id');
+    }
+
     public function payer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'paid_by');
+    }
+
+    public function adminPayer(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'paid_by_admin_id');
     }
 
     public function activities(): HasMany

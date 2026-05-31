@@ -1,20 +1,20 @@
 @extends('admin.layouts.panel')
 
-@section('title', 'Assign Roles to Users')
+@section('title', 'Assign Roles to Admins')
 
 @section('panel')
     <section class="admin-panel admin-user-access-panel">
         <div class="admin-panel-head">
             <div>
-                <h2>Find users</h2>
-                <p>Search by name or email, then assign roles from the user row.</p>
+                <h2>Find admins</h2>
+                <p>Search by name or email, then assign roles from the admin row.</p>
             </div>
             <a class="admin-panel-link" href="{{ route('admin.roles') }}">Back to roles</a>
         </div>
 
         <form class="admin-user-search-form" method="GET" action="{{ route('admin.roles.users') }}">
             <label>
-                <span>User search</span>
+                <span>Admin search</span>
                 <input type="search" name="q" value="{{ $searchQuery }}" placeholder="Search name or email">
             </label>
             <label>
@@ -39,7 +39,7 @@
                     <div class="admin-user-access-identity">
                         <strong>{{ $user['name'] }}</strong>
                         <span>{{ $user['email'] }}</span>
-                        <small>{{ $user['can_admin'] ? 'Can access admin panel' : 'No admin access yet' }}</small>
+                    <small>{{ $user['can_admin'] ? 'Can access admin panel' : 'No admin access yet' }}</small>
                     </div>
 
                     <div class="admin-user-role-select">

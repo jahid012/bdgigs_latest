@@ -53,7 +53,7 @@ class CreatorMarketplaceItemController extends AdminController
 
     public function destroy(CreatorMarketplaceItem $item)
     {
-        abort_unless(auth()->user()?->can('content.manage'), 403);
+        abort_unless(auth('admin')->user()?->can('content.manage'), 403);
 
         $item->delete();
 

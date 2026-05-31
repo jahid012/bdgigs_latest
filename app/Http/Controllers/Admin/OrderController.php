@@ -101,10 +101,12 @@ class OrderController extends AdminController
             'buyer',
             'seller',
             'gig',
-            'activities' => fn ($activities) => $activities->with('actor')->latest(),
+            'activities' => fn ($activities) => $activities->with(['actor', 'adminActor'])->latest(),
             'manualPaymentSubmission.method',
             'manualPaymentSubmission.reviewer',
+            'manualPaymentSubmission.adminReviewer',
             'disputes.assignedTo',
+            'disputes.assignedAdmin',
             'invoice',
             'latestCancellation.requester',
             'latestCancellation.responder',
@@ -131,7 +133,7 @@ class OrderController extends AdminController
         Order $order,
         AdminOrderStatusService $statuses
     ) {
-        $statuses->update($order, $request->user(), $request->validated()['status']);
+        $statuses->update($order, $request->user('admin'), $request->validated()['status']);
 
         return back()->withNotify('success', 'Order #'.$order->code.' is now '.$request->validated()['status'].'.', 'Order updated');
     }
@@ -143,7 +145,7 @@ class OrderController extends AdminController
     ) {
         $payments->refund(
             $order->loadMissing(['buyer', 'seller', 'gig']),
-            $request->user(),
+            $request->user('admin'),
             $request->amountCents(),
             $request->validated('reason'),
         );
@@ -160,7 +162,7 @@ class OrderController extends AdminController
             'reason' => ['required', 'string', 'min:10', 'max:1000'],
         ]);
 
-        $cancellations->adminCancel($order->loadMissing(['buyer', 'seller']), $request->user(), $payload['reason']);
+        $cancellations->adminCancel($order->loadMissing(['buyer', 'seller']), $request->user('admin'), $payload['reason']);
 
         return back()->withNotify('success', 'Order #'.$order->code.' was cancelled.', 'Order cancelled');
     }

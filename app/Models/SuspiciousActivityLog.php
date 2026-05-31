@@ -22,6 +22,7 @@ class SuspiciousActivityLog extends Model
         'metadata',
         'reviewed_at',
         'reviewed_by',
+        'reviewed_by_admin_id',
     ];
 
     protected function casts(): array
@@ -40,5 +41,10 @@ class SuspiciousActivityLog extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function adminReviewer(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'reviewed_by_admin_id');
     }
 }

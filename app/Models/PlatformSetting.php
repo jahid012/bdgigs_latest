@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PlatformSetting extends Model
 {
@@ -15,6 +16,7 @@ class PlatformSetting extends Model
         'value',
         'options',
         'meta',
+        'updated_by_admin_id',
     ];
 
     protected function casts(): array
@@ -23,5 +25,10 @@ class PlatformSetting extends Model
             'options' => 'array',
             'meta' => 'array',
         ];
+    }
+
+    public function adminUpdater(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'updated_by_admin_id');
     }
 }

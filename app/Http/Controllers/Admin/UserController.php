@@ -24,7 +24,6 @@ class UserController extends AdminController
         $status = in_array($status, $allowedStatuses, true) ? $status : 'all';
 
         $usersQuery = User::query()
-            ->with(['roles'])
             ->withCount(['gigs', 'buyerOrders', 'sellerOrders'])
             ->latest();
 
@@ -135,12 +134,11 @@ class UserController extends AdminController
     public function show(User $user)
     {
         $user->load([
-            'roles',
             'buyerProfile',
             'sellerProfile',
             'billingProfile',
             'identityVerificationSubmissions' => fn ($submissions) => $submissions->latest()->take(3),
-            'accountStatusEvents' => fn ($events) => $events->with('actor')->latest()->take(10),
+            'accountStatusEvents' => fn ($events) => $events->with(['actor', 'adminActor'])->latest()->take(10),
         ])->loadCount(['gigs', 'buyerOrders', 'sellerOrders', 'savedServices']);
 
         return $this->panelView('admin.pages.user-details', [
@@ -165,13 +163,13 @@ class UserController extends AdminController
 
     public function impersonate(Request $request, User $user)
     {
-        abort_unless($request->user()?->can('users.impersonate'), 403);
+        abort_unless($request->user('admin')?->can('users.impersonate'), 403);
 
         if (! $this->canImpersonate($user)) {
             return back()->withNotify('error', 'This account cannot be impersonated from the admin panel.', 'Login as blocked');
         }
 
-        $admin = $request->user();
+        $admin = $request->user('admin');
 
         $request->session()->put([
             'admin_impersonator_id' => $admin->id,
@@ -179,7 +177,7 @@ class UserController extends AdminController
             'admin_impersonation_return_to' => route('admin.users.show', $user),
         ]);
 
-        Auth::login($user);
+        Auth::guard('web')->login($user);
         $request->session()->regenerate();
 
         return redirect('/dashboard')
@@ -190,11 +188,11 @@ class UserController extends AdminController
     {
         $adminId = $request->session()->get('admin_impersonator_id');
         $returnTo = $request->session()->get('admin_impersonation_return_to', route('admin.users'));
-        $admin = $adminId ? User::find($adminId) : null;
+        $admin = $request->user('admin');
 
-        abort_unless($admin?->can('admin.access') && $admin->can('users.impersonate'), 403);
+        abort_unless($admin && (int) $admin->id === (int) $adminId && $admin->can('users.impersonate'), 403);
 
-        Auth::login($admin);
+        Auth::guard('web')->logout();
         $request->session()->forget([
             'admin_impersonator_id',
             'admin_impersonator_name',
@@ -224,29 +222,21 @@ class UserController extends AdminController
 
     public function suspend(UpdateAdminUserStatusRequest $request, User $user, AccountStatusService $accounts)
     {
-        if ($user->is($request->user())) {
-            return back()->withNotify('error', 'You cannot suspend your own admin account.', 'Action blocked');
-        }
-
-        $accounts->suspend($user, $request->user(), $request->validated('reason'));
+        $accounts->suspend($user, $request->user('admin'), $request->validated('reason'));
 
         return back()->withNotify('success', $user->name.' has been suspended.', 'User suspended');
     }
 
     public function restore(UpdateAdminUserStatusRequest $request, User $user, AccountStatusService $accounts)
     {
-        $accounts->reactivate($user, $request->user(), $request->validated('reason'));
+        $accounts->reactivate($user, $request->user('admin'), $request->validated('reason'));
 
         return back()->withNotify('success', $user->name.' has been restored.', 'User restored');
     }
 
     public function deactivate(UpdateAdminUserStatusRequest $request, User $user, AccountStatusService $accounts)
     {
-        if ($user->is($request->user())) {
-            return back()->withNotify('error', 'You cannot deactivate your own admin account.', 'Action blocked');
-        }
-
-        $accounts->deactivate($user, $request->user(), $request->validated('reason'));
+        $accounts->deactivate($user, $request->user('admin'), $request->validated('reason'));
 
         return back()->withNotify('success', $user->name.' has been deactivated.', 'User deactivated');
     }
@@ -265,10 +255,10 @@ class UserController extends AdminController
         ]);
 
         match ($payload['action']) {
-            'approve' => $reviews->approve($submission, $request->user(), $payload['note'] ?? null),
-            'reject' => $reviews->reject($submission, $request->user(), $payload['note']),
-            'request_documents' => $reviews->requestAdditionalDocument($submission, $request->user(), $payload['note']),
-            default => $reviews->markUnderReview($submission, $request->user()),
+            'approve' => $reviews->approve($submission, $request->user('admin'), $payload['note'] ?? null),
+            'reject' => $reviews->reject($submission, $request->user('admin'), $payload['note']),
+            'request_documents' => $reviews->requestAdditionalDocument($submission, $request->user('admin'), $payload['note']),
+            default => $reviews->markUnderReview($submission, $request->user('admin')),
         };
 
         return back()->withNotify('success', 'Identity verification updated.', 'Identity reviewed');
@@ -298,8 +288,8 @@ class UserController extends AdminController
                 : ($user->deactivated_at ? 'Deactivated' : str($user->verification_status ?: 'active')->replace('_', ' ')->title()->toString()),
             'status_class' => ($user->suspended_at || $user->deactivated_at) ? 'is-danger' : (in_array($user->verification_status, ['review', 'submitted', 'under_review', 'additional_document_required'], true) ? 'is-warn' : 'is-good'),
             'joined' => $user->created_at?->format('M Y') ?? 'Unknown',
-            'can_suspend' => ! $user->is(auth()->user()) && ! $user->suspended_at && ! $user->deactivated_at,
-            'can_deactivate' => ! $user->is(auth()->user()) && ! $user->deactivated_at,
+            'can_suspend' => ! $user->suspended_at && ! $user->deactivated_at,
+            'can_deactivate' => ! $user->deactivated_at,
             'can_restore' => (bool) ($user->suspended_at || $user->deactivated_at),
             'can_impersonate' => $this->canImpersonate($user),
         ];
@@ -307,9 +297,7 @@ class UserController extends AdminController
 
     private function canImpersonate(User $user): bool
     {
-        return auth()->user()?->can('users.impersonate')
-            && ! $user->is(auth()->user())
-            && ! $user->can('admin.access')
+        return auth('admin')->user()?->can('users.impersonate')
             && ! $user->suspended_at
             && ! $user->deactivated_at;
     }

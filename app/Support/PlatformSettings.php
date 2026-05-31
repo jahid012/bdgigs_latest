@@ -87,7 +87,7 @@ class PlatformSettings
             ->firstWhere('key', $groupKey) ?? [];
     }
 
-    public static function set(string $key, mixed $value): void
+    public static function set(string $key, mixed $value, ?int $adminId = null): void
     {
         $definition = self::flatDefinitions()[$key] ?? [
             'name' => $key,
@@ -98,23 +98,26 @@ class PlatformSettings
             'options' => null,
         ];
 
-        PlatformSetting::query()->updateOrCreate(
-            ['setting_key' => $key],
-            [
-                'group_key' => $definition['group_key'] ?? 'custom',
-                'type' => $definition['type'] ?? 'text',
-                'label' => $definition['label'] ?? null,
-                'description' => $definition['description'] ?? null,
-                'value' => self::serializeValue($value, $definition['type'] ?? 'text'),
-                'options' => $definition['options'] ?? null,
-                'meta' => Arr::only($definition, ['prefix', 'suffix']),
-            ]
-        );
+        $attributes = [
+            'group_key' => $definition['group_key'] ?? 'custom',
+            'type' => $definition['type'] ?? 'text',
+            'label' => $definition['label'] ?? null,
+            'description' => $definition['description'] ?? null,
+            'value' => self::serializeValue($value, $definition['type'] ?? 'text'),
+            'options' => $definition['options'] ?? null,
+            'meta' => Arr::only($definition, ['prefix', 'suffix']),
+        ];
+
+        if ($adminId && Schema::hasColumn('platform_settings', 'updated_by_admin_id')) {
+            $attributes['updated_by_admin_id'] = $adminId;
+        }
+
+        PlatformSetting::query()->updateOrCreate(['setting_key' => $key], $attributes);
 
         self::clearCache();
     }
 
-    public static function setMany(array $values): void
+    public static function setMany(array $values, ?int $adminId = null): void
     {
         foreach (self::flatDefinitions() as $key => $definition) {
             $type = $definition['type'] ?? 'text';
@@ -122,7 +125,7 @@ class PlatformSettings
                 ? array_key_exists($key, $values)
                 : ($values[$key] ?? $definition['value'] ?? null);
 
-            self::set($key, $value);
+            self::set($key, $value, $adminId);
         }
     }
 

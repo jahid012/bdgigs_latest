@@ -21,6 +21,7 @@ class ManualPaymentSubmission extends Model
         'status',
         'review_note',
         'reviewed_by',
+        'reviewed_by_admin_id',
         'reviewed_at',
         'metadata',
     ];
@@ -52,5 +53,10 @@ class ManualPaymentSubmission extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function adminReviewer(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'reviewed_by_admin_id');
     }
 }

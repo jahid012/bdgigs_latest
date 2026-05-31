@@ -16,7 +16,7 @@ class ManualPaymentController extends AdminController
         $status = in_array($status, $allowedStatuses, true) ? $status : 'pending';
         $search = trim((string) $request->query('q', ''));
         $query = ManualPaymentSubmission::query()
-            ->with(['order', 'buyer', 'method', 'reviewer'])
+            ->with(['order', 'buyer', 'method', 'reviewer', 'adminReviewer'])
             ->latest();
 
         if ($status !== 'all') {
@@ -82,7 +82,7 @@ class ManualPaymentController extends AdminController
 
         $reviewer->review(
             $submission->loadMissing('order'),
-            $request->user(),
+            $request->user('admin'),
             $payload['decision'],
             $payload['note'] ?? null,
         );

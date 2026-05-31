@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreWalletDepositRequest;
 use App\Http\Requests\Api\UpdateBillingProfileRequest;
 use App\Http\Resources\BillingProfileResource;
+use App\Http\Resources\FinanceSummaryResource;
+use App\Http\Resources\WalletDepositResource;
 use App\Services\FinanceSummaryService;
 use App\Services\UserWalletService;
 use Illuminate\Http\JsonResponse;
@@ -41,9 +43,9 @@ class BillingController extends Controller
         return BillingProfileResource::make($profile->loadMissing('user'));
     }
 
-    public function buyerSummary(Request $request, FinanceSummaryService $finance): JsonResponse
+    public function buyerSummary(Request $request, FinanceSummaryService $finance): FinanceSummaryResource
     {
-        return response()->json(['data' => $finance->buyer($request->user())]);
+        return FinanceSummaryResource::make($finance->buyer($request->user()));
     }
 
     public function addBalance(
@@ -60,20 +62,16 @@ class BillingController extends Controller
             $payload['note'] ?? null,
         );
 
-        return response()->json([
-            'data' => [
-                'transaction' => [
-                    'id' => $transaction->code,
-                    'amount' => '$'.number_format($transaction->amount_cents / 100, 2),
-                    'status' => $transaction->status,
-                ],
-                'summary' => $finance->buyer($request->user()),
-            ],
-        ], 201);
+        return WalletDepositResource::make([
+            'transaction' => $transaction,
+            'summary' => $finance->buyer($request->user()),
+        ])
+            ->response()
+            ->setStatusCode(201);
     }
 
-    public function sellerEarnings(Request $request, FinanceSummaryService $finance): JsonResponse
+    public function sellerEarnings(Request $request, FinanceSummaryService $finance): FinanceSummaryResource
     {
-        return response()->json(['data' => $finance->seller($request->user())]);
+        return FinanceSummaryResource::make($finance->seller($request->user()));
     }
 }

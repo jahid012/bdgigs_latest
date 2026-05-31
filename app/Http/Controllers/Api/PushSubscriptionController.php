@@ -3,43 +3,28 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\StorePushSubscriptionRequest;
+use App\Http\Resources\ActionResource;
+use App\Http\Resources\PushSubscriptionResource;
+use App\Services\PushSubscriptionService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PushSubscriptionController extends Controller
 {
-    public function store(Request $request): array
+    public function store(StorePushSubscriptionRequest $request, PushSubscriptionService $subscriptions): JsonResponse
     {
-        $payload = $request->validate([
-            'token' => ['required', 'string', 'max:4096'],
-            'platform' => ['nullable', 'string', 'max:40'],
-            'metadata' => ['nullable', 'array'],
-        ]);
-
-        $subscription = $request->user()->pushSubscriptions()->updateOrCreate(
-            ['token' => $payload['token']],
-            [
-                'platform' => $payload['platform'] ?? 'web',
-                'metadata' => $payload['metadata'] ?? [],
-                'last_seen_at' => now(),
-                'revoked_at' => null,
-            ],
-        );
-
-        return [
-            'data' => [
-                'id' => $subscription->id,
-                'platform' => $subscription->platform,
-            ],
-        ];
+        return PushSubscriptionResource::make(
+            $subscriptions->store($request->user(), $request->validated())
+        )
+            ->response()
+            ->setStatusCode(200);
     }
 
-    public function destroy(Request $request, string $token): array
+    public function destroy(Request $request, string $token, PushSubscriptionService $subscriptions): ActionResource
     {
-        $request->user()
-            ->pushSubscriptions()
-            ->where('token', $token)
-            ->update(['revoked_at' => now()]);
+        $subscriptions->revoke($request->user(), $token);
 
-        return ['data' => ['revoked' => true]];
+        return ActionResource::make(['revoked' => true]);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Admin;
 use App\Models\EmailLog;
 use App\Models\Gig;
 use App\Models\ManualPaymentMethod;
@@ -21,7 +22,7 @@ class MarketplaceLifecyclePhaseOneTest extends TestCase
 {
     use RefreshDatabase;
 
-    private User $admin;
+    private Admin $admin;
 
     protected function setUp(): void
     {
@@ -30,7 +31,7 @@ class MarketplaceLifecyclePhaseOneTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $this->admin = User::where('email', config('admin.email'))->firstOrFail();
+        $this->admin = Admin::where('email', config('admin.email'))->firstOrFail();
     }
 
     public function test_email_verification_registration_resend_and_signed_link_flow(): void
@@ -145,7 +146,7 @@ class MarketplaceLifecyclePhaseOneTest extends TestCase
     {
         $user = $this->verifiedUser(['email' => 'moderated-user@example.com']);
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->post(route('admin.users.suspend', $user), [
                 'reason' => 'Risk review in progress.',
             ])
@@ -154,7 +155,7 @@ class MarketplaceLifecyclePhaseOneTest extends TestCase
         $this->assertNotNull($user->fresh()->suspended_at);
         $this->assertDatabaseHas('account_status_events', [
             'user_id' => $user->id,
-            'actor_id' => $this->admin->id,
+            'actor_admin_id' => $this->admin->id,
             'event_type' => 'account_suspended',
             'reason' => 'Risk review in progress.',
         ]);
@@ -164,7 +165,7 @@ class MarketplaceLifecyclePhaseOneTest extends TestCase
             'status' => 'sent',
         ]);
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->post(route('admin.users.restore', $user), [
                 'reason' => 'Risk review cleared.',
             ])
@@ -177,7 +178,7 @@ class MarketplaceLifecyclePhaseOneTest extends TestCase
             'reason' => 'Risk review cleared.',
         ]);
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->post(route('admin.users.deactivate', $user), [
                 'reason' => 'Owner requested closure.',
             ])
@@ -273,7 +274,7 @@ class MarketplaceLifecyclePhaseOneTest extends TestCase
             ->assertJsonPath('data.order_id', $order->code)
             ->assertJsonPath('data.payment_method', 'wallet_balance');
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->post(route('admin.orders.refund', $order), [
                 'amount' => '150',
                 'reason' => 'Scope cancelled.',
@@ -310,12 +311,12 @@ class MarketplaceLifecyclePhaseOneTest extends TestCase
             ],
         ]);
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->get(route('admin.email-logs.show', $failedLog))
             ->assertOk()
             ->assertSee('SMTP timeout');
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->post(route('admin.email-logs.retry', $failedLog))
             ->assertRedirect();
 
@@ -367,7 +368,7 @@ class MarketplaceLifecyclePhaseOneTest extends TestCase
             ->whereHas('order', fn ($orders) => $orders->where('code', $orderCode))
             ->firstOrFail();
 
-        $this->actingAs($this->admin)
+        $this->actingAs($this->admin, 'admin')
             ->patch(route('admin.manual-payments.review', $submission), [
                 'decision' => 'reject',
                 'note' => 'Reference could not be verified.',

@@ -14,14 +14,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use Spatie\Permission\Models\Permission;
 use App\Services\SuspiciousActivityService;
 
 class OrderDisputeService
 {
     public function __construct(
         private readonly OrderEventNotificationService $events,
-        private readonly EmailService $emails,
     ) {
     }
 
@@ -268,14 +266,4 @@ class OrderDisputeService
         ];
     }
 
-    private function notifyAdmins(string $templateKey, array $data): void
-    {
-        if (! Permission::where('name', 'disputes.view')->where('guard_name', 'web')->exists()) {
-            return;
-        }
-
-        User::permission('disputes.view')
-            ->get()
-            ->each(fn (User $admin) => $this->emails->queueTemplateEmail($templateKey, $admin, $data));
-    }
 }

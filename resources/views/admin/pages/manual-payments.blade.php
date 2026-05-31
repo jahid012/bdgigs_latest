@@ -68,7 +68,7 @@
                                             </form>
                                         @endcan
                                     @else
-                                        {{ $submission->reviewer?->name ?? 'Reviewed' }}
+                                        {{ $submission->adminReviewer?->name ?? $submission->reviewer?->name ?? 'Reviewed' }}
                                     @endif
                                 </td>
                             </tr>

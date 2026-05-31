@@ -53,7 +53,10 @@ function getNavigationKey(label) {
 
 function Header({
     enableMarketplaceHeader = true,
+    fetchMarketplaceCategories = true,
     forceSearch = false,
+    hydrateSessionOnMount = true,
+    marketplaceCategories: preloadedMarketplaceCategories = [],
     onNavigate,
     searchQuery = "",
 }) {
@@ -66,7 +69,8 @@ function Header({
     const [pendingPath, setPendingPath] = useState("");
     const [headerSearchValue, setHeaderSearchValue] = useState(searchQuery);
     const [headerSearchFocused, setHeaderSearchFocused] = useState(false);
-    const [megaCategories, setMegaCategories] = useState([]);
+    const [loadedMarketplaceCategories, setLoadedMarketplaceCategories] =
+        useState([]);
     const [activeMegaSlug, setActiveMegaSlug] = useState("");
     const exploreRef = useRef(null);
     const currentUser = useSessionStore((state) => state.currentUser);
@@ -78,8 +82,14 @@ function Header({
     const closeExploreMenu = useCallback(() => setIsExploreOpen(false), []);
     const headerSuggestions = useSearchSuggestions(headerSearchValue);
     const marketplaceCategories = useMemo(
-        () => (megaCategories.length ? megaCategories : marketplaceHeaderCategories),
-        [megaCategories],
+        () => {
+            const categories = preloadedMarketplaceCategories.length
+                ? preloadedMarketplaceCategories
+                : loadedMarketplaceCategories;
+
+            return categories.length ? categories : marketplaceHeaderCategories;
+        },
+        [loadedMarketplaceCategories, preloadedMarketplaceCategories],
     );
     const activeMegaCategory =
         marketplaceCategories.find((category) => category.slug === activeMegaSlug) ||
@@ -88,32 +98,40 @@ function Header({
     useDismissOnInteractOutside(exploreRef, isExploreOpen, closeExploreMenu);
 
     useEffect(() => {
+        if (!hydrateSessionOnMount) {
+            return;
+        }
+
         hydrateSession();
-    }, [hydrateSession]);
+    }, [hydrateSession, hydrateSessionOnMount]);
 
     useEffect(() => {
         setHeaderSearchValue(searchQuery);
     }, [searchQuery]);
 
     useEffect(() => {
+        if (!fetchMarketplaceCategories || preloadedMarketplaceCategories.length) {
+            return;
+        }
+
         let active = true;
 
         apiRequest("/api/marketplace/categories")
             .then((categories) => {
                 if (active) {
-                    setMegaCategories(categories || []);
+                    setLoadedMarketplaceCategories(categories || []);
                 }
             })
             .catch(() => {
                 if (active) {
-                    setMegaCategories([]);
+                    setLoadedMarketplaceCategories([]);
                 }
             });
 
         return () => {
             active = false;
         };
-    }, []);
+    }, [fetchMarketplaceCategories, preloadedMarketplaceCategories.length]);
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);

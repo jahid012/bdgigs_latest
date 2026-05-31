@@ -6,12 +6,12 @@ use App\Events\GigApproved;
 use App\Events\GigPaused;
 use App\Events\GigReactivated;
 use App\Events\GigRejected;
+use App\Models\Admin;
 use App\Models\Gig;
-use App\Models\User;
 
 class AdminGigModerationService
 {
-    public function updateStatus(Gig $gig, string $action, ?User $admin = null, ?string $reason = null): Gig
+    public function updateStatus(Gig $gig, string $action, ?Admin $admin = null, ?string $reason = null): Gig
     {
         $status = match ($action) {
             'publish', 'approve' => 'approved',
@@ -25,7 +25,8 @@ class AdminGigModerationService
         $gig->forceFill([
             'status' => $status,
             'status_class' => $this->statusClass($status),
-            'moderated_by' => $admin?->id,
+            'moderated_by' => null,
+            'moderated_by_admin_id' => $admin?->id,
             'moderated_at' => now(),
             'moderation_reason' => $reason,
             'paused_at' => $status === 'paused' ? now() : ($status === 'approved' ? null : $gig->paused_at),
@@ -33,7 +34,7 @@ class AdminGigModerationService
         ])->save();
 
         $gig->moderationEvents()->create([
-            'actor_id' => $admin?->id,
+            'actor_admin_id' => $admin?->id,
             'event_type' => 'gig_'.$status,
             'from_status' => $previous,
             'to_status' => $status,
@@ -54,11 +55,31 @@ class AdminGigModerationService
         return $gig->refresh();
     }
 
-    public function toggleFeatured(Gig $gig): Gig
+    public function toggleFeatured(Gig $gig, ?Admin $admin = null): Gig
     {
+        return $this->setFeatured($gig, ! $gig->featured, $admin);
+    }
+
+    public function setFeatured(Gig $gig, bool $featured, ?Admin $admin = null): Gig
+    {
+        $previous = $gig->featured;
+
         $gig->forceFill([
-            'featured' => ! $gig->featured,
+            'featured' => $featured,
         ])->save();
+
+        if ($previous !== $featured) {
+            $gig->moderationEvents()->create([
+                'actor_admin_id' => $admin?->id,
+                'event_type' => $featured ? 'gig_featured' : 'gig_unfeatured',
+                'from_status' => $gig->status,
+                'to_status' => $gig->status,
+                'metadata' => [
+                    'action' => $featured ? 'feature' : 'unfeature',
+                    'previous_featured' => $previous,
+                ],
+            ]);
+        }
 
         return $gig->refresh();
     }

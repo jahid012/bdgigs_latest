@@ -31,8 +31,11 @@ class Dispute extends Model
         'order_id',
         'conversation_id',
         'opened_by_id',
+        'opened_by_admin_id',
         'assigned_to_id',
+        'assigned_to_admin_id',
         'resolved_by_id',
+        'resolved_by_admin_id',
         'case_code',
         'reason',
         'description',
@@ -71,14 +74,29 @@ class Dispute extends Model
         return $this->belongsTo(User::class, 'opened_by_id');
     }
 
+    public function openedByAdmin(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'opened_by_admin_id');
+    }
+
     public function assignedTo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to_id');
     }
 
+    public function assignedAdmin(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'assigned_to_admin_id');
+    }
+
     public function resolvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'resolved_by_id');
+    }
+
+    public function resolvedByAdmin(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'resolved_by_admin_id');
     }
 
     public function activities(): HasMany

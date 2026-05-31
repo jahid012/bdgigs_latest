@@ -126,6 +126,10 @@ class AppServiceProvider extends ServiceProvider
             Auth::guard('web')->setRememberDuration(60 * 24 * 30);
         }
 
+        if (method_exists(Auth::guard('admin'), 'setRememberDuration')) {
+            Auth::guard('admin')->setRememberDuration(60 * 12);
+        }
+
         RedirectResponse::macro('withNotify', function ($type = 'info', ?string $message = null, ?string $title = null, array $options = []) {
             $notification = is_array($type)
                 ? $type

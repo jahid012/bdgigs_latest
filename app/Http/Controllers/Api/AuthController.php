@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\LoginRequest;
+use App\Http\Requests\Api\RegisterRequest;
+use App\Http\Resources\AuthSessionResource;
+use App\Http\Resources\TwoFactorChallengeResource;
 use App\Models\User;
 use App\Services\CountryDetectorService;
 use App\Services\SuspiciousActivityService;
@@ -15,46 +19,14 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function me(Request $request): JsonResponse
+    public function me(Request $request): AuthSessionResource
     {
-        $user = $request->user();
-
-        return response()->json([
-            'data' => $user ? [
-                'id' => (string) $user->id,
-                'name' => $user->name,
-                'username' => $user->username,
-                'email' => $user->email,
-                'avatar' => $user->avatar,
-                'country' => $user->country,
-                'initials' => initialsFromName($user->name),
-                'online' => true,
-                'role' => 'buyer',
-                'sellerEnabled' => true,
-                'sellerStatus' => $user->seller_status ?: 'not_applied',
-                'twoFactorEnabled' => filled($user->two_factor_secret),
-                'emailVerified' => $user->hasVerifiedEmail(),
-                'emailVerifiedAt' => $user->email_verified_at?->toISOString(),
-                'verificationStatus' => $user->verification_status,
-                'accountStatus' => $user->suspended_at
-                    ? 'suspended'
-                    : ($user->deactivated_at ? 'deactivated' : 'active'),
-                'authenticated' => true,
-                'csrfToken' => csrf_token(),
-            ] : [
-                'authenticated' => false,
-                'csrfToken' => csrf_token(),
-            ],
-        ]);
+        return AuthSessionResource::make($request->user());
     }
 
-    public function login(Request $request, SuspiciousActivityService $suspicious): JsonResponse
+    public function login(LoginRequest $request, SuspiciousActivityService $suspicious): AuthSessionResource|JsonResponse
     {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
-            'remember' => ['sometimes', 'boolean'],
-        ]);
+        $credentials = $request->validated();
         $remember = (bool) ($credentials['remember'] ?? false);
         $loginCredentials = [
             'email' => $credentials['email'],
@@ -67,12 +39,11 @@ class AuthController extends Controller
             && ! $user->deactivated_at
             && ! $user->suspended_at
             && filled($user->two_factor_secret)) {
-            return response()->json([
-                'data' => [
-                    'twoFactorRequired' => true,
-                    'message' => 'Use the two factor login challenge to continue.',
-                ],
-            ], 409);
+            return TwoFactorChallengeResource::make([
+                'message' => 'Use the two factor login challenge to continue.',
+            ])
+                ->response()
+                ->setStatusCode(409);
         }
 
         if (! Auth::attempt($loginCredentials, $remember)) {
@@ -98,19 +69,15 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        return $this->me($request);
+        return AuthSessionResource::make($request->user());
     }
 
     public function register(
-        Request $request,
+        RegisterRequest $request,
         CountryDetectorService $countries
     ): JsonResponse
     {
-        $payload = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ]);
+        $payload = $request->validated();
 
         $user = User::create([
             'name' => $payload['name'],
@@ -123,29 +90,17 @@ class AuthController extends Controller
         $request->session()->regenerate();
         $user->sendEmailVerificationNotification();
 
-        return $this->me($request);
+        return AuthSessionResource::make($request->user())
+            ->response()
+            ->setStatusCode(200);
     }
 
-    public function logout(Request $request): JsonResponse
+    public function logout(Request $request): AuthSessionResource
     {
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return response()->json([
-            'data' => [
-                'authenticated' => false,
-                'csrfToken' => csrf_token(),
-            ],
-        ]);
+        return AuthSessionResource::make(null);
     }
-}
-
-function initialsFromName(string $name): string
-{
-    return collect(explode(' ', trim($name)))
-        ->filter()
-        ->map(fn (string $part) => mb_substr($part, 0, 1))
-        ->take(2)
-        ->implode('');
 }

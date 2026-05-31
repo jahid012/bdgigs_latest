@@ -32,10 +32,10 @@
 
             <dl class="admin-user-detail-list admin-detail-list">
                 <div><dt>Order</dt><dd>#{{ $order->code }}</dd></div>
-                <div><dt>Opened by</dt><dd>{{ $dispute->openedBy?->name ?? 'System' }}</dd></div>
-                <div><dt>Assigned to</dt><dd>{{ $dispute->assignedTo?->name ?? 'Unassigned' }}</dd></div>
+                <div><dt>Opened by</dt><dd>{{ $dispute->openedByAdmin?->name ?? $dispute->openedBy?->name ?? 'System' }}</dd></div>
+                <div><dt>Assigned to</dt><dd>{{ $dispute->assignedAdmin?->name ?? $dispute->assignedTo?->name ?? 'Unassigned' }}</dd></div>
                 <div><dt>Opened</dt><dd>{{ $dispute->created_at?->format('M j, Y g:i A') ?? 'Unknown' }}</dd></div>
-                <div><dt>Resolved by</dt><dd>{{ $dispute->resolvedBy?->name ?? 'Not resolved' }}</dd></div>
+                <div><dt>Resolved by</dt><dd>{{ $dispute->resolvedByAdmin?->name ?? $dispute->resolvedBy?->name ?? 'Not resolved' }}</dd></div>
                 <div><dt>Resolved at</dt><dd>{{ $dispute->resolved_at?->format('M j, Y g:i A') ?? 'Not resolved' }}</dd></div>
             </dl>
 
@@ -80,7 +80,7 @@
                         <select name="assigned_to_id">
                             <option value="">Unassigned</option>
                             @foreach ($assignees as $assignee)
-                                <option value="{{ $assignee->id }}" @selected($dispute->assigned_to_id === $assignee->id)>{{ $assignee->name }}</option>
+                                <option value="{{ $assignee->id }}" @selected($dispute->assigned_to_admin_id === $assignee->id)>{{ $assignee->name }}</option>
                             @endforeach
                         </select>
                     </label>
@@ -194,7 +194,7 @@
                     <li>
                         <strong>{{ $activity->title }}</strong>
                         {{ $activity->detail ? ' - '.$activity->detail : '' }}
-                        <small>{{ $activity->actor?->name ?? 'System' }} - {{ $activity->created_at?->format('M j, Y g:i A') }}</small>
+                        <small>{{ $activity->adminActor?->name ?? $activity->actor?->name ?? 'System' }} - {{ $activity->created_at?->format('M j, Y g:i A') }}</small>
                     </li>
                 @empty
                     <li>No dispute activity has been recorded yet.</li>

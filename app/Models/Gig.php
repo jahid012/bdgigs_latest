@@ -42,6 +42,7 @@ class Gig extends Model
         'status_class',
         'submitted_for_review_at',
         'moderated_by',
+        'moderated_by_admin_id',
         'moderated_at',
         'moderation_reason',
         'paused_at',

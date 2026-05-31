@@ -105,7 +105,7 @@
                                             @endcan
                                         </div>
                                     @else
-                                        {{ $withdrawal->payer?->name ?? $withdrawal->reviewer?->name ?? 'Closed' }}
+                                        {{ $withdrawal->adminPayer?->name ?? $withdrawal->payer?->name ?? $withdrawal->adminReviewer?->name ?? $withdrawal->reviewer?->name ?? 'Closed' }}
                                     @endif
                                 </td>
                             </tr>

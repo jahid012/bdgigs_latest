@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Events\OrderStatusUpdated;
+use App\Models\Admin;
 use App\Models\ManualPaymentSubmission;
-use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class ManualPaymentReviewService
@@ -13,7 +13,7 @@ class ManualPaymentReviewService
     {
     }
 
-    public function review(ManualPaymentSubmission $submission, User $reviewer, string $decision, ?string $note): ManualPaymentSubmission
+    public function review(ManualPaymentSubmission $submission, Admin $reviewer, string $decision, ?string $note): ManualPaymentSubmission
     {
         return DB::transaction(function () use ($submission, $reviewer, $decision, $note) {
             $approved = $decision === 'approve';
@@ -22,7 +22,8 @@ class ManualPaymentReviewService
             $submission->forceFill([
                 'status' => $approved ? 'approved' : 'rejected',
                 'review_note' => $note,
-                'reviewed_by' => $reviewer->id,
+                'reviewed_by' => null,
+                'reviewed_by_admin_id' => $reviewer->id,
                 'reviewed_at' => now(),
             ])->save();
 
@@ -38,7 +39,7 @@ class ManualPaymentReviewService
                     $recipientId,
                 )));
 
-            return $submission->fresh(['order', 'buyer', 'method', 'reviewer']);
+            return $submission->fresh(['order', 'buyer', 'method', 'reviewer', 'adminReviewer']);
         });
     }
 }

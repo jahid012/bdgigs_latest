@@ -3,28 +3,28 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\UploadAvatarRequest;
 use App\Http\Requests\Api\UpdateBuyerProfileRequest;
 use App\Http\Requests\Api\UpdateSellerProfileRequest;
+use App\Http\Resources\AvatarResource;
 use App\Http\Resources\BuyerProfileResource;
+use App\Http\Resources\DashboardSummaryResource;
 use App\Http\Resources\PublicSellerProfileResource;
 use App\Http\Resources\SellerProfileResource;
 use App\Models\User;
 use App\Services\CountryDetectorService;
 use App\Services\DashboardSummaryService;
 use App\Services\ProfileAvatarUploadService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
-    public function dashboard(Request $request, DashboardSummaryService $summary): JsonResponse
+    public function dashboard(Request $request, DashboardSummaryService $summary): DashboardSummaryResource
     {
         $variant = $request->query('variant') === 'seller' ? 'seller' : 'buyer';
 
-        return response()->json([
-            'data' => $summary->for($request->user(), $variant),
-        ]);
+        return DashboardSummaryResource::make($summary->for($request->user(), $variant));
     }
 
     public function buyerProfile(Request $request, CountryDetectorService $countries): BuyerProfileResource
@@ -89,21 +89,13 @@ class UserController extends Controller
         return SellerProfileResource::make($user->fresh('sellerProfile'));
     }
 
-    public function avatar(Request $request, ProfileAvatarUploadService $uploads): JsonResponse
+    public function avatar(UploadAvatarRequest $request, ProfileAvatarUploadService $uploads): AvatarResource
     {
-        $payload = $request->validate([
-            'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
-        ]);
-
-        $avatar = $uploads->store($payload['avatar'], $request->user()->id);
+        $avatar = $uploads->store($request->validated('avatar'), $request->user()->id);
 
         $request->user()->forceFill(['avatar' => $avatar])->save();
 
-        return response()->json([
-            'data' => [
-                'avatar' => $avatar,
-            ],
-        ]);
+        return AvatarResource::make($avatar);
     }
 
     public function publicSellerProfile(string $username): PublicSellerProfileResource

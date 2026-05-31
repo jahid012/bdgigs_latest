@@ -18,7 +18,7 @@ class UpdateAdminDisputeRequest extends FormRequest
         return [
             'status' => ['required', 'string', Rule::in(Dispute::STATUSES)],
             'priority' => ['required', 'string', Rule::in(Dispute::PRIORITIES)],
-            'assigned_to_id' => ['nullable', 'integer', 'exists:users,id'],
+            'assigned_to_id' => ['nullable', 'integer', 'exists:admins,id'],
             'resolution' => ['nullable', 'string', 'max:3000', 'required_if:status,resolved,rejected,closed'],
             'note' => ['nullable', 'string', 'max:2000'],
         ];

@@ -6,6 +6,7 @@ use App\Events\OrderCancellationAccepted;
 use App\Events\OrderCancellationRejected;
 use App\Events\OrderCancellationRequested;
 use App\Events\OrderCancelled;
+use App\Models\Admin;
 use App\Models\Order;
 use App\Models\OrderCancellation;
 use App\Models\User;
@@ -121,20 +122,24 @@ class OrderCancellationService
         });
     }
 
-    public function adminCancel(Order $order, ?User $actor, string $reason): OrderCancellation
+    public function adminCancel(Order $order, ?Admin $actor, string $reason): OrderCancellation
     {
         $this->ensureCancellable($order);
 
         $cancellation = $order->cancellations()->create([
-            'requester_id' => $actor?->id,
-            'responder_id' => $actor?->id,
+            'requester_id' => null,
+            'responder_id' => null,
             'status' => 'cancelled',
             'reason' => $reason,
             'refund_status' => $order->payment_status === 'paid' ? 'pending' : 'processed',
             'requested_at' => now(),
             'responded_at' => now(),
             'cancelled_at' => now(),
-            'metadata' => ['source' => 'admin'],
+            'metadata' => [
+                'source' => 'admin',
+                'admin_id' => $actor?->id,
+                'admin_name' => $actor?->name,
+            ],
         ]);
 
         if ($order->payment_status === 'paid') {

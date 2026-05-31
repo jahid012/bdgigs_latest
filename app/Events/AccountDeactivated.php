@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\Models\Admin;
 use App\Models\User;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -12,7 +13,7 @@ class AccountDeactivated
 
     public function __construct(
         public User $user,
-        public ?User $actor = null,
+        public User|Admin|null $actor = null,
         public ?string $reason = null,
     ) {
     }

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Events\SellerApplicationApproved;
 use App\Events\SellerApplicationRejected;
 use App\Events\SellerApplicationSubmitted;
+use App\Models\Admin;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -27,6 +28,7 @@ class SellerApplicationService
                 'seller_status' => 'pending',
                 'seller_status_reason' => $payload['reason'] ?? null,
                 'seller_status_reviewed_by' => null,
+                'seller_status_reviewed_by_admin_id' => null,
                 'seller_status_reviewed_at' => null,
             ])->save();
 
@@ -43,17 +45,17 @@ class SellerApplicationService
         });
     }
 
-    public function approve(User $seller, ?User $admin, ?string $reason = null): User
+    public function approve(User $seller, User|Admin|null $admin, ?string $reason = null): User
     {
         return $this->transition($seller, $admin, 'approved', $reason ?: 'Seller application approved.');
     }
 
-    public function reject(User $seller, ?User $admin, string $reason): User
+    public function reject(User $seller, User|Admin|null $admin, string $reason): User
     {
         return $this->transition($seller, $admin, 'rejected', $reason);
     }
 
-    private function transition(User $seller, ?User $admin, string $status, string $reason): User
+    private function transition(User $seller, User|Admin|null $admin, string $status, string $reason): User
     {
         return DB::transaction(function () use ($seller, $admin, $status, $reason) {
             $previous = $seller->seller_status ?: 'not_applied';
@@ -62,12 +64,14 @@ class SellerApplicationService
                 'profile_type' => 'seller',
                 'seller_status' => $status,
                 'seller_status_reason' => $reason,
-                'seller_status_reviewed_by' => $admin?->id,
+                'seller_status_reviewed_by' => $admin instanceof User ? $admin->id : null,
+                'seller_status_reviewed_by_admin_id' => $admin instanceof Admin ? $admin->id : null,
                 'seller_status_reviewed_at' => now(),
             ])->save();
 
             $seller->sellerStatusEvents()->create([
-                'actor_id' => $admin?->id,
+                'actor_id' => $admin instanceof User ? $admin->id : null,
+                'actor_admin_id' => $admin instanceof Admin ? $admin->id : null,
                 'from_status' => $previous,
                 'to_status' => $status,
                 'reason' => $reason,

@@ -25,7 +25,9 @@ class ModerationReport extends Model
         'reason',
         'description',
         'assigned_to_id',
+        'assigned_to_admin_id',
         'resolved_by_id',
+        'resolved_by_admin_id',
         'resolution_note',
         'resolved_at',
         'metadata',
@@ -59,9 +61,19 @@ class ModerationReport extends Model
         return $this->belongsTo(User::class, 'assigned_to_id');
     }
 
+    public function assignedAdmin(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'assigned_to_admin_id');
+    }
+
     public function resolvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'resolved_by_id');
+    }
+
+    public function resolvedByAdmin(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'resolved_by_admin_id');
     }
 
     public function reportable(): MorphTo

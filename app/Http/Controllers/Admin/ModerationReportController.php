@@ -17,7 +17,7 @@ class ModerationReportController extends AdminController
         $status = in_array($status, ['all', ...ModerationReport::STATUSES], true) ? $status : 'pending';
         $type = in_array($type, ['all', ...ModerationReport::TYPES], true) ? $type : 'all';
         $query = ModerationReport::query()
-            ->with(['reporter', 'reportedUser', 'assignedTo', 'resolvedBy'])
+            ->with(['reporter', 'reportedUser', 'assignedTo', 'assignedAdmin', 'resolvedBy', 'resolvedByAdmin'])
             ->latest();
 
         if ($status !== 'all') {
@@ -76,7 +76,7 @@ class ModerationReportController extends AdminController
 
     public function show(ModerationReport $report)
     {
-        $report->load(['reporter', 'reportedUser', 'assignedTo', 'resolvedBy', 'reportable']);
+        $report->load(['reporter', 'reportedUser', 'assignedTo', 'assignedAdmin', 'resolvedBy', 'resolvedByAdmin', 'reportable']);
 
         return $this->panelView('admin.pages.moderation-report-details', [
             'pageTitle' => 'Report '.$report->code,
@@ -100,7 +100,7 @@ class ModerationReportController extends AdminController
             'note' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $reports->updateStatus($report, $request->user(), $payload['status'], $payload['note'] ?? null);
+        $reports->updateStatus($report, $request->user('admin'), $payload['status'], $payload['note'] ?? null);
 
         return back()->withNotify('success', 'Moderation report updated.', 'Report updated');
     }

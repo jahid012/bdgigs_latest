@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Models\User;
+use App\Models\Admin;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -23,9 +24,9 @@ class RoleController extends AdminController
             'searchPlaceholder' => 'Search admin settings',
             'stats' => [
                 ['label' => 'Total roles', 'value' => number_format($roles->count()), 'meta' => 'Admin access groups'],
-                ['label' => 'Total permissions', 'value' => number_format(Permission::count()), 'meta' => 'Action-level controls'],
-                ['label' => 'Admin users', 'value' => number_format(User::permission('admin.access')->count()), 'meta' => 'Can enter admin panel'],
-                ['label' => 'Sensitive permissions', 'value' => number_format(Permission::whereIn('name', $sensitivePermissions)->count()), 'meta' => 'Extra review required'],
+                ['label' => 'Total permissions', 'value' => number_format(Permission::where('guard_name', 'admin')->count()), 'meta' => 'Action-level controls'],
+                ['label' => 'Admin users', 'value' => number_format(Admin::permission('admin.access')->count()), 'meta' => 'Can enter admin panel'],
+                ['label' => 'Sensitive permissions', 'value' => number_format(Permission::where('guard_name', 'admin')->whereIn('name', $sensitivePermissions)->count()), 'meta' => 'Extra review required'],
             ],
             'roles' => $roles,
             'sensitivePermissions' => $sensitivePermissions,
@@ -56,7 +57,7 @@ class RoleController extends AdminController
                 ->withInput();
         }
 
-        if (Role::where('name', $roleName)->where('guard_name', 'web')->exists()) {
+        if (Role::where('name', $roleName)->where('guard_name', 'admin')->exists()) {
             return back()
                 ->withErrors(['label' => 'A role with this name already exists.'])
                 ->withInput();
@@ -64,10 +65,10 @@ class RoleController extends AdminController
 
         $role = Role::create([
             'name' => $roleName,
-            'guard_name' => 'web',
+            'guard_name' => 'admin',
         ]);
 
-        if ($request->boolean('include_admin_access', true) && Permission::where('name', 'admin.access')->exists()) {
+        if ($request->boolean('include_admin_access', true) && Permission::where('name', 'admin.access')->where('guard_name', 'admin')->exists()) {
             $role->givePermissionTo('admin.access');
         }
 
@@ -75,7 +76,7 @@ class RoleController extends AdminController
 
         return redirect()
             ->route('admin.roles.permissions', $role)
-            ->withNotify('success', 'Role created. You can now assign permissions and users to it.', 'Role created');
+            ->withNotify('success', 'Role created. You can now assign permissions and admins to it.', 'Role created');
     }
 
     public function permissions(Role $role)
@@ -112,7 +113,10 @@ class RoleController extends AdminController
     {
         $request->validate([
             'permissions' => ['nullable', 'array'],
-            'permissions.*' => ['string', 'exists:permissions,name'],
+            'permissions.*' => [
+                'string',
+                Rule::exists('permissions', 'name')->where('guard_name', 'admin'),
+            ],
         ]);
 
         $permissionNames = collect($request->input('permissions', []))
@@ -121,8 +125,12 @@ class RoleController extends AdminController
             ->values();
 
         if ($role->name === 'super_admin') {
-            $permissionNames = Permission::query()->pluck('name')->sort()->values();
-        } elseif (Permission::where('name', 'admin.access')->exists() && ! $permissionNames->contains('admin.access')) {
+            $permissionNames = Permission::query()
+                ->where('guard_name', 'admin')
+                ->pluck('name')
+                ->sort()
+                ->values();
+        } elseif (Permission::where('name', 'admin.access')->where('guard_name', 'admin')->exists() && ! $permissionNames->contains('admin.access')) {
             $permissionNames->prepend('admin.access');
         }
 
@@ -139,7 +147,7 @@ class RoleController extends AdminController
         $roles = $this->mappedRoles();
         $search = trim((string) $request->query('q', ''));
         $roleFilter = trim((string) $request->query('role', ''));
-        $usersQuery = User::query()
+        $usersQuery = Admin::query()
             ->with('roles')
             ->orderBy('name')
             ->orderBy('email');
@@ -152,7 +160,7 @@ class RoleController extends AdminController
             });
         }
 
-        if ($roleFilter !== '' && ! Role::where('name', $roleFilter)->exists()) {
+        if ($roleFilter !== '' && ! Role::where('name', $roleFilter)->where('guard_name', 'admin')->exists()) {
             $roleFilter = '';
         }
 
@@ -167,7 +175,7 @@ class RoleController extends AdminController
             ->skip(($pagination['currentPage'] - 1) * $perPage)
             ->take($perPage)
             ->get()
-            ->map(function (User $user) {
+            ->map(function (Admin $user) {
                 $roleNames = $user->roles->pluck('name')->sort()->values();
 
                 return [
@@ -182,10 +190,10 @@ class RoleController extends AdminController
             });
 
         return $this->panelView('admin.pages.role-users', [
-            'pageTitle' => 'Assign Roles to Users',
+            'pageTitle' => 'Assign Roles to Admins',
             'pageEyebrow' => 'Access control',
-            'pageDescription' => 'Find existing users and assign one or more admin roles to grant panel access.',
-            'searchPlaceholder' => 'Search users by name or email',
+            'pageDescription' => 'Find existing admin accounts and assign one or more roles to grant panel access.',
+            'searchPlaceholder' => 'Search admins by name or email',
             'roles' => $roles,
             'assignableUsers' => $users,
             'searchQuery' => $search,
@@ -194,11 +202,14 @@ class RoleController extends AdminController
         ]);
     }
 
-    public function updateUserRoles(Request $request, User $user)
+    public function updateUserRoles(Request $request, Admin $admin)
     {
         $request->validate([
             'roles' => ['nullable', 'array'],
-            'roles.*' => ['string', 'exists:roles,name'],
+            'roles.*' => [
+                'string',
+                Rule::exists('roles', 'name')->where('guard_name', 'admin'),
+            ],
         ]);
 
         $roleNames = collect($request->input('roles', []))
@@ -207,14 +218,14 @@ class RoleController extends AdminController
             ->values()
             ->all();
 
-        $user->syncRoles($roleNames);
+        $admin->syncRoles($roleNames);
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $message = $user->can('admin.access')
-            ? 'Access updated. '.$user->name.' can now use the admin panel according to their role permissions.'
-            : 'Roles updated. This user still cannot access the admin panel until a role includes admin.access.';
+        $message = $admin->can('admin.access')
+            ? 'Access updated. '.$admin->name.' can now use the admin panel according to their role permissions.'
+            : 'Roles updated. This admin still cannot access the admin panel until a role includes admin.access.';
 
-        return back()->withNotify('success', $message, 'User roles updated');
+        return back()->withNotify('success', $message, 'Admin roles updated');
     }
 
     private function mappedRoles()
@@ -223,6 +234,7 @@ class RoleController extends AdminController
 
         return Role::query()
             ->with('permissions')
+            ->where('guard_name', 'admin')
             ->get()
             ->sortBy(fn (Role $role) => $roleMeta->get($role->name)['order'] ?? 99)
             ->values()
@@ -235,7 +247,7 @@ class RoleController extends AdminController
                     'label' => $meta['label'] ?? str($role->name)->replace('_', ' ')->title()->toString(),
                     'description' => $meta['description'] ?? 'Custom access role for the admin panel.',
                     'tone' => $meta['tone'] ?? 'neutral',
-                    'users_count' => User::role($role->name)->count(),
+                    'users_count' => Admin::role($role->name)->count(),
                     'permission_count' => $role->permissions->count(),
                     'permissions' => $role->permissions->pluck('name')->sort()->values()->all(),
                 ];
@@ -260,6 +272,8 @@ class RoleController extends AdminController
             'admin' => ['admin.access'],
             'users' => ['users.view', 'users.verify', 'users.suspend', 'users.impersonate'],
             'gigs' => ['gigs.view', 'gigs.review', 'gigs.publish'],
+            'categories' => ['categories.manage'],
+            'content' => ['content.manage'],
             'orders' => ['orders.view', 'orders.manage'],
             'payments' => ['payments.view', 'payments.release'],
             'manual_payments' => ['manual-payments.view', 'manual-payments.approve'],
@@ -267,6 +281,7 @@ class RoleController extends AdminController
             'disputes' => ['disputes.view', 'disputes.resolve'],
             'reports' => ['reports.view', 'reports.manage'],
             'security' => ['security.view', 'security.review'],
+            'emails' => ['emails.manage'],
             'settings' => ['settings.view', 'settings.update'],
             'roles' => ['roles.manage'],
         ];

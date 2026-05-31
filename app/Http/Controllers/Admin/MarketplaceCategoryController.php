@@ -61,7 +61,7 @@ class MarketplaceCategoryController extends AdminController
 
     public function destroy(MarketplaceCategory $category)
     {
-        abort_unless(auth()->user()?->can('categories.manage'), 403);
+        abort_unless(auth('admin')->user()?->can('categories.manage'), 403);
 
         $category->children()->update(['parent_id' => null]);
         $category->delete();

@@ -7,11 +7,16 @@ use App\Http\Requests\Api\DeactivateAccountRequest;
 use App\Http\Requests\Api\SubmitIdentityVerificationRequest;
 use App\Http\Requests\Api\UpdateAccountPasswordRequest;
 use App\Http\Requests\Api\UpdateNotificationPreferencesRequest;
+use App\Http\Resources\ActionResource;
+use App\Http\Resources\IdentityVerificationResource;
+use App\Http\Resources\NotificationPreferencesResource;
+use App\Http\Resources\UserSettingsResource;
 use App\Events\IdentityDocumentUploadFailed;
 use App\Events\IdentityVerificationSubmitted;
 use App\Events\PasswordChanged;
 use App\Services\AccountStatusService;
 use App\Services\NotificationPreferenceService;
+use App\Services\UserSettingsSnapshotService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,46 +27,9 @@ use Illuminate\Support\Str;
 
 class UserSettingsController extends Controller
 {
-    public function show(Request $request): JsonResponse
+    public function show(Request $request, UserSettingsSnapshotService $settings): UserSettingsResource
     {
-        $user = $request->user();
-        $preferences = $user->notificationPreference()->firstOrCreate([]);
-        $identity = $user->identityVerificationSubmissions()->latest()->first();
-
-        return response()->json([
-            'data' => [
-                'account' => [
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'username' => $user->username,
-                    'country' => $user->country,
-                    'visibility' => $user->last_seen_at?->greaterThan(now()->subSeconds(90)) ? 'Online' : 'Offline',
-                    'verificationStatus' => $user->verification_status,
-                    'emailVerified' => $user->hasVerifiedEmail(),
-                    'emailVerifiedAt' => $user->email_verified_at?->toISOString(),
-                    'accountStatus' => $user->suspended_at
-                        ? 'suspended'
-                        : ($user->deactivated_at ? 'deactivated' : 'active'),
-                    'sellerStatus' => $user->seller_status ?: 'not_applied',
-                    'marketingUnsubscribed' => (bool) $user->marketing_unsubscribed_at,
-                    'twoFactorEnabled' => filled($user->two_factor_secret),
-                ],
-                'notifications' => [
-                    'preferences' => $preferences->preferences ?: [],
-                    'realtimeEnabled' => $preferences->realtime_enabled,
-                    'soundEnabled' => $preferences->sound_enabled,
-                ],
-                'sessions' => $this->sessions($request),
-                'identity' => $identity ? [
-                    'status' => $identity->status,
-                    'details' => $identity->details ?: [],
-                    'documentPath' => $identity->document_path,
-                    'submittedAt' => $identity->submitted_at?->toISOString(),
-                    'reviewNote' => $identity->review_note,
-                    'additionalDocumentNote' => $identity->additional_document_note,
-                ] : null,
-            ],
-        ]);
+        return UserSettingsResource::make($settings->snapshot($request));
     }
 
     public function notifications(
@@ -81,16 +49,12 @@ class UserSettingsController extends Controller
             $preferences->preferences ?: [],
         );
 
-        return response()->json([
-            'data' => [
-                'preferences' => $preferences->preferences ?: [],
-                'realtimeEnabled' => $preferences->realtime_enabled,
-                'soundEnabled' => $preferences->sound_enabled,
-            ],
-        ]);
+        return NotificationPreferencesResource::make($preferences)
+            ->response()
+            ->setStatusCode(200);
     }
 
-    public function password(UpdateAccountPasswordRequest $request): JsonResponse
+    public function password(UpdateAccountPasswordRequest $request): ActionResource
     {
         $payload = $request->validated();
 
@@ -99,7 +63,7 @@ class UserSettingsController extends Controller
         $request->user()->forceFill(['password' => Hash::make($payload['password'])])->save();
         event(new PasswordChanged($request->user()->fresh(), 'settings'));
 
-        return response()->json(['data' => ['updated' => true]]);
+        return ActionResource::make(['updated' => true]);
     }
 
     public function submitIdentity(SubmitIdentityVerificationRequest $request): JsonResponse
@@ -129,19 +93,12 @@ class UserSettingsController extends Controller
         $request->user()->forceFill(['verification_status' => 'submitted'])->save();
         event(new IdentityVerificationSubmitted($submission->fresh(['user'])));
 
-        return response()->json([
-            'data' => [
-                'status' => $submission->status,
-                'details' => $submission->details,
-                'documentPath' => $submission->document_path,
-                'submittedAt' => $submission->submitted_at?->toISOString(),
-                'reviewNote' => $submission->review_note,
-                'additionalDocumentNote' => $submission->additional_document_note,
-            ],
-        ], 201);
+        return IdentityVerificationResource::make($submission)
+            ->response()
+            ->setStatusCode(201);
     }
 
-    public function destroySession(Request $request, string $sessionId): JsonResponse
+    public function destroySession(Request $request, string $sessionId): ActionResource
     {
         DB::table(config('session.table', 'sessions'))
             ->where('user_id', $request->user()->id)
@@ -149,10 +106,10 @@ class UserSettingsController extends Controller
             ->where('id', $sessionId)
             ->delete();
 
-        return response()->json(['data' => ['revoked' => true]]);
+        return ActionResource::make(['revoked' => true]);
     }
 
-    public function deactivate(DeactivateAccountRequest $request, AccountStatusService $accounts): JsonResponse
+    public function deactivate(DeactivateAccountRequest $request, AccountStatusService $accounts): ActionResource
     {
         $payload = $request->validated();
 
@@ -165,23 +122,6 @@ class UserSettingsController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return response()->json(['data' => ['deactivated' => true]]);
-    }
-
-    private function sessions(Request $request): array
-    {
-        return DB::table(config('session.table', 'sessions'))
-            ->where('user_id', $request->user()->id)
-            ->latest('last_activity')
-            ->get(['id', 'ip_address', 'user_agent', 'last_activity'])
-            ->map(fn ($session) => [
-                'id' => $session->id,
-                'ipAddress' => $session->ip_address,
-                'userAgent' => $session->user_agent,
-                'lastActivity' => now()->setTimestamp($session->last_activity)->diffForHumans(),
-                'current' => $session->id === $request->session()->getId(),
-            ])
-            ->values()
-            ->all();
+        return ActionResource::make(['deactivated' => true]);
     }
 }

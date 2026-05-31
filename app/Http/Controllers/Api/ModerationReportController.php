@@ -3,22 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\ModerationReport;
+use App\Http\Requests\Api\StoreModerationReportRequest;
+use App\Http\Resources\ModerationReportResource;
 use App\Services\ModerationReportService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class ModerationReportController extends Controller
 {
-    public function store(Request $request, ModerationReportService $reports): JsonResponse
+    public function store(StoreModerationReportRequest $request, ModerationReportService $reports): JsonResponse
     {
-        $payload = $request->validate([
-            'type' => ['required', 'string', Rule::in(ModerationReport::TYPES)],
-            'targetId' => ['required'],
-            'reason' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:2000'],
-        ]);
+        $payload = $request->validated();
 
         $report = $reports->create(
             $request->user(),
@@ -28,11 +22,8 @@ class ModerationReportController extends Controller
             $payload['description'] ?? null,
         );
 
-        return response()->json([
-            'data' => [
-                'code' => $report->code,
-                'status' => $report->status,
-            ],
-        ], 201);
+        return ModerationReportResource::make($report)
+            ->response()
+            ->setStatusCode(201);
     }
 }

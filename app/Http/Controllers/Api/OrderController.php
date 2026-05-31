@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\DecideOrderTimeExtensionRequest;
+use App\Http\Requests\Api\DecideOrderCancellationRequest;
 use App\Http\Requests\Api\RequestOrderRevisionRequest;
+use App\Http\Requests\Api\RequestOrderCancellationRequest;
 use App\Http\Requests\Api\StoreDisputeMessageRequest;
+use App\Http\Requests\Api\StoreOrderDisputeEvidenceRequest;
 use App\Http\Requests\Api\StoreOrderDisputeRequest;
 use App\Http\Requests\Api\StoreOrderPrivateNoteRequest;
 use App\Http\Requests\Api\StoreOrderReviewRequest;
@@ -13,6 +16,7 @@ use App\Http\Requests\Api\StoreOrderTimeExtensionRequest;
 use App\Http\Requests\Api\SubmitOrderDeliveryRequest;
 use App\Http\Requests\Api\SubmitOrderRequirementsRequest;
 use App\Http\Resources\OrderDetailResource;
+use App\Http\Resources\OrderReceiptResource;
 use App\Http\Resources\OrderResource;
 use App\Models\Dispute;
 use App\Models\Order;
@@ -139,19 +143,12 @@ class OrderController extends Controller
     }
 
     public function storeDisputeEvidence(
-        Request $request,
+        StoreOrderDisputeEvidenceRequest $request,
         Order $order,
         Dispute $dispute,
         OrderDisputeService $disputes
     ): OrderDetailResource {
-        $payload = $request->validate([
-            'note' => ['nullable', 'string', 'max:2000'],
-            'message' => ['nullable', 'string', 'max:2000'],
-            'attachments' => ['nullable', 'array', 'max:5'],
-            'attachments.*' => ['file', 'max:10240'],
-        ]);
-
-        $disputes->evidence($order->loadMissing(['buyer', 'seller']), $dispute, $request->user(), $payload);
+        $disputes->evidence($order->loadMissing(['buyer', 'seller']), $dispute, $request->user(), $request->validated());
 
         return $this->detailResponse($request, $order->refresh());
     }
@@ -217,13 +214,11 @@ class OrderController extends Controller
     }
 
     public function requestCancellation(
-        Request $request,
+        RequestOrderCancellationRequest $request,
         Order $order,
         OrderCancellationService $cancellations
     ): OrderDetailResource {
-        $payload = $request->validate([
-            'reason' => ['required', 'string', 'min:10', 'max:1000'],
-        ]);
+        $payload = $request->validated();
 
         $cancellations->request($order->loadMissing(['buyer', 'seller', 'latestCancellation']), $request->user(), $payload['reason']);
 
@@ -231,14 +226,11 @@ class OrderController extends Controller
     }
 
     public function decideCancellation(
-        Request $request,
+        DecideOrderCancellationRequest $request,
         Order $order,
         OrderCancellationService $cancellations
     ): OrderDetailResource {
-        $payload = $request->validate([
-            'decision' => ['required', 'string', 'in:accept,reject'],
-            'note' => ['nullable', 'string', 'max:1000'],
-        ]);
+        $payload = $request->validated();
 
         $payload['decision'] === 'accept'
             ? $cancellations->accept($order->loadMissing(['buyer', 'seller', 'latestCancellation']), $request->user(), $payload['note'] ?? null)
@@ -265,7 +257,7 @@ class OrderController extends Controller
             return response()->view('receipts.order', ['receipt' => $payload]);
         }
 
-        return response()->json(['data' => $payload]);
+        return OrderReceiptResource::make($payload)->response();
     }
 
     private function detailResponse(Request $request, Order $order): OrderDetailResource
@@ -275,14 +267,18 @@ class OrderController extends Controller
             'seller',
             'gig',
             'activities.actor',
+            'activities.adminActor',
             'invoice',
             'latestCancellation.requester',
             'latestCancellation.responder',
             'manualPaymentSubmission.method',
+            'manualPaymentSubmission.adminReviewer',
             'timeExtensionRequests.requester',
             'timeExtensionRequests.reviewer',
             'disputes.openedBy',
+            'disputes.openedByAdmin',
             'disputes.activities.actor',
+            'disputes.activities.adminActor',
             'reviews.reviewer',
             'reviews.reviewee',
         ]);

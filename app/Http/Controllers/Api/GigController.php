@@ -5,57 +5,47 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\MarketplaceGigResource;
 use App\Models\Gig;
+use App\Models\User;
+use App\Services\MarketplaceGigCatalogService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class GigController extends Controller
 {
+    public function __construct(private readonly MarketplaceGigCatalogService $catalog)
+    {
+    }
+
     public function index(Request $request): AnonymousResourceCollection
     {
         return MarketplaceGigResource::collection(
-            $this->marketplaceQuery($request)
-                ->latest('featured')
-                ->latest()
-                ->get()
+            $this->catalog->marketplaceGigs($this->currentUser($request))
         );
     }
 
     public function show(Request $request, Gig $gig): MarketplaceGigResource
     {
         abort_unless(
-            $this->isMarketplaceVisible($gig)
-                || $request->user()?->id === $gig->seller_id,
+            $this->catalog->isVisible($gig)
+                || $this->currentUser($request)?->id === $gig->seller_id,
             404
         );
 
         $gig->load(['seller.sellerProfile', 'media']);
 
-        if ($request->user()) {
+        if ($user = $this->currentUser($request)) {
             $gig->load([
-                'savedByUsers' => fn ($savedByUsers) => $savedByUsers->whereKey($request->user()->id),
+                'savedByUsers' => fn ($savedByUsers) => $savedByUsers->whereKey($user->id),
             ]);
         }
 
         return MarketplaceGigResource::make($gig);
     }
 
-    private function marketplaceQuery(Request $request)
+    private function currentUser(Request $request): ?User
     {
-        $query = Gig::query()
-            ->with(['seller.sellerProfile', 'media'])
-            ->whereIn('status', ['Live', 'Published', 'approved']);
+        $user = $request->user();
 
-        if ($request->user()) {
-            $query->with([
-                'savedByUsers' => fn ($savedByUsers) => $savedByUsers->whereKey($request->user()->id),
-            ]);
-        }
-
-        return $query;
-    }
-
-    private function isMarketplaceVisible(Gig $gig): bool
-    {
-        return in_array($gig->status, ['Live', 'Published', 'approved'], true);
+        return $user instanceof User ? $user : null;
     }
 }
